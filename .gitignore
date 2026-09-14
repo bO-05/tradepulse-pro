@@ -40,10 +40,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Testing & Coverage
+# Testing, Coverage & Test Scratch Files
 coverage
 .nyc_output
 *.lcov
+test_scratch/
+tests_scratch/
+test-scratch/
+tests/scratch/
+tests/temp/
+test-temp/
+*.scratch
+*.scratch.*
 
 # Python artifacts (for tests & verification scripts)
 __pycache__/
@@ -85,12 +93,21 @@ Desktop.ini
 
 # Agent scratch, caches & temporary files
 .system_generated/
+**/.system_generated/
+**/.system_generated/**
 .cache/
 **/.cache/
 *.cache
 .agent_cache/
+**/.agent_cache/
 .agents_cache/
+**/.agents_cache/
 agent-cache/
+agents-cache/
+.gemini/
+**/.gemini/
+.antigravity/
+**/.antigravity/
 .tmp/
 *.tmp
 *.temp
@@ -100,3 +117,4 @@ changelog.md
 all-gas-hackathon-copy-prompt*.md
 scratch/
 doc/
+

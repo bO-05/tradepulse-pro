@@ -133,7 +133,7 @@ Want to experience the complete platform in 60 seconds?
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/<username>/tradepulse-pro.git
+git clone https://github.com/bO-05/tradepulse-pro.git
 cd tradepulse-pro
 
 # Install dependencies

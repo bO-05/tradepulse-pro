@@ -4,7 +4,7 @@
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Autonomous CSI MasterFormat subcontractor procurement, dynamic pre-bid Q&A, and real-time bid leveling for commercial construction.
 - **Live app:** https://brainy-skunk-440.convex.site
-- **Repo:** none
+- **Repo:** https://github.com/bO-05/tradepulse-pro
 - **Frontend:** Convex static hosting
 - **Convex deployment:** brainy-skunk-440
 - **Components:** @convex-dev/static-hosting, @firecrawl/firecrawl-convex, @agentmail/convex
