@@ -1,0 +1,281 @@
+{
+  "version": "1.0.0",
+  "standard": "ASPE / AGC / CPE Commercial Bid Leveling Guidelines",
+  "project": {
+    "title": "The Domain Tower B - Commercial MEP",
+    "location": "Austin, TX",
+    "totalBudget": 4250000,
+    "packages": {
+      "26 00 00": { "name": "Electrical & Lighting Systems", "budget": 1250000, "milestoneLeadWeeks": 12 },
+      "23 00 00": { "name": "HVAC & Mechanical Systems", "budget": 1850000, "milestoneLeadWeeks": 16 },
+      "22 00 00": { "name": "Plumbing & Piping Systems", "budget": 950000, "milestoneLeadWeeks": 16 }
+    }
+  },
+  "cases": [
+    {
+      "caseId": "case-26-01-austin-metro",
+      "csiDivision": "26 00 00",
+      "tradeName": "Electrical & Lighting Systems",
+      "contractorName": "Alterman, Inc.",
+      "description": "Deceptive low-ball proposal with hidden exclusions and delayed switchgear lead time.",
+      "rawProposalText": "ALTERMAN, INC. - FORMAL PROPOSAL\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Austin, TX\nWe hereby propose to furnish and install electrical distribution and architectural lighting systems for the lump sum of $1,100,000.00.\nLead time on main 1600A service switchboard is 16 weeks from approved submittal.\nEXCLUSIONS & CLARIFICATIONS:\n1. Crane hoisting and rigging to 14th-floor penthouse plant room excluded (GC to furnish tower crane).\n2. UL 1479 floor and wall through-penetration rated firestopping excluded (by others).\n3. Engineered seismic structural bracing per IBC Section 1613 excluded.\n4. Overtime and weekend premium time excluded; base bid reflects straight time only.\nStandard statutory worker's comp and $1M general liability included. Umbrella liability endorsement excluded.",
+      "groundTruth": {
+        "baseBidAmount": 1100000,
+        "exclusions": [
+          { "canonicalCode": "CSI_26_CRANE", "description": "Crane hoisting to penthouse plant room excluded", "costImpact": 45000, "severity": "critical" },
+          { "canonicalCode": "CSI_26_FIRESTOP", "description": "UL 1479 floor/wall rated firestop penetrations excluded", "costImpact": 22000, "severity": "critical" },
+          { "canonicalCode": "CSI_26_SEISMIC", "description": "IBC Section 1613 engineered structural seismic bracing excluded", "costImpact": 55000, "severity": "critical" },
+          { "canonicalCode": "CSI_26_OVERTIME", "description": "Overtime and weekend premium time excluded", "costImpact": 25000, "severity": "moderate" }
+        ],
+        "exclusionsTotal": 147000,
+        "leadTimeWeeks": 16,
+        "leadTimePenalty": 24000,
+        "coiComplianceStatus": "deficient",
+        "coiPenalty": 15000,
+        "valueEngineeringDeducts": 0,
+        "leveledTotalCost": 1286000,
+        "isWinningBidder": false,
+        "varianceVsLow": 61000,
+        "expertVerdict": "REJECT - Deceptive low base bid ($1,100,000) unmasked as highest true cost ($1,286,000) due to +$147k in scope gaps and +$24k schedule risk."
+      }
+    },
+    {
+      "caseId": "case-26-02-lone-star",
+      "csiDivision": "26 00 00",
+      "tradeName": "Electrical & Lighting Systems",
+      "contractorName": "Rosendin Electric, Inc.",
+      "description": "Fully compliant responsible proposal with accepted aluminum feeder Value Engineering deduct.",
+      "rawProposalText": "ROSENDIN ELECTRIC, INC. - PROPOSAL & BID SUBMITTAL\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Class-A Commercial\nWe propose to furnish all labor, materials, hoisting, and engineering for Division 26 Electrical Systems for $1,225,000.00.\nAll crane hoisting, UL 1479 firestopping, and seismic engineering are INCLUDED in base bid.\nLead time on primary switchgear: 10 weeks (well within 12-week schedule milestone).\nInsurance: Travelers ACORD 25 with $5,000,000 commercial umbrella liability and GC named as additional insured.\nVALUE ENGINEERING ALTERNATES:\nVE-01: Furnish aluminum alloy MC feeder cable in lieu of copper conduit run: DEDUCT ($35,000.00).",
+      "groundTruth": {
+        "baseBidAmount": 1225000,
+        "exclusions": [],
+        "exclusionsTotal": 0,
+        "leadTimeWeeks": 10,
+        "leadTimePenalty": 0,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "valueEngineering": [
+          { "id": "VE-01", "description": "Aluminum alloy MC feeder cable in lieu of copper conduit", "costDeduct": 35000, "isAccepted": true }
+        ],
+        "valueEngineeringDeducts": 35000,
+        "leveledTotalCost": 1190000,
+        "isWinningBidder": true,
+        "varianceVsLow": 0,
+        "expertVerdict": "AWARD - Lowest responsible leveled bid ($1,190,000 with VE-01). Zero scope gaps, zero schedule risk, full $5M umbrella coverage."
+      }
+    },
+    {
+      "caseId": "case-26-03-capital-grid",
+      "csiDivision": "26 00 00",
+      "tradeName": "Electrical & Lighting Systems",
+      "contractorName": "Prism Electric, Inc.",
+      "description": "Comprehensive electrical proposal with dual accepted VE alternates.",
+      "rawProposalText": "PRISM ELECTRIC, INC.\nTo: Austin Commercial, LP\nScope: Complete Division 26 Electrical & Lighting per Project Specifications.\nBase Bid Lump Sum: $1,240,000.00.\nLead time on equipment: 11 weeks.\nAll hoisting, engineering, seismic calculations, and UL firestopping included.\nACORD 25 Certificate attached with $10M umbrella endorsement.\nPROPOSED VALUE ENGINEERING:\n- VE-E1: Dry-type transformer efficiency package optimization: DEDUCT ($28,000.00)\n- VE-E2: Commercial grade architectural LED downlight substitution: DEDUCT ($14,000.00)",
+      "groundTruth": {
+        "baseBidAmount": 1240000,
+        "exclusions": [],
+        "exclusionsTotal": 0,
+        "leadTimeWeeks": 11,
+        "leadTimePenalty": 0,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "valueEngineering": [
+          { "id": "VE-E1", "description": "Dry-type transformer efficiency package optimization", "costDeduct": 28000, "isAccepted": true },
+          { "id": "VE-E2", "description": "Commercial grade architectural LED downlight substitution", "costDeduct": 14000, "isAccepted": true }
+        ],
+        "valueEngineeringDeducts": 42000,
+        "leveledTotalCost": 1198000,
+        "isWinningBidder": false,
+        "varianceVsLow": 8000,
+        "expertVerdict": "RUNNER-UP - Leveled cost $1,198,000. Clean proposal, only $8,000 higher than Rosendin Electric."
+      }
+    },
+    {
+      "caseId": "case-23-01-travis-county",
+      "csiDivision": "23 00 00",
+      "tradeName": "HVAC & Mechanical Systems",
+      "contractorName": "The Brandt Companies, LLC",
+      "description": "Deceptive low-ball mechanical proposal with cooling tower crane, TAB, and BACnet exclusions.",
+      "rawProposalText": "THE BRANDT COMPANIES, LLC - COMMERCIAL ESTIMATING\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Division 23 Mechanical\nLump sum quotation: $1,650,000.00.\nChiller equipment lead time: 18 weeks (target milestone is 16 weeks).\nSPECIFIC EXCLUSIONS:\n1. Rooftop crane pick and rigging to cooling tower deck excluded (GC crane required).\n2. Testing, Adjusting, and Balancing (TAB) certified independent balance report excluded.\n3. BACnet MS/TP automation integration gateway card excluded.\n4. Mason Industries 2-inch spring vibration isolation hangers excluded.\nStandard statutory insurance limits only. Excess umbrella liability not provided.",
+      "groundTruth": {
+        "baseBidAmount": 1650000,
+        "exclusions": [
+          { "canonicalCode": "CSI_23_CRANE", "description": "Rooftop crane pick and rigging to cooling tower deck excluded", "costImpact": 48000, "severity": "critical" },
+          { "canonicalCode": "CSI_23_TAB", "description": "Testing, Adjusting, and Balancing (TAB) certified report excluded", "costImpact": 28000, "severity": "critical" },
+          { "canonicalCode": "CSI_23_BACNET", "description": "BACnet MS/TP automation integration gateway card excluded", "costImpact": 18000, "severity": "moderate" },
+          { "canonicalCode": "CSI_23_VIBRATION", "description": "Mason Industries 2-inch spring vibration isolation hangers excluded", "costImpact": 14000, "severity": "moderate" }
+        ],
+        "exclusionsTotal": 108000,
+        "leadTimeWeeks": 18,
+        "leadTimePenalty": 12000,
+        "coiComplianceStatus": "deficient",
+        "coiPenalty": 15000,
+        "valueEngineeringDeducts": 0,
+        "leveledTotalCost": 1785000,
+        "isWinningBidder": false,
+        "varianceVsLow": 45000,
+        "expertVerdict": "REJECT - Appears $110,000 low, but +$108k in scope plug adders and +$27k in penalties normalize total to $1,785,000."
+      }
+    },
+    {
+      "caseId": "case-23-02-hill-country",
+      "csiDivision": "23 00 00",
+      "tradeName": "HVAC & Mechanical Systems",
+      "contractorName": "TDIndustries, Inc.",
+      "description": "Fully compliant responsible mechanical bid with full rigging, certified TAB, and automation gateway.",
+      "rawProposalText": "TDINDUSTRIES, INC.\nTo: Austin Commercial, LP\nScope: Complete HVAC & Hydronic Mechanical Systems per Specification 23 00 00.\nTotal Lump Sum Price: $1,820,000.00.\nIncludes all rooftop mobile crane picks, certified AABC/NEBB TAB balancing, BACnet automation gateway, and vibration isolation.\nLead time: 12 weeks (well within 16-week project milestone).\nInsurance: Fully compliant with $5,000,000 excess umbrella policy naming GC and Owner as additional insured.",
+      "groundTruth": {
+        "baseBidAmount": 1820000,
+        "exclusions": [],
+        "exclusionsTotal": 0,
+        "leadTimeWeeks": 12,
+        "leadTimePenalty": 0,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "valueEngineeringDeducts": 0,
+        "leveledTotalCost": 1820000,
+        "isWinningBidder": false,
+        "varianceVsLow": 80000,
+        "expertVerdict": "COMPLIANT - Reliable baseline bidder, zero scope gaps, full compliance."
+      }
+    },
+    {
+      "caseId": "case-23-03-austin-air",
+      "csiDivision": "23 00 00",
+      "tradeName": "HVAC & Mechanical Systems",
+      "contractorName": "Dynamic Systems, Inc.",
+      "description": "Mid-range mechanical bidder with minor commissioning exclusion and high-value equipment deduct.",
+      "rawProposalText": "DYNAMIC SYSTEMS, INC.\nTo: Austin Commercial, LP\nProposal for Division 23 HVAC Mechanical: $1,760,000.00.\nEquipment lead time: 14 weeks.\nNote: BACnet control network field commissioning omitted (+$12,000 plug estimated).\nAll crane picks and TAB balance reports are included.\nVALUE ENGINEERING:\nVE-M1: Variable speed scroll chiller substitution in lieu of centrifugal: DEDUCT ($32,000.00).",
+      "groundTruth": {
+        "baseBidAmount": 1760000,
+        "exclusions": [
+          { "canonicalCode": "CSI_23_BACNET", "description": "BACnet control network field commissioning omitted", "costImpact": 12000, "severity": "moderate" }
+        ],
+        "exclusionsTotal": 12000,
+        "leadTimeWeeks": 14,
+        "leadTimePenalty": 0,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "valueEngineering": [
+          { "id": "VE-M1", "description": "Variable speed scroll chiller substitution", "costDeduct": 32000, "isAccepted": true }
+        ],
+        "valueEngineeringDeducts": 32000,
+        "leveledTotalCost": 1740000,
+        "isWinningBidder": true,
+        "varianceVsLow": 0,
+        "expertVerdict": "AWARD - Lowest responsible leveled bid ($1,740,000) after normalizing minor $12k commissioning plug and accepting $32k VE deduct."
+      }
+    },
+    {
+      "caseId": "case-22-01-colorado-river",
+      "csiDivision": "22 00 00",
+      "tradeName": "Plumbing & Piping Systems",
+      "contractorName": "Limbach Facility Services LLC",
+      "description": "Deceptive low-ball plumbing bid excluding core drilling, municipal backflow testing, and pump startup.",
+      "rawProposalText": "LIMBACH FACILITY SERVICES LLC - BID SUBMISSION\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Division 22 Plumbing\nLump sum base bid: $820,000.00.\nLead time on domestic water booster skid: 18 weeks (target milestone is 16 weeks).\nEXCLUDED ITEMS:\n1. Core drilling and floor/wall penetration sleeves (to be furnished by concrete sub).\n2. City of Austin municipal backflow preventer inspection certification.\n3. Triplex booster pump factory certified technician startup.\n4. Penthouse crane hoisting of pump skid.\nStatutory insurance only; umbrella endorsement not provided.",
+      "groundTruth": {
+        "baseBidAmount": 820000,
+        "exclusions": [
+          { "canonicalCode": "CSI_22_CORE_DRILL", "description": "Core drilling and floor/wall penetration sleeves excluded", "costImpact": 16000, "severity": "critical" },
+          { "canonicalCode": "CSI_22_BACKFLOW", "description": "City of Austin municipal backflow preventer inspection certification excluded", "costImpact": 8500, "severity": "moderate" },
+          { "canonicalCode": "CSI_22_BOOSTER_STARTUP", "description": "Triplex booster pump factory certified startup excluded", "costImpact": 12000, "severity": "moderate" },
+          { "canonicalCode": "CSI_22_CRANE", "description": "Penthouse crane hoisting of pump skid excluded", "costImpact": 25000, "severity": "critical" }
+        ],
+        "exclusionsTotal": 61500,
+        "leadTimeWeeks": 18,
+        "leadTimePenalty": 12000,
+        "coiComplianceStatus": "deficient",
+        "coiPenalty": 15000,
+        "valueEngineeringDeducts": 0,
+        "leveledTotalCost": 908500,
+        "isWinningBidder": true,
+        "varianceVsLow": 0,
+        "expertVerdict": "AWARD (LEVELED) - Low bid normalized from $820,000 to $908,500. Remains winning bid by $26,500 vs Clarke Kent Plumbing ($935,000), but contract sum must be written at $908,500 to prevent change orders."
+      }
+    },
+    {
+      "caseId": "case-22-02-apex-piping",
+      "csiDivision": "22 00 00",
+      "tradeName": "Plumbing & Piping Systems",
+      "contractorName": "Clarke Kent Plumbing",
+      "description": "Fully inclusive plumbing proposal with factory certified startup and municipal inspections included.",
+      "rawProposalText": "CLARKE KENT PLUMBING\nTo: Austin Commercial, LP\nScope: Complete Division 22 Domestic Water, Sanitary Waste, and Vent Systems.\nTotal Lump Sum Price: $935,000.00.\nAll core drilling, penetration sleeves, backflow certification, crane hoisting, and certified factory startup are 100% INCLUDED.\nLead time: 10 weeks.\nInsurance: Fully compliant with $5,000,000 excess umbrella policy.",
+      "groundTruth": {
+        "baseBidAmount": 935000,
+        "exclusions": [],
+        "exclusionsTotal": 0,
+        "leadTimeWeeks": 10,
+        "leadTimePenalty": 0,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "valueEngineeringDeducts": 0,
+        "leveledTotalCost": 935000,
+        "isWinningBidder": false,
+        "varianceVsLow": 26500,
+        "expertVerdict": "RUNNER-UP - Clean compliant proposal at $935,000. Zero exclusions, but $26,500 higher than leveled Limbach."
+      }
+    },
+    {
+      "caseId": "case-mep-01-double-buys",
+      "csiDivision": "MEP Cross-Trade",
+      "tradeName": "Electrical (Div 26) & Mechanical (Div 23) Coordination",
+      "contractorName": "Multi-Trade Scope Alignment Engine",
+      "description": "Cross-trade coordination matrix identifying duplicate equipment buyouts between Division 26 and Division 23.",
+      "groundTruth": {
+        "doubleBuys": [
+          {
+            "id": "clash-vfd-01",
+            "title": "Variable Frequency Drives (VFDs) Redundant Buyout",
+            "primaryTradeDivision": "26 00 00",
+            "primaryCost": 42000,
+            "secondaryTradeDivision": "23 00 00",
+            "secondaryCost": 38500,
+            "redundantAmount": 38500,
+            "resolution": "Mechanical equipment package includes factory mounted VFDs. Deduct credit of $38,500 from Division 26 Electrical buyout."
+          },
+          {
+            "id": "clash-disconnect-02",
+            "title": "Motor Disconnect Switches Redundant Buyout",
+            "primaryTradeDivision": "26 00 00",
+            "primaryCost": 14500,
+            "secondaryTradeDivision": "23 00 00",
+            "secondaryCost": 12000,
+            "redundantAmount": 12000,
+            "resolution": "Electrical contractor furnishes and installs all field disconnects per NEC 430.102. Deduct credit of $12,000 from Division 23 Mechanical buyout."
+          }
+        ],
+        "totalRedundantAmount": 50500,
+        "expertVerdict": "COORDINATION PASS - Exactly 2 double-buys caught, saving Owner $50,500 in duplicate equipment payments."
+      }
+    },
+    {
+      "caseId": "case-mep-02-scope-voids",
+      "csiDivision": "MEP Cross-Trade",
+      "tradeName": "Electrical (Div 26) & Mechanical (Div 23) Coordination",
+      "contractorName": "Multi-Trade Scope Alignment Engine",
+      "description": "Cross-trade coordination matrix identifying unallocated orphaned scope voids omitted by both trades.",
+      "groundTruth": {
+        "scopeVoids": [
+          {
+            "id": "void-bas-wiring-01",
+            "title": "Low-Voltage BAS / DDC Temperature Control Wiring",
+            "omittedByDivisions": ["26 00 00", "23 00 00"],
+            "estimatedVoidCost": 28000,
+            "riskLevel": "critical",
+            "resolution": "Assign control wiring responsibility to Division 23 HVAC with $28,000 scope plug adder before subcontract award."
+          },
+          {
+            "id": "void-smoke-detectors-02",
+            "title": "Duct Smoke Detector Installation & Shutdown Interlock",
+            "omittedByDivisions": ["26 00 00", "23 00 00"],
+            "estimatedVoidCost": 18500,
+            "riskLevel": "critical",
+            "resolution": "Assign physical sampling tube installation to HVAC (Div 23) and FACP shutdown relay interlock wiring to Electrical (Div 26)."
+          }
+        ],
+        "totalVoidExposure": 46500,
+        "expertVerdict": "COORDINATION PASS - Exactly 2 scope voids caught, eliminating $46,500 in unbudgeted change order exposure."
+      }
+    }
+  ]
+}

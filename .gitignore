@@ -1,0 +1,102 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Production build outputs
+dist/
+dist-ssr/
+build/
+out/
+*.tsbuildinfo
+.tsbuildinfo
+
+# Convex
+# NOTE: convex/_generated/ is intentionally tracked in git per official Convex best practices.
+.convex
+
+# Environment variables, credentials & secrets
+.env
+.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.secret
+*.token
+credentials.json
+secrets.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing & Coverage
+coverage
+.nyc_output
+*.lcov
+
+# Python artifacts (for tests & verification scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Editors & IDEs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+.cursor/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swo
+*.swp
+*~
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Agent scratch, caches & temporary files
+.system_generated/
+.cache/
+**/.cache/
+*.cache
+.agent_cache/
+.agents_cache/
+agent-cache/
+.tmp/
+*.tmp
+*.temp
+task.md
+files.md
+changelog.md
+all-gas-hackathon-copy-prompt*.md
+scratch/
+doc/

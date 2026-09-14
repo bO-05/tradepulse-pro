@@ -1,0 +1,1114 @@
+{
+  "runSummary": {
+    "leveledCostMape": 0,
+    "overallScore": 100,
+    "passedCases": 10,
+    "runId": "eval_1789352157433",
+    "scopePrecisionAvg": 1,
+    "scopeRecallAvg": 1,
+    "scoreCard": [
+      {
+        "aiLeveledCost": 1286000,
+        "apePercent": 0,
+        "caseId": "case-26-01-austin-metro",
+        "coiPassed": true,
+        "contractorName": "Alterman, Inc.",
+        "csiDivision": "26 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1286000,
+        "latencyMs": 7468,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Electrical & Lighting Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 1190000,
+        "apePercent": 0,
+        "caseId": "case-26-02-lone-star",
+        "coiPassed": true,
+        "contractorName": "Rosendin Electric, Inc.",
+        "csiDivision": "26 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1190000,
+        "latencyMs": 3983,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Electrical & Lighting Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 1198000,
+        "apePercent": 0,
+        "caseId": "case-26-03-capital-grid",
+        "coiPassed": true,
+        "contractorName": "Prism Electric, Inc.",
+        "csiDivision": "26 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1198000,
+        "latencyMs": 5663,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Electrical & Lighting Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 1785000,
+        "apePercent": 0,
+        "caseId": "case-23-01-travis-county",
+        "coiPassed": true,
+        "contractorName": "The Brandt Companies, LLC",
+        "csiDivision": "23 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1785000,
+        "latencyMs": 6504,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "HVAC & Mechanical Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 1820000,
+        "apePercent": 0,
+        "caseId": "case-23-02-hill-country",
+        "coiPassed": true,
+        "contractorName": "TDIndustries, Inc.",
+        "csiDivision": "23 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1820000,
+        "latencyMs": 4156,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "HVAC & Mechanical Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 1740000,
+        "apePercent": 0,
+        "caseId": "case-23-03-austin-air",
+        "coiPassed": true,
+        "contractorName": "Dynamic Systems, Inc.",
+        "csiDivision": "23 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1740000,
+        "latencyMs": 4377,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "HVAC & Mechanical Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 908500,
+        "apePercent": 0,
+        "caseId": "case-22-01-colorado-river",
+        "coiPassed": true,
+        "contractorName": "Limbach Facility Services LLC",
+        "csiDivision": "22 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 908500,
+        "latencyMs": 8542,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Plumbing & Piping Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 935000,
+        "apePercent": 0,
+        "caseId": "case-22-02-apex-piping",
+        "coiPassed": true,
+        "contractorName": "Clarke Kent Plumbing",
+        "csiDivision": "22 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 935000,
+        "latencyMs": 3292,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Plumbing & Piping Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 50500,
+        "apePercent": 0,
+        "caseId": "case-mep-01-double-buys",
+        "coiPassed": true,
+        "contractorName": "Cross-Trade Alignment Engine",
+        "csiDivision": "MEP Cross-Trade",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 50500,
+        "latencyMs": 37209,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Div 26 & Div 23 Double-Buy Coordination",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      {
+        "aiLeveledCost": 46500,
+        "apePercent": 0,
+        "caseId": "case-mep-02-scope-voids",
+        "coiPassed": true,
+        "contractorName": "Cross-Trade Alignment Engine",
+        "csiDivision": "MEP Cross-Trade",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 46500,
+        "latencyMs": 37209,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Div 26 & Div 23 Scope Void Coordination",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      }
+    ],
+    "success": true,
+    "targetEnvironment": "prod",
+    "totalCases": 10,
+    "totalDurationMs": 45831,
+    "tracesCount": 10
+  },
+  "traces": [
+    {
+      "_creationTime": 1789352160768.3162,
+      "_id": "k570gtm140pdkye033gq19cn218ed8fv",
+      "caseId": "case-22-02-apex-piping",
+      "contractorName": "Clarke Kent Plumbing",
+      "costUsd": 0.0025,
+      "csiDivision": "22 00 00",
+      "groundTruth": {
+        "baseBid": 935000,
+        "coiPenalty": 0,
+        "coiStatus": "compliant",
+        "exclusionsTotal": 0,
+        "expectedCodes": [],
+        "leadPenalty": 0,
+        "leadWeeks": 10,
+        "leveledCost": 935000,
+        "veDeduct": 0
+      },
+      "inputTokens": 122,
+      "latencyMs": 3292,
+      "metrics": {
+        "aiLeveledCost": 935000,
+        "apePercent": 0,
+        "caseId": "case-22-02-apex-piping",
+        "coiPassed": true,
+        "contractorName": "Clarke Kent Plumbing",
+        "csiDivision": "22 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 935000,
+        "latencyMs": 3292,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Plumbing & Piping Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 116,
+      "parsedOutput": {
+        "baseBidAmount": 935000,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "identifiedExclusions": [],
+        "leadTimePenalty": 0,
+        "leveledTotalCost": 935000,
+        "lineItems": [
+          {
+            "item": "Complete Division 22 Domestic Water, Sanitary Waste, and Vent Systems",
+            "quantity": 1,
+            "totalCost": 935000,
+            "unit": "LS",
+            "unitCost": 935000
+          }
+        ],
+        "longLeadEquipmentWeeks": 10,
+        "subcontractorName": "CLARKE KENT PLUMBING",
+        "valueEngineeringAlternates": []
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 22 00 00 (Plumbing & Piping Systems):\n\nCLARKE KENT PLUMBING\nTo: Austin Commercial, LP\nScope: Complete Division 22 Domestic Water, Sanitary Waste, and Vent Systems.\nTotal Lump Sum Price: $935,000.00.\nAll core drilling, penetration sleeves, backflow certification, crane hoisting, and certified factory startup are 100% INCLUDED.\nLead time: 10 weeks.\nInsurance: Fully compliant with $5,000,000 excess umbrella policy.",
+      "rawResponse": "{\n  \"subcontractorName\": \"CLARKE KENT PLUMBING\",\n  \"baseBidAmount\": 935000,\n  \"lineItems\": [\n    {\"item\": \"Complete Division 22 Domestic Water, Sanitary Waste, and Vent Systems\", \"unit\": \"LS\", \"quantity\": 1, \"unitCost\": 935000, \"totalCost\": 935000}\n  ],\n  \"identifiedExclusions\": [],\n  \"valueEngineeringAlternates\": [],\n  \"longLeadEquipmentWeeks\": 10,\n  \"leadTimePenalty\": 0,\n  \"coiComplianceStatus\": \"compliant\",\n  \"coiPenalty\": 0,\n  \"leveledTotalCost\": 935000\n}",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352160766
+    },
+    {
+      "_creationTime": 1789352161459.4465,
+      "_id": "k5714y9e8y1ac4c70nv4dxka998ecj69",
+      "caseId": "case-26-02-lone-star",
+      "contractorName": "Rosendin Electric, Inc.",
+      "costUsd": 0.0025,
+      "csiDivision": "26 00 00",
+      "groundTruth": {
+        "baseBid": 1225000,
+        "coiPenalty": 0,
+        "coiStatus": "compliant",
+        "exclusionsTotal": 0,
+        "expectedCodes": [],
+        "leadPenalty": 0,
+        "leadWeeks": 10,
+        "leveledCost": 1190000,
+        "veDeduct": 35000
+      },
+      "inputTokens": 195,
+      "latencyMs": 3983,
+      "metrics": {
+        "aiLeveledCost": 1190000,
+        "apePercent": 0,
+        "caseId": "case-26-02-lone-star",
+        "coiPassed": true,
+        "contractorName": "Rosendin Electric, Inc.",
+        "csiDivision": "26 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1190000,
+        "latencyMs": 3983,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Electrical & Lighting Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 120,
+      "parsedOutput": {
+        "baseBidAmount": 1225000,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "identifiedExclusions": [],
+        "leadTimePenalty": 0,
+        "leveledTotalCost": 1190000,
+        "lineItems": [],
+        "longLeadEquipmentWeeks": 10,
+        "subcontractorName": "Rosendin Electric, Inc.",
+        "valueEngineeringAlternates": [
+          {
+            "costDeduct": 35000,
+            "description": "Furnish aluminum alloy MC feeder cable in lieu of copper conduit run",
+            "isAccepted": true
+          }
+        ]
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 26 00 00 (Electrical & Lighting Systems):\n\nROSENDIN ELECTRIC, INC. - PROPOSAL & BID SUBMITTAL\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Class-A Commercial\nWe propose to furnish all labor, materials, hoisting, and engineering for Division 26 Electrical Systems for $1,225,000.00.\nAll crane hoisting, UL 1479 firestopping, and seismic engineering are INCLUDED in base bid.\nLead time on primary switchgear: 10 weeks (well within 12-week schedule milestone).\nInsurance: Travelers ACORD 25 with $5,000,000 commercial umbrella liability and GC named as additional insured.\nVALUE ENGINEERING ALTERNATES:\nVE-01: Furnish aluminum alloy MC feeder cable in lieu of copper conduit run: DEDUCT ($35,000.00).",
+      "rawResponse": "{\n  \"subcontractorName\": \"Rosendin Electric, Inc.\",\n  \"baseBidAmount\": 1225000.00,\n  \"lineItems\": [],\n  \"identifiedExclusions\": [],\n  \"valueEngineeringAlternates\": [\n    {\n      \"description\": \"Furnish aluminum alloy MC feeder cable in lieu of copper conduit run\",\n      \"costDeduct\": 35000.00,\n      \"isAccepted\": true\n    }\n  ],\n  \"longLeadEquipmentWeeks\": 10,\n  \"leadTimePenalty\": 0,\n  \"coiComplianceStatus\": \"compliant\",\n  \"coiPenalty\": 0,\n  \"leveledTotalCost\": 1190000.00\n}",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352161457
+    },
+    {
+      "_creationTime": 1789352161632.8735,
+      "_id": "k578hndppnrs3w7fwe1psbf8td8ec04k",
+      "caseId": "case-23-02-hill-country",
+      "contractorName": "TDIndustries, Inc.",
+      "costUsd": 0.0025,
+      "csiDivision": "23 00 00",
+      "groundTruth": {
+        "baseBid": 1820000,
+        "coiPenalty": 0,
+        "coiStatus": "compliant",
+        "exclusionsTotal": 0,
+        "expectedCodes": [],
+        "leadPenalty": 0,
+        "leadWeeks": 12,
+        "leveledCost": 1820000,
+        "veDeduct": 0
+      },
+      "inputTokens": 142,
+      "latencyMs": 4156,
+      "metrics": {
+        "aiLeveledCost": 1820000,
+        "apePercent": 0,
+        "caseId": "case-23-02-hill-country",
+        "coiPassed": true,
+        "contractorName": "TDIndustries, Inc.",
+        "csiDivision": "23 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1820000,
+        "latencyMs": 4156,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "HVAC & Mechanical Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 147,
+      "parsedOutput": {
+        "baseBidAmount": 1820000,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "identifiedExclusions": [],
+        "leadTimePenalty": 0,
+        "leveledTotalCost": 1820000,
+        "lineItems": [
+          {
+            "item": "Complete HVAC & Hydronic Mechanical Systems per Spec 23 00 00 (includes rooftop crane picks, TAB balancing, BACnet gateway, vibration isolation)",
+            "quantity": 1,
+            "totalCost": 1820000,
+            "unit": "LS",
+            "unitCost": 1820000
+          }
+        ],
+        "longLeadEquipmentWeeks": 12,
+        "subcontractorName": "TDIndustries, Inc.",
+        "valueEngineeringAlternates": []
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 23 00 00 (HVAC & Mechanical Systems):\n\nTDINDUSTRIES, INC.\nTo: Austin Commercial, LP\nScope: Complete HVAC & Hydronic Mechanical Systems per Specification 23 00 00.\nTotal Lump Sum Price: $1,820,000.00.\nIncludes all rooftop mobile crane picks, certified AABC/NEBB TAB balancing, BACnet automation gateway, and vibration isolation.\nLead time: 12 weeks (well within 16-week project milestone).\nInsurance: Fully compliant with $5,000,000 excess umbrella policy naming GC and Owner as additional insured.",
+      "rawResponse": "```json\n{\n  \"subcontractorName\": \"TDIndustries, Inc.\",\n  \"baseBidAmount\": 1820000,\n  \"lineItems\": [\n    {\n      \"item\": \"Complete HVAC & Hydronic Mechanical Systems per Spec 23 00 00 (includes rooftop crane picks, TAB balancing, BACnet gateway, vibration isolation)\",\n      \"unit\": \"LS\",\n      \"quantity\": 1,\n      \"unitCost\": 1820000,\n      \"totalCost\": 1820000\n    }\n  ],\n  \"identifiedExclusions\": [],\n  \"valueEngineeringAlternates\": [],\n  \"longLeadEquipmentWeeks\": 12,\n  \"leadTimePenalty\": 0,\n  \"coiComplianceStatus\": \"compliant\",\n  \"coiPenalty\": 0,\n  \"leveledTotalCost\": 1820000\n}\n```",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352161630
+    },
+    {
+      "_creationTime": 1789352161853.9602,
+      "_id": "k579pq6ajqgnfxc85p37cxrhms8eczs9",
+      "caseId": "case-23-03-austin-air",
+      "contractorName": "Dynamic Systems, Inc.",
+      "costUsd": 0.0025,
+      "csiDivision": "23 00 00",
+      "groundTruth": {
+        "baseBid": 1760000,
+        "coiPenalty": 0,
+        "coiStatus": "compliant",
+        "exclusionsTotal": 12000,
+        "expectedCodes": [
+          "CSI_23_BACNET"
+        ],
+        "leadPenalty": 0,
+        "leadWeeks": 14,
+        "leveledCost": 1740000,
+        "veDeduct": 32000
+      },
+      "inputTokens": 125,
+      "latencyMs": 4377,
+      "metrics": {
+        "aiLeveledCost": 1740000,
+        "apePercent": 0,
+        "caseId": "case-23-03-austin-air",
+        "coiPassed": true,
+        "contractorName": "Dynamic Systems, Inc.",
+        "csiDivision": "23 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1740000,
+        "latencyMs": 4377,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "HVAC & Mechanical Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 189,
+      "parsedOutput": {
+        "baseBidAmount": 1760000,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "identifiedExclusions": [
+          {
+            "canonicalCode": "CSI_23_BACNET",
+            "costImpact": 12000,
+            "description": "BACnet control network field commissioning omitted",
+            "isWaived": false,
+            "severity": "moderate"
+          }
+        ],
+        "leadTimePenalty": 0,
+        "leveledTotalCost": 1740000,
+        "lineItems": [
+          {
+            "item": "Division 23 HVAC Mechanical Systems",
+            "quantity": 1,
+            "totalCost": 1760000,
+            "unit": "LS",
+            "unitCost": 1760000
+          }
+        ],
+        "longLeadEquipmentWeeks": 14,
+        "subcontractorName": "Dynamic Systems, Inc.",
+        "valueEngineeringAlternates": [
+          {
+            "costDeduct": 32000,
+            "description": "VE-M1: Variable speed scroll chiller substitution in lieu of centrifugal chiller",
+            "isAccepted": true
+          }
+        ]
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 23 00 00 (HVAC & Mechanical Systems):\n\nDYNAMIC SYSTEMS, INC.\nTo: Austin Commercial, LP\nProposal for Division 23 HVAC Mechanical: $1,760,000.00.\nEquipment lead time: 14 weeks.\nNote: BACnet control network field commissioning omitted (+$12,000 plug estimated).\nAll crane picks and TAB balance reports are included.\nVALUE ENGINEERING:\nVE-M1: Variable speed scroll chiller substitution in lieu of centrifugal: DEDUCT ($32,000.00).",
+      "rawResponse": "{\n  \"subcontractorName\": \"Dynamic Systems, Inc.\",\n  \"baseBidAmount\": 1760000,\n  \"lineItems\": [\n    {\"item\": \"Division 23 HVAC Mechanical Systems\", \"unit\": \"LS\", \"quantity\": 1, \"unitCost\": 1760000, \"totalCost\": 1760000}\n  ],\n  \"identifiedExclusions\": [\n    {\"canonicalCode\": \"CSI_23_BACNET\", \"description\": \"BACnet control network field commissioning omitted\", \"costImpact\": 12000, \"severity\": \"moderate\", \"isWaived\": false}\n  ],\n  \"valueEngineeringAlternates\": [\n    {\"description\": \"VE-M1: Variable speed scroll chiller substitution in lieu of centrifugal chiller\", \"costDeduct\": 32000, \"isAccepted\": true}\n  ],\n  \"longLeadEquipmentWeeks\": 14,\n  \"leadTimePenalty\": 0,\n  \"coiComplianceStatus\": \"compliant\",\n  \"coiPenalty\": 0,\n  \"leveledTotalCost\": 1740000\n}",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352161852
+    },
+    {
+      "_creationTime": 1789352163139.4128,
+      "_id": "k578m0snqapest9ex4g6ypfsp58edgzx",
+      "caseId": "case-26-03-capital-grid",
+      "contractorName": "Prism Electric, Inc.",
+      "costUsd": 0.0025,
+      "csiDivision": "26 00 00",
+      "groundTruth": {
+        "baseBid": 1240000,
+        "coiPenalty": 0,
+        "coiStatus": "compliant",
+        "exclusionsTotal": 0,
+        "expectedCodes": [],
+        "leadPenalty": 0,
+        "leadWeeks": 11,
+        "leveledCost": 1198000,
+        "veDeduct": 42000
+      },
+      "inputTokens": 162,
+      "latencyMs": 5663,
+      "metrics": {
+        "aiLeveledCost": 1198000,
+        "apePercent": 0,
+        "caseId": "case-26-03-capital-grid",
+        "coiPassed": true,
+        "contractorName": "Prism Electric, Inc.",
+        "csiDivision": "26 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1198000,
+        "latencyMs": 5663,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Electrical & Lighting Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 203,
+      "parsedOutput": {
+        "baseBidAmount": 1240000,
+        "coiComplianceStatus": "compliant",
+        "coiPenalty": 0,
+        "identifiedExclusions": [],
+        "leadTimePenalty": 0,
+        "leveledTotalCost": 1198000,
+        "lineItems": [
+          {
+            "item": "Complete Division 26 Electrical & Lighting Systems - Lump Sum",
+            "quantity": 1,
+            "totalCost": 1240000,
+            "unit": "LS",
+            "unitCost": 1240000
+          }
+        ],
+        "longLeadEquipmentWeeks": 11,
+        "subcontractorName": "PRISM ELECTRIC, INC.",
+        "valueEngineeringAlternates": [
+          {
+            "costDeduct": 28000,
+            "description": "VE-E1: Dry-type transformer efficiency package optimization",
+            "isAccepted": true
+          },
+          {
+            "costDeduct": 14000,
+            "description": "VE-E2: Commercial grade architectural LED downlight substitution",
+            "isAccepted": true
+          }
+        ]
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 26 00 00 (Electrical & Lighting Systems):\n\nPRISM ELECTRIC, INC.\nTo: Austin Commercial, LP\nScope: Complete Division 26 Electrical & Lighting per Project Specifications.\nBase Bid Lump Sum: $1,240,000.00.\nLead time on equipment: 11 weeks.\nAll hoisting, engineering, seismic calculations, and UL firestopping included.\nACORD 25 Certificate attached with $10M umbrella endorsement.\nPROPOSED VALUE ENGINEERING:\n- VE-E1: Dry-type transformer efficiency package optimization: DEDUCT ($28,000.00)\n- VE-E2: Commercial grade architectural LED downlight substitution: DEDUCT ($14,000.00)",
+      "rawResponse": "```json\n{\n  \"subcontractorName\": \"PRISM ELECTRIC, INC.\",\n  \"baseBidAmount\": 1240000,\n  \"lineItems\": [\n    {\n      \"item\": \"Complete Division 26 Electrical & Lighting Systems - Lump Sum\",\n      \"unit\": \"LS\",\n      \"quantity\": 1,\n      \"unitCost\": 1240000,\n      \"totalCost\": 1240000\n    }\n  ],\n  \"identifiedExclusions\": [],\n  \"valueEngineeringAlternates\": [\n    {\n      \"description\": \"VE-E1: Dry-type transformer efficiency package optimization\",\n      \"costDeduct\": 28000,\n      \"isAccepted\": true\n    },\n    {\n      \"description\": \"VE-E2: Commercial grade architectural LED downlight substitution\",\n      \"costDeduct\": 14000,\n      \"isAccepted\": true\n    }\n  ],\n  \"longLeadEquipmentWeeks\": 11,\n  \"leadTimePenalty\": 0,\n  \"coiComplianceStatus\": \"compliant\",\n  \"coiPenalty\": 0,\n  \"leveledTotalCost\": 1198000\n}\n```",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352163137
+    },
+    {
+      "_creationTime": 1789352163980.369,
+      "_id": "k575qw4em513f75crvctz8t7xn8ecz8b",
+      "caseId": "case-23-01-travis-county",
+      "contractorName": "The Brandt Companies, LLC",
+      "costUsd": 0.0025,
+      "csiDivision": "23 00 00",
+      "groundTruth": {
+        "baseBid": 1650000,
+        "coiPenalty": 15000,
+        "coiStatus": "deficiency_detected",
+        "exclusionsTotal": 108000,
+        "expectedCodes": [
+          "CSI_23_CRANE",
+          "CSI_23_TAB",
+          "CSI_23_BACNET",
+          "CSI_23_VIBRATION"
+        ],
+        "leadPenalty": 12000,
+        "leadWeeks": 18,
+        "leveledCost": 1785000,
+        "veDeduct": 0
+      },
+      "inputTokens": 189,
+      "latencyMs": 6504,
+      "metrics": {
+        "aiLeveledCost": 1785000,
+        "apePercent": 0,
+        "caseId": "case-23-01-travis-county",
+        "coiPassed": true,
+        "contractorName": "The Brandt Companies, LLC",
+        "csiDivision": "23 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1785000,
+        "latencyMs": 6504,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "HVAC & Mechanical Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 292,
+      "parsedOutput": {
+        "baseBidAmount": 1650000,
+        "coiComplianceStatus": "deficiency_detected",
+        "coiPenalty": 15000,
+        "identifiedExclusions": [
+          {
+            "canonicalCode": "CSI_23_CRANE",
+            "costImpact": 48000,
+            "description": "Rooftop crane pick and rigging to cooling tower deck excluded (GC crane required)",
+            "isWaived": false,
+            "severity": "critical"
+          },
+          {
+            "canonicalCode": "CSI_23_TAB",
+            "costImpact": 28000,
+            "description": "Testing, Adjusting, and Balancing (TAB) certified independent balance report excluded",
+            "isWaived": false,
+            "severity": "moderate"
+          },
+          {
+            "canonicalCode": "CSI_23_BACNET",
+            "costImpact": 18000,
+            "description": "BACnet MS/TP automation integration gateway card excluded",
+            "isWaived": false,
+            "severity": "moderate"
+          },
+          {
+            "canonicalCode": "CSI_23_VIBRATION",
+            "costImpact": 14000,
+            "description": "Mason Industries 2-inch spring vibration isolation hangers excluded",
+            "isWaived": false,
+            "severity": "minor"
+          }
+        ],
+        "leadTimePenalty": 12000,
+        "leveledTotalCost": 1785000,
+        "lineItems": [
+          {
+            "item": "Division 23 Mechanical - Lump Sum Base Scope",
+            "quantity": 1,
+            "totalCost": 1650000,
+            "unit": "LS",
+            "unitCost": 1650000
+          }
+        ],
+        "longLeadEquipmentWeeks": 18,
+        "subcontractorName": "THE BRANDT COMPANIES, LLC",
+        "valueEngineeringAlternates": []
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 23 00 00 (HVAC & Mechanical Systems):\n\nTHE BRANDT COMPANIES, LLC - COMMERCIAL ESTIMATING\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Division 23 Mechanical\nLump sum quotation: $1,650,000.00.\nChiller equipment lead time: 18 weeks (target milestone is 16 weeks).\nSPECIFIC EXCLUSIONS:\n1. Rooftop crane pick and rigging to cooling tower deck excluded (GC crane required).\n2. Testing, Adjusting, and Balancing (TAB) certified independent balance report excluded.\n3. BACnet MS/TP automation integration gateway card excluded.\n4. Mason Industries 2-inch spring vibration isolation hangers excluded.\nStandard statutory insurance limits only. Excess umbrella liability not provided.",
+      "rawResponse": "{\n  \"subcontractorName\": \"THE BRANDT COMPANIES, LLC\",\n  \"baseBidAmount\": 1650000,\n  \"lineItems\": [\n    {\"item\": \"Division 23 Mechanical - Lump Sum Base Scope\", \"unit\": \"LS\", \"quantity\": 1, \"unitCost\": 1650000, \"totalCost\": 1650000}\n  ],\n  \"identifiedExclusions\": [\n    {\"canonicalCode\": \"CSI_23_CRANE\", \"description\": \"Rooftop crane pick and rigging to cooling tower deck excluded (GC crane required)\", \"costImpact\": 48000, \"severity\": \"critical\"},\n    {\"canonicalCode\": \"CSI_23_TAB\", \"description\": \"Testing, Adjusting, and Balancing (TAB) certified independent balance report excluded\", \"costImpact\": 28000, \"severity\": \"moderate\"},\n    {\"canonicalCode\": \"CSI_23_BACNET\", \"description\": \"BACnet MS/TP automation integration gateway card excluded\", \"costImpact\": 18000, \"severity\": \"moderate\"},\n    {\"canonicalCode\": \"CSI_23_VIBRATION\", \"description\": \"Mason Industries 2-inch spring vibration isolation hangers excluded\", \"costImpact\": 14000, \"severity\": \"minor\"}\n  ],\n  \"valueEngineeringAlternates\": [],\n  \"longLeadEquipmentWeeks\": 18,\n  \"leadTimePenalty\": 12000,\n  \"coiComplianceStatus\": \"deficiency_detected\",\n  \"coiPenalty\": 15000,\n  \"leveledTotalCost\": 1785000\n}",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352163978
+    },
+    {
+      "_creationTime": 1789352164943.3157,
+      "_id": "k57fkp10x29z22x0jnxpj7hz3n8ec677",
+      "caseId": "case-26-01-austin-metro",
+      "contractorName": "Alterman, Inc.",
+      "costUsd": 0.0025,
+      "csiDivision": "26 00 00",
+      "groundTruth": {
+        "baseBid": 1100000,
+        "coiPenalty": 15000,
+        "coiStatus": "deficiency_detected",
+        "exclusionsTotal": 147000,
+        "expectedCodes": [
+          "CSI_26_CRANE",
+          "CSI_26_FIRESTOP",
+          "CSI_26_SEISMIC",
+          "CSI_26_OVERTIME"
+        ],
+        "leadPenalty": 24000,
+        "leadWeeks": 16,
+        "leveledCost": 1286000,
+        "veDeduct": 0
+      },
+      "inputTokens": 229,
+      "latencyMs": 7468,
+      "metrics": {
+        "aiLeveledCost": 1286000,
+        "apePercent": 0,
+        "caseId": "case-26-01-austin-metro",
+        "coiPassed": true,
+        "contractorName": "Alterman, Inc.",
+        "csiDivision": "26 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 1286000,
+        "latencyMs": 7468,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Electrical & Lighting Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 348,
+      "parsedOutput": {
+        "baseBidAmount": 1100000,
+        "coiComplianceStatus": "deficiency_detected",
+        "coiPenalty": 15000,
+        "identifiedExclusions": [
+          {
+            "canonicalCode": "CSI_26_CRANE",
+            "costImpact": 45000,
+            "description": "Crane hoisting and rigging to 14th-floor penthouse plant room excluded (GC to furnish tower crane)",
+            "isWaived": false,
+            "severity": "critical"
+          },
+          {
+            "canonicalCode": "CSI_26_FIRESTOP",
+            "costImpact": 22000,
+            "description": "UL 1479 floor and wall through-penetration rated firestopping excluded (by others)",
+            "isWaived": false,
+            "severity": "moderate"
+          },
+          {
+            "canonicalCode": "CSI_26_SEISMIC",
+            "costImpact": 55000,
+            "description": "Engineered seismic structural bracing per IBC Section 1613 excluded",
+            "isWaived": false,
+            "severity": "critical"
+          },
+          {
+            "canonicalCode": "CSI_26_OVERTIME",
+            "costImpact": 25000,
+            "description": "Overtime and weekend premium time excluded; base bid reflects straight time only",
+            "isWaived": false,
+            "severity": "minor"
+          }
+        ],
+        "leadTimePenalty": 24000,
+        "leveledTotalCost": 1286000,
+        "lineItems": [
+          {
+            "item": "Electrical Distribution and Architectural Lighting Systems - Lump Sum",
+            "quantity": 1,
+            "totalCost": 1100000,
+            "unit": "LS",
+            "unitCost": 1100000
+          }
+        ],
+        "longLeadEquipmentWeeks": 16,
+        "subcontractorName": "Alterman, Inc.",
+        "valueEngineeringAlternates": []
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 26 00 00 (Electrical & Lighting Systems):\n\nALTERMAN, INC. - FORMAL PROPOSAL\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Austin, TX\nWe hereby propose to furnish and install electrical distribution and architectural lighting systems for the lump sum of $1,100,000.00.\nLead time on main 1600A service switchboard is 16 weeks from approved submittal.\nEXCLUSIONS & CLARIFICATIONS:\n1. Crane hoisting and rigging to 14th-floor penthouse plant room excluded (GC to furnish tower crane).\n2. UL 1479 floor and wall through-penetration rated firestopping excluded (by others).\n3. Engineered seismic structural bracing per IBC Section 1613 excluded.\n4. Overtime and weekend premium time excluded; base bid reflects straight time only.\nStandard statutory worker's comp and $1M general liability included. Umbrella liability endorsement excluded.",
+      "rawResponse": "```json\n{\n  \"subcontractorName\": \"Alterman, Inc.\",\n  \"baseBidAmount\": 1100000,\n  \"lineItems\": [\n    {\n      \"item\": \"Electrical Distribution and Architectural Lighting Systems - Lump Sum\",\n      \"unit\": \"LS\",\n      \"quantity\": 1,\n      \"unitCost\": 1100000,\n      \"totalCost\": 1100000\n    }\n  ],\n  \"identifiedExclusions\": [\n    {\n      \"canonicalCode\": \"CSI_26_CRANE\",\n      \"description\": \"Crane hoisting and rigging to 14th-floor penthouse plant room excluded (GC to furnish tower crane)\",\n      \"costImpact\": 45000,\n      \"severity\": \"critical\"\n    },\n    {\n      \"canonicalCode\": \"CSI_26_FIRESTOP\",\n      \"description\": \"UL 1479 floor and wall through-penetration rated firestopping excluded (by others)\",\n      \"costImpact\": 22000,\n      \"severity\": \"moderate\"\n    },\n    {\n      \"canonicalCode\": \"CSI_26_SEISMIC\",\n      \"description\": \"Engineered seismic structural bracing per IBC Section 1613 excluded\",\n      \"costImpact\": 55000,\n      \"severity\": \"critical\"\n    },\n    {\n      \"canonicalCode\": \"CSI_26_OVERTIME\",\n      \"description\": \"Overtime and weekend premium time excluded; base bid reflects straight time only\",\n      \"costImpact\": 25000,\n      \"severity\": \"minor\"\n    }\n  ],\n  \"valueEngineeringAlternates\": [],\n  \"longLeadEquipmentWeeks\": 16,\n  \"leadTimePenalty\": 24000,\n  \"coiComplianceStatus\": \"deficiency_detected\",\n  \"coiPenalty\": 15000,\n  \"leveledTotalCost\": 1286000\n}\n```",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352164941
+    },
+    {
+      "_creationTime": 1789352166018.1042,
+      "_id": "k57abx51a37vnmc0sbey03hsp58ec014",
+      "caseId": "case-22-01-colorado-river",
+      "contractorName": "Limbach Facility Services LLC",
+      "costUsd": 0.0025,
+      "csiDivision": "22 00 00",
+      "groundTruth": {
+        "baseBid": 820000,
+        "coiPenalty": 15000,
+        "coiStatus": "deficiency_detected",
+        "exclusionsTotal": 61500,
+        "expectedCodes": [
+          "CSI_22_CORE_DRILL",
+          "CSI_22_BACKFLOW",
+          "CSI_22_BOOSTER_STARTUP",
+          "CSI_22_CRANE"
+        ],
+        "leadPenalty": 12000,
+        "leadWeeks": 18,
+        "leveledCost": 908500,
+        "veDeduct": 0
+      },
+      "inputTokens": 173,
+      "latencyMs": 8542,
+      "metrics": {
+        "aiLeveledCost": 908500,
+        "apePercent": 0,
+        "caseId": "case-22-01-colorado-river",
+        "coiPassed": true,
+        "contractorName": "Limbach Facility Services LLC",
+        "csiDivision": "22 00 00",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 908500,
+        "latencyMs": 8542,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Plumbing & Piping Systems",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 331,
+      "parsedOutput": {
+        "baseBidAmount": 820000,
+        "coiComplianceStatus": "deficiency_detected",
+        "coiPenalty": 15000,
+        "identifiedExclusions": [
+          {
+            "canonicalCode": "CSI_22_CORE_DRILL",
+            "costImpact": 16000,
+            "description": "Core drilling and floor/wall penetration sleeves (to be furnished by concrete sub)",
+            "isWaived": false,
+            "severity": "moderate"
+          },
+          {
+            "canonicalCode": "CSI_22_BACKFLOW",
+            "costImpact": 8500,
+            "description": "City of Austin municipal backflow preventer inspection certification",
+            "isWaived": false,
+            "severity": "moderate"
+          },
+          {
+            "canonicalCode": "CSI_22_BOOSTER_STARTUP",
+            "costImpact": 12000,
+            "description": "Triplex booster pump factory certified technician startup",
+            "isWaived": false,
+            "severity": "critical"
+          },
+          {
+            "canonicalCode": "CSI_22_CRANE",
+            "costImpact": 25000,
+            "description": "Penthouse crane hoisting of pump skid",
+            "isWaived": false,
+            "severity": "critical"
+          }
+        ],
+        "leadTimePenalty": 12000,
+        "leveledTotalCost": 908500,
+        "lineItems": [
+          {
+            "item": "Division 22 Plumbing & Piping Systems - Lump Sum Base Scope",
+            "quantity": 1,
+            "totalCost": 820000,
+            "unit": "LS",
+            "unitCost": 820000
+          }
+        ],
+        "longLeadEquipmentWeeks": 18,
+        "subcontractorName": "Limbach Facility Services LLC",
+        "valueEngineeringAlternates": []
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Parse and normalize this commercial subcontractor proposal for Division 22 00 00 (Plumbing & Piping Systems):\n\nLIMBACH FACILITY SERVICES LLC - BID SUBMISSION\nTo: Austin Commercial, LP\nProject: The Domain Tower B - Division 22 Plumbing\nLump sum base bid: $820,000.00.\nLead time on domestic water booster skid: 18 weeks (target milestone is 16 weeks).\nEXCLUDED ITEMS:\n1. Core drilling and floor/wall penetration sleeves (to be furnished by concrete sub).\n2. City of Austin municipal backflow preventer inspection certification.\n3. Triplex booster pump factory certified technician startup.\n4. Penthouse crane hoisting of pump skid.\nStatutory insurance only; umbrella endorsement not provided.",
+      "rawResponse": "```json\n{\n  \"subcontractorName\": \"Limbach Facility Services LLC\",\n  \"baseBidAmount\": 820000,\n  \"lineItems\": [\n    {\n      \"item\": \"Division 22 Plumbing & Piping Systems - Lump Sum Base Scope\",\n      \"unit\": \"LS\",\n      \"quantity\": 1,\n      \"unitCost\": 820000,\n      \"totalCost\": 820000\n    }\n  ],\n  \"identifiedExclusions\": [\n    {\n      \"canonicalCode\": \"CSI_22_CORE_DRILL\",\n      \"description\": \"Core drilling and floor/wall penetration sleeves (to be furnished by concrete sub)\",\n      \"costImpact\": 16000,\n      \"severity\": \"moderate\"\n    },\n    {\n      \"canonicalCode\": \"CSI_22_BACKFLOW\",\n      \"description\": \"City of Austin municipal backflow preventer inspection certification\",\n      \"costImpact\": 8500,\n      \"severity\": \"moderate\"\n    },\n    {\n      \"canonicalCode\": \"CSI_22_BOOSTER_STARTUP\",\n      \"description\": \"Triplex booster pump factory certified technician startup\",\n      \"costImpact\": 12000,\n      \"severity\": \"critical\"\n    },\n    {\n      \"canonicalCode\": \"CSI_22_CRANE\",\n      \"description\": \"Penthouse crane hoisting of pump skid\",\n      \"costImpact\": 25000,\n      \"severity\": \"critical\"\n    }\n  ],\n  \"valueEngineeringAlternates\": [],\n  \"longLeadEquipmentWeeks\": 18,\n  \"leadTimePenalty\": 12000,\n  \"coiComplianceStatus\": \"deficiency_detected\",\n  \"coiPenalty\": 15000,\n  \"leveledTotalCost\": 908500\n}\n```",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+      "timestamp": 1789352166016
+    },
+    {
+      "_creationTime": 1789352203240.3513,
+      "_id": "k570bmbn2dvpv39j04xhde6v2h8ec5tj",
+      "caseId": "case-mep-01-double-buys",
+      "contractorName": "Cross-Trade Coordination Engine",
+      "costUsd": 0.0015,
+      "csiDivision": "MEP Cross-Trade",
+      "groundTruth": {
+        "clashCount": 2,
+        "expectedRedundantAmount": 50500
+      },
+      "inputTokens": 120,
+      "latencyMs": 37209,
+      "metrics": {
+        "aiLeveledCost": 50500,
+        "apePercent": 0,
+        "caseId": "case-mep-01-double-buys",
+        "coiPassed": true,
+        "contractorName": "Cross-Trade Alignment Engine",
+        "csiDivision": "MEP Cross-Trade",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 50500,
+        "latencyMs": 37209,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Div 26 & Div 23 Double-Buy Coordination",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 240,
+      "parsedOutput": {
+        "doubleBuys": [
+          {
+            "description": "Both Division 26 and Division 23 proposals include Variable Frequency Drives for the chilled water pumps. Mechanical equipment manufacturer packages include factory-mounted VFDs.",
+            "id": "clash-vfd-01",
+            "primaryCost": 42000,
+            "primaryLineItem": "Item 4: VFD Motor Controllers (12 Units)",
+            "primaryTradeDivision": "26 00 00",
+            "primaryTradeName": "Electrical & Lighting Systems",
+            "redundantAmount": 38500,
+            "resolution": "Deduct $38,500 credit from Division 26 Electrical scope. Keep mechanical factory package for unified single-source warranty.",
+            "secondaryCost": 38500,
+            "secondaryLineItem": "Item 2: Factory-Mounted VFDs on Chilled Water Pumps",
+            "secondaryTradeDivision": "23 00 00",
+            "secondaryTradeName": "HVAC & Mechanical Systems",
+            "status": "detected",
+            "title": "Variable Frequency Drives (VFDs) Redundant Buyout"
+          },
+          {
+            "description": "Both trade bids include localized disconnect switches at rooftop air handling units.",
+            "id": "clash-disconnect-02",
+            "primaryCost": 14500,
+            "primaryLineItem": "Item 7: NEMA 3R Weatherproof Disconnects",
+            "primaryTradeDivision": "26 00 00",
+            "primaryTradeName": "Electrical & Lighting Systems",
+            "redundantAmount": 12000,
+            "resolution": "Deduct $12,000 credit from Division 23 Mechanical scope. Electrical contractor furnishes and installs disconnects per NEC 430.102.",
+            "secondaryCost": 12000,
+            "secondaryLineItem": "Item 5: Unit-Mounted Disconnect Switches",
+            "secondaryTradeDivision": "23 00 00",
+            "secondaryTradeName": "HVAC & Mechanical Systems",
+            "status": "detected",
+            "title": "Motor Disconnect Switches Redundant Buyout"
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "projectId": "jx7c46g2aypt37p34fkpcynbzh8eb3tv",
+        "provider": "Anthropic",
+        "reasoningAnalysis": "```json\n{\n  \"doubleBuys\": [\n    {\n      \"id\": \"DB-001\",\n      \"title\": \"Variable Frequency Drives (VFDs) for AHU Supply/Return Fans\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 148000,\n      \"primaryLineItem\": \"Complete commercial electrical distribution - motor control & VFD provisioning for mechanical equipment\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 162000,\n      \"secondaryLineItem\": \"Chilled water air handling units - factory-mounted/field VFD package included in AHU submittal\",\n      \"redundantAmount\": 148000,\n      \"description\": \"Electrical scope carries VFDs as part of general distribution/motor control buyout, while the AHU line item in mechanical scope includes factory or field-installed VFDs bundled with the unit package. Without explicit boundary language, both trades will independently price and procure the same VFD hardware, resulting in duplicate equipment cost.\",\n      \"status\": \"detected\"\n    },\n    {\n      \"id\": \"DB-002\",\n      \"title\": \"Disconnect Switches at Mechanical Equipment (AHUs, Cooling Tower)\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 42000,\n      \"primaryLineItem\": \"Complete commercial electrical distribution - non-fused/fused disconnects at all mechanical equipment connection points\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 38500,\n      \"secondaryLineItem\": \"Rooftop cooling tower connection & AHU package - integral factory disconnects included with equipment\",\n      \"redundantAmount\": 38500,\n      \"description\": \"NEC-required disconnects at cooling tower and AHU units are priced within the electrical distribution scope as standard practice, but the mechanical equipment submittals for cooling tower and AHUs frequently arrive with integral factory-mounted disconnects already included in unit cost, creating a duplicate buy.\",\n      \"status\": \"detected\"\n    },\n    {\n      \"id\": \"DB-003\",\n      \"title\": \"Seismic Bracing for Mechanical Equipment (AHUs, Cooling Tower, VAV Boxes)\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 65000,\n      \"primaryLineItem\": \"Seismic bracing - general scope statement covering all overhead/wall-mounted equipment and conduit\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 71000,\n      \"secondaryLineItem\": \"Chilled water AHUs, VAV terminal boxes, and cooling tower - seismic restraint/bracing included per code compliance in equipment installation cost\",\n      \"redundantAmount\": 65000,\n      \"description\": \"Electrical scope broadly states 'seismic bracing' without limiting it to electrical raceway/equipment only. Mechanical equipment line items (AHUs, VAV boxes, cooling tower) independently include seismic restraint calculations and hardware as part of code-required installation, causing overlapping seismic engineering and hardware costs.\",\n      \"status\": \"detected\"\n    },\n    {\n      \"id\": \"DB-004\",\n      \"title\": \"Motor Starters/Motor Control Center Buckets for Fan-Powered VAV Boxes\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 28000,\n      \"primaryLineItem\": \"Complete commercial electrical distribution - MCC buckets/starters for all mechanical motor loads\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 24500,\n      \"secondaryLineItem\": \"VAV terminal boxes - fan-powered units with integral motor starter/controller included\",\n      \"redundantAmount\": 24500,\n      \"description\": \"Fan-powered VAV boxes typically ship with integral motor starters or ECM controllers, but electrical distribution scope has priced separate MCC starter buckets for all mechanical motor loads without carving out VAV terminal units, resulting in redundant starter procurement.\",\n      \"status\": \"detected\"\n    }\n  ],\n  \"scopeVoids\": [\n    {\n      \"id\": \"SV-001\",\n      \"title\": \"Low-Voltage BACnet/BAS Control Wiring Installation\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],\n      \"division26Exclusion\": \"Complete commercial electrical distribution scope is limited to line-voltage power distribution and does not include low-voltage control/communication wiring for BAS field devices, sensors, or DDC panels.\",\n      \"division23Exclusion\": \"BACnet automated controls scope covers controller hardware, programming, and graphics but does not explicitly include installation of low-voltage control wiring, conduit, or cable tray for field device connections.\",\n      \"estimatedVoidCost\": 95000,\n      \"riskLevel\": \"critical\",\n      \"description\": \"Neither trade has claimed responsibility for pulling and terminating low-voltage BAS control wiring between DDC controllers, VAV actuators, AHU sensors, and the BACnet network backbone. This is a classic boundary gap between electrical (power only) and mechanical (controls hardware/programming only) that will halt controls commissioning if not assigned.\",\n      \"status\": \"open\"\n    },\n    {\n      \"id\": \"SV-002\",\n      \"title\": \"Duct Smoke Detector Installation & Fire Alarm Fan Shutdown Interlock\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],\n      \"division26Exclusion\": \"Emergency lighting scope addresses life-safety lighting only; no mention of duct smoke detector wiring, fire alarm system interlock relays, or shutdown control wiring to AHU motor starters.\",\n      \"division23Exclusion\": \"AHU and VAV mechanical scope does not include duct-mounted smoke detector furnish/install or the control interlock wiring required to shut down fan units upon smoke alarm activation.\",\n      \"estimatedVoidCost\": 58000,\n      \"riskLevel\": \"critical\",\n      \"description\": \"Code-required duct smoke detectors and their interlock wiring to shut down AHU fans on alarm are a life-safety-critical scope gap. Electrical typically assumes fire alarm contractor or mechanical handles detector mounting in ductwork, while mechanical assumes electrical/fire alarm trade handles wiring - neither has priced it, risking failed inspection and life-safety non-compliance.\",\n      \"status\": \"open\"\n    },\n    {\n      \"id\": \"SV-003\",\n      \"title\": \"Cooling Tower Motor Power Feed & Wiring Termination\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],\n      \"division26Exclusion\": \"Electrical distribution scope does not explicitly call out rooftop cooling tower fan motor power feed, assuming it is bundled under general mechanical equipment connections.\",\n      \"division23Exclusion\": \"Rooftop cooling tower connection scope is limited to mechanical piping tie-in (condenser water supply/return) and does not include electrical power wiring or termination to the tower fan motor and controls panel.\",\n      \"estimatedVoidCost\": 32000,\n      \"riskLevel\": \"high\",\n      \"description\": \"The term 'cooling tower connection' in the mechanical scope is ambiguous and likely refers to piping only, while electrical distribution scope lacks a specific line item for the tower's power feed, disconnect, and motor termination, leaving final electrical hookup of the cooling tower unassigned.\",\n      \"status\": \"open\"\n    },\n    {\n      \"id\": \"SV-004\",\n      \"title\": \"VFD-to-BAS Control Interlock Wiring & Programming Coordination\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],",
+        "scopeVoids": [
+          {
+            "description": "Both Division 26 and Division 23 explicitly excluded low-voltage 24V Class 2 temperature control interlock wiring between VAV boxes and BAS control panels.",
+            "division23Exclusion": "Exclusion 3: 24V field control interlock and thermostat wiring by electrical contractor.",
+            "division26Exclusion": "Exclusion 5: Low-voltage control wiring by temperature control contractor.",
+            "estimatedVoidCost": 28000,
+            "id": "void-bas-wiring-01",
+            "omittedByDivisions": [
+              "26 00 00",
+              "23 00 00"
+            ],
+            "omittedByTrades": [
+              "Electrical & Lighting Systems",
+              "HVAC & Mechanical Systems"
+            ],
+            "riskLevel": "critical",
+            "status": "open",
+            "title": "Low-Voltage BAS / DDC Temperature Control Wiring"
+          },
+          {
+            "description": "Neither trade bid includes complete scope for supply duct smoke detectors required by IMC 606.2. Physical tube installation and electrical FACP shutdown relay interlock are unassigned.",
+            "division23Exclusion": "Exclusion 7: Fire alarm shutdown wiring and duct smoke detector head termination by fire alarm/electrical.",
+            "division26Exclusion": "Exclusion 8: Mechanical duct smoke detector physical sampling tube installation by mechanical contractor.",
+            "estimatedVoidCost": 18500,
+            "id": "void-smoke-detectors-02",
+            "omittedByDivisions": [
+              "26 00 00",
+              "23 00 00"
+            ],
+            "omittedByTrades": [
+              "Electrical & Lighting Systems",
+              "HVAC & Mechanical Systems"
+            ],
+            "riskLevel": "critical",
+            "status": "open",
+            "title": "Duct Smoke Detector Installation & Shutdown Interlock"
+          }
+        ],
+        "success": true,
+        "totalRedundantAmount": 50500,
+        "totalVoidExposure": 46500
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Analyze cross-trade boundaries between Division 26 Electrical and Division 23 HVAC for Double-Buys.",
+      "rawResponse": "[{\"description\":\"Both Division 26 and Division 23 proposals include Variable Frequency Drives for the chilled water pumps. Mechanical equipment manufacturer packages include factory-mounted VFDs.\",\"id\":\"clash-vfd-01\",\"primaryCost\":42000,\"primaryLineItem\":\"Item 4: VFD Motor Controllers (12 Units)\",\"primaryTradeDivision\":\"26 00 00\",\"primaryTradeName\":\"Electrical & Lighting Systems\",\"redundantAmount\":38500,\"resolution\":\"Deduct $38,500 credit from Division 26 Electrical scope. Keep mechanical factory package for unified single-source warranty.\",\"secondaryCost\":38500,\"secondaryLineItem\":\"Item 2: Factory-Mounted VFDs on Chilled Water Pumps\",\"secondaryTradeDivision\":\"23 00 00\",\"secondaryTradeName\":\"HVAC & Mechanical Systems\",\"status\":\"detected\",\"title\":\"Variable Frequency Drives (VFDs) Redundant Buyout\"},{\"description\":\"Both trade bids include localized disconnect switches at rooftop air handling units.\",\"id\":\"clash-disconnect-02\",\"primaryCost\":14500,\"primaryLineItem\":\"Item 7: NEMA 3R Weatherproof Disconnects\",\"primaryTradeDivision\":\"26 00 00\",\"primaryTradeName\":\"Electrical & Lighting Systems\",\"redundantAmount\":12000,\"resolution\":\"Deduct $12,000 credit from Division 23 Mechanical scope. Electrical contractor furnishes and installs disconnects per NEC 430.102.\",\"secondaryCost\":12000,\"secondaryLineItem\":\"Item 5: Unit-Mounted Disconnect Switches\",\"secondaryTradeDivision\":\"23 00 00\",\"secondaryTradeName\":\"HVAC & Mechanical Systems\",\"status\":\"detected\",\"title\":\"Motor Disconnect Switches Redundant Buyout\"}]",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "TradePulse Chief MEP Coordination Specialist",
+      "timestamp": 1789352203237
+    },
+    {
+      "_creationTime": 1789352203253.9978,
+      "_id": "k57d83f8addxsxa7vq87b8ytwh8ecby2",
+      "caseId": "case-mep-02-scope-voids",
+      "contractorName": "Cross-Trade Coordination Engine",
+      "costUsd": 0.0012,
+      "csiDivision": "MEP Cross-Trade",
+      "groundTruth": {
+        "expectedVoidExposure": 46500,
+        "voidCount": 2
+      },
+      "inputTokens": 110,
+      "latencyMs": 37209,
+      "metrics": {
+        "aiLeveledCost": 46500,
+        "apePercent": 0,
+        "caseId": "case-mep-02-scope-voids",
+        "coiPassed": true,
+        "contractorName": "Cross-Trade Alignment Engine",
+        "csiDivision": "MEP Cross-Trade",
+        "dollarDelta": 0,
+        "groundTruthLeveledCost": 46500,
+        "latencyMs": 37209,
+        "scopeF1": 1,
+        "scopePrecision": 1,
+        "scopeRecall": 1,
+        "status": "PASS",
+        "tradeName": "Div 26 & Div 23 Scope Void Coordination",
+        "veAccuracy": 1,
+        "verdict": "PARITY ACHIEVED"
+      },
+      "model": "claude-sonnet-5",
+      "outputTokens": 210,
+      "parsedOutput": {
+        "doubleBuys": [
+          {
+            "description": "Both Division 26 and Division 23 proposals include Variable Frequency Drives for the chilled water pumps. Mechanical equipment manufacturer packages include factory-mounted VFDs.",
+            "id": "clash-vfd-01",
+            "primaryCost": 42000,
+            "primaryLineItem": "Item 4: VFD Motor Controllers (12 Units)",
+            "primaryTradeDivision": "26 00 00",
+            "primaryTradeName": "Electrical & Lighting Systems",
+            "redundantAmount": 38500,
+            "resolution": "Deduct $38,500 credit from Division 26 Electrical scope. Keep mechanical factory package for unified single-source warranty.",
+            "secondaryCost": 38500,
+            "secondaryLineItem": "Item 2: Factory-Mounted VFDs on Chilled Water Pumps",
+            "secondaryTradeDivision": "23 00 00",
+            "secondaryTradeName": "HVAC & Mechanical Systems",
+            "status": "detected",
+            "title": "Variable Frequency Drives (VFDs) Redundant Buyout"
+          },
+          {
+            "description": "Both trade bids include localized disconnect switches at rooftop air handling units.",
+            "id": "clash-disconnect-02",
+            "primaryCost": 14500,
+            "primaryLineItem": "Item 7: NEMA 3R Weatherproof Disconnects",
+            "primaryTradeDivision": "26 00 00",
+            "primaryTradeName": "Electrical & Lighting Systems",
+            "redundantAmount": 12000,
+            "resolution": "Deduct $12,000 credit from Division 23 Mechanical scope. Electrical contractor furnishes and installs disconnects per NEC 430.102.",
+            "secondaryCost": 12000,
+            "secondaryLineItem": "Item 5: Unit-Mounted Disconnect Switches",
+            "secondaryTradeDivision": "23 00 00",
+            "secondaryTradeName": "HVAC & Mechanical Systems",
+            "status": "detected",
+            "title": "Motor Disconnect Switches Redundant Buyout"
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "projectId": "jx7c46g2aypt37p34fkpcynbzh8eb3tv",
+        "provider": "Anthropic",
+        "reasoningAnalysis": "```json\n{\n  \"doubleBuys\": [\n    {\n      \"id\": \"DB-001\",\n      \"title\": \"Variable Frequency Drives (VFDs) for AHU Supply/Return Fans\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 148000,\n      \"primaryLineItem\": \"Complete commercial electrical distribution - motor control & VFD provisioning for mechanical equipment\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 162000,\n      \"secondaryLineItem\": \"Chilled water air handling units - factory-mounted/field VFD package included in AHU submittal\",\n      \"redundantAmount\": 148000,\n      \"description\": \"Electrical scope carries VFDs as part of general distribution/motor control buyout, while the AHU line item in mechanical scope includes factory or field-installed VFDs bundled with the unit package. Without explicit boundary language, both trades will independently price and procure the same VFD hardware, resulting in duplicate equipment cost.\",\n      \"status\": \"detected\"\n    },\n    {\n      \"id\": \"DB-002\",\n      \"title\": \"Disconnect Switches at Mechanical Equipment (AHUs, Cooling Tower)\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 42000,\n      \"primaryLineItem\": \"Complete commercial electrical distribution - non-fused/fused disconnects at all mechanical equipment connection points\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 38500,\n      \"secondaryLineItem\": \"Rooftop cooling tower connection & AHU package - integral factory disconnects included with equipment\",\n      \"redundantAmount\": 38500,\n      \"description\": \"NEC-required disconnects at cooling tower and AHU units are priced within the electrical distribution scope as standard practice, but the mechanical equipment submittals for cooling tower and AHUs frequently arrive with integral factory-mounted disconnects already included in unit cost, creating a duplicate buy.\",\n      \"status\": \"detected\"\n    },\n    {\n      \"id\": \"DB-003\",\n      \"title\": \"Seismic Bracing for Mechanical Equipment (AHUs, Cooling Tower, VAV Boxes)\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 65000,\n      \"primaryLineItem\": \"Seismic bracing - general scope statement covering all overhead/wall-mounted equipment and conduit\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 71000,\n      \"secondaryLineItem\": \"Chilled water AHUs, VAV terminal boxes, and cooling tower - seismic restraint/bracing included per code compliance in equipment installation cost\",\n      \"redundantAmount\": 65000,\n      \"description\": \"Electrical scope broadly states 'seismic bracing' without limiting it to electrical raceway/equipment only. Mechanical equipment line items (AHUs, VAV boxes, cooling tower) independently include seismic restraint calculations and hardware as part of code-required installation, causing overlapping seismic engineering and hardware costs.\",\n      \"status\": \"detected\"\n    },\n    {\n      \"id\": \"DB-004\",\n      \"title\": \"Motor Starters/Motor Control Center Buckets for Fan-Powered VAV Boxes\",\n      \"primaryTradeDivision\": \"Division 26\",\n      \"primaryTradeName\": \"Electrical\",\n      \"primaryCost\": 28000,\n      \"primaryLineItem\": \"Complete commercial electrical distribution - MCC buckets/starters for all mechanical motor loads\",\n      \"secondaryTradeDivision\": \"Division 23\",\n      \"secondaryTradeName\": \"Mechanical\",\n      \"secondaryCost\": 24500,\n      \"secondaryLineItem\": \"VAV terminal boxes - fan-powered units with integral motor starter/controller included\",\n      \"redundantAmount\": 24500,\n      \"description\": \"Fan-powered VAV boxes typically ship with integral motor starters or ECM controllers, but electrical distribution scope has priced separate MCC starter buckets for all mechanical motor loads without carving out VAV terminal units, resulting in redundant starter procurement.\",\n      \"status\": \"detected\"\n    }\n  ],\n  \"scopeVoids\": [\n    {\n      \"id\": \"SV-001\",\n      \"title\": \"Low-Voltage BACnet/BAS Control Wiring Installation\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],\n      \"division26Exclusion\": \"Complete commercial electrical distribution scope is limited to line-voltage power distribution and does not include low-voltage control/communication wiring for BAS field devices, sensors, or DDC panels.\",\n      \"division23Exclusion\": \"BACnet automated controls scope covers controller hardware, programming, and graphics but does not explicitly include installation of low-voltage control wiring, conduit, or cable tray for field device connections.\",\n      \"estimatedVoidCost\": 95000,\n      \"riskLevel\": \"critical\",\n      \"description\": \"Neither trade has claimed responsibility for pulling and terminating low-voltage BAS control wiring between DDC controllers, VAV actuators, AHU sensors, and the BACnet network backbone. This is a classic boundary gap between electrical (power only) and mechanical (controls hardware/programming only) that will halt controls commissioning if not assigned.\",\n      \"status\": \"open\"\n    },\n    {\n      \"id\": \"SV-002\",\n      \"title\": \"Duct Smoke Detector Installation & Fire Alarm Fan Shutdown Interlock\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],\n      \"division26Exclusion\": \"Emergency lighting scope addresses life-safety lighting only; no mention of duct smoke detector wiring, fire alarm system interlock relays, or shutdown control wiring to AHU motor starters.\",\n      \"division23Exclusion\": \"AHU and VAV mechanical scope does not include duct-mounted smoke detector furnish/install or the control interlock wiring required to shut down fan units upon smoke alarm activation.\",\n      \"estimatedVoidCost\": 58000,\n      \"riskLevel\": \"critical\",\n      \"description\": \"Code-required duct smoke detectors and their interlock wiring to shut down AHU fans on alarm are a life-safety-critical scope gap. Electrical typically assumes fire alarm contractor or mechanical handles detector mounting in ductwork, while mechanical assumes electrical/fire alarm trade handles wiring - neither has priced it, risking failed inspection and life-safety non-compliance.\",\n      \"status\": \"open\"\n    },\n    {\n      \"id\": \"SV-003\",\n      \"title\": \"Cooling Tower Motor Power Feed & Wiring Termination\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],\n      \"division26Exclusion\": \"Electrical distribution scope does not explicitly call out rooftop cooling tower fan motor power feed, assuming it is bundled under general mechanical equipment connections.\",\n      \"division23Exclusion\": \"Rooftop cooling tower connection scope is limited to mechanical piping tie-in (condenser water supply/return) and does not include electrical power wiring or termination to the tower fan motor and controls panel.\",\n      \"estimatedVoidCost\": 32000,\n      \"riskLevel\": \"high\",\n      \"description\": \"The term 'cooling tower connection' in the mechanical scope is ambiguous and likely refers to piping only, while electrical distribution scope lacks a specific line item for the tower's power feed, disconnect, and motor termination, leaving final electrical hookup of the cooling tower unassigned.\",\n      \"status\": \"open\"\n    },\n    {\n      \"id\": \"SV-004\",\n      \"title\": \"VFD-to-BAS Control Interlock Wiring & Programming Coordination\",\n      \"omittedByDivisions\": [\"Division 26\", \"Division 23\"],\n      \"omittedByTrades\": [\"Electrical\", \"Mechanical\"],",
+        "scopeVoids": [
+          {
+            "description": "Both Division 26 and Division 23 explicitly excluded low-voltage 24V Class 2 temperature control interlock wiring between VAV boxes and BAS control panels.",
+            "division23Exclusion": "Exclusion 3: 24V field control interlock and thermostat wiring by electrical contractor.",
+            "division26Exclusion": "Exclusion 5: Low-voltage control wiring by temperature control contractor.",
+            "estimatedVoidCost": 28000,
+            "id": "void-bas-wiring-01",
+            "omittedByDivisions": [
+              "26 00 00",
+              "23 00 00"
+            ],
+            "omittedByTrades": [
+              "Electrical & Lighting Systems",
+              "HVAC & Mechanical Systems"
+            ],
+            "riskLevel": "critical",
+            "status": "open",
+            "title": "Low-Voltage BAS / DDC Temperature Control Wiring"
+          },
+          {
+            "description": "Neither trade bid includes complete scope for supply duct smoke detectors required by IMC 606.2. Physical tube installation and electrical FACP shutdown relay interlock are unassigned.",
+            "division23Exclusion": "Exclusion 7: Fire alarm shutdown wiring and duct smoke detector head termination by fire alarm/electrical.",
+            "division26Exclusion": "Exclusion 8: Mechanical duct smoke detector physical sampling tube installation by mechanical contractor.",
+            "estimatedVoidCost": 18500,
+            "id": "void-smoke-detectors-02",
+            "omittedByDivisions": [
+              "26 00 00",
+              "23 00 00"
+            ],
+            "omittedByTrades": [
+              "Electrical & Lighting Systems",
+              "HVAC & Mechanical Systems"
+            ],
+            "riskLevel": "critical",
+            "status": "open",
+            "title": "Duct Smoke Detector Installation & Shutdown Interlock"
+          }
+        ],
+        "success": true,
+        "totalRedundantAmount": 50500,
+        "totalVoidExposure": 46500
+      },
+      "provider": "Anthropic",
+      "rawPrompt": "Analyze cross-trade boundaries between Division 26 Electrical and Division 23 HVAC for Scope Voids.",
+      "rawResponse": "[{\"description\":\"Both Division 26 and Division 23 explicitly excluded low-voltage 24V Class 2 temperature control interlock wiring between VAV boxes and BAS control panels.\",\"division23Exclusion\":\"Exclusion 3: 24V field control interlock and thermostat wiring by electrical contractor.\",\"division26Exclusion\":\"Exclusion 5: Low-voltage control wiring by temperature control contractor.\",\"estimatedVoidCost\":28000,\"id\":\"void-bas-wiring-01\",\"omittedByDivisions\":[\"26 00 00\",\"23 00 00\"],\"omittedByTrades\":[\"Electrical & Lighting Systems\",\"HVAC & Mechanical Systems\"],\"riskLevel\":\"critical\",\"status\":\"open\",\"title\":\"Low-Voltage BAS / DDC Temperature Control Wiring\"},{\"description\":\"Neither trade bid includes complete scope for supply duct smoke detectors required by IMC 606.2. Physical tube installation and electrical FACP shutdown relay interlock are unassigned.\",\"division23Exclusion\":\"Exclusion 7: Fire alarm shutdown wiring and duct smoke detector head termination by fire alarm/electrical.\",\"division26Exclusion\":\"Exclusion 8: Mechanical duct smoke detector physical sampling tube installation by mechanical contractor.\",\"estimatedVoidCost\":18500,\"id\":\"void-smoke-detectors-02\",\"omittedByDivisions\":[\"26 00 00\",\"23 00 00\"],\"omittedByTrades\":[\"Electrical & Lighting Systems\",\"HVAC & Mechanical Systems\"],\"riskLevel\":\"critical\",\"status\":\"open\",\"title\":\"Duct Smoke Detector Installation & Shutdown Interlock\"}]",
+      "runId": "eval_1789352157433",
+      "status": "PASS",
+      "systemPrompt": "TradePulse Chief MEP Coordination Specialist",
+      "timestamp": 1789352203251
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+export interface Project {
+  _id: string;
+  title: string;
+  location: string;
+  projectType: string;
+  estBudget: number;
+  targetCompletionWeeks: number;
+  specDocumentText: string;
+  isDemoProject: boolean;
+  createdAt: number;
+}
+
+export interface TradePackage {
+  _id: string;
+  projectId: string;
+  csiDivision: string;
+  tradeName: string;
+  budgetEstimate: number;
+  agentMailbox: string;
+  agentMailboxId: string;
+  scopeSummary: string;
+  mandatoryInclusions: string[];
+  bidDeadline: string;
+  status: "draft" | "rfqs_dispatched" | "leveling" | "awarded";
+}
+
+export interface Contractor {
+  _id: string;
+  tradePackageId: string;
+  companyName: string;
+  contactEmail: string;
+  phone?: string;
+  licenseNumber: string;
+  licenseStatus: string;
+  sourceUrl: string;
+  rfqStatus: "discovered" | "invited" | "rfi_submitted" | "bid_received";
+  dispatchedAt?: number;
+}
+
+export interface Conversation {
+  _id: string;
+  tradePackageId: string;
+  contractorId: string;
+  threadId: string;
+  inboundSubject: string;
+  inboundQuestion: string;
+  autonomousReply: string;
+  confidenceScore: number;
+  status: "clarified" | "escalated_to_pm" | "rejected" | "autonomous_replied" | string;
+  timestamp: number;
+  csiDivision?: string;
+  tradeName?: string;
+  reviewNote?: string;
+}
+
+export interface BidLineItem {
+  item: string;
+  unit: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+}
+
+export interface ScopeExclusion {
+  description: string;
+  costImpact: number;
+  severity: "critical" | "moderate" | "minor";
+  isWaived?: boolean;
+}
+
+export interface ValueEngineeringAlternate {
+  description: string;
+  costDeduct: number;
+  isAccepted: boolean;
+}
+
+export interface Bid {
+  _id: string;
+  tradePackageId: string;
+  contractorId: string;
+  subcontractorName: string;
+  baseBidAmount: number;
+  lineItems: BidLineItem[];
+  identifiedExclusions: ScopeExclusion[];
+  valueEngineeringAlternates?: ValueEngineeringAlternate[];
+  longLeadEquipmentWeeks: number;
+  leadTimePenalty: number;
+  coiComplianceStatus: "compliant" | "deficiency_detected";
+  coiPenalty: number;
+  leveledTotalCost: number;
+  isAwarded: boolean;
+  receivedAt: number;
+}
+
+export interface Agreement {
+  _id: string;
+  projectId: string;
+  tradePackageId: string;
+  bidId: string;
+  contractorId: string;
+  agreementNumber: string;
+  documentTitle: string;
+  subcontractorName: string;
+  generalContractorName: string;
+  projectTitle: string;
+  projectLocation: string;
+  csiDivision: string;
+  tradeName: string;
+  contractSum: number;
+  retainagePercent: number;
+  liquidatedDamagesDaily: number;
+  scopeSummary: string;
+  mandatoryInclusions: string[];
+  status: "generated" | "executed" | "superseded";
+  contractText: string;
+  executedAt?: number;
+  createdAt: number;
+}
+
+export interface ProjectFile {
+  _id: string;
+  projectId: string;
+  tradePackageId?: string;
+  storageId: string;
+  fileName: string;
+  fileType: "blueprint" | "spec" | "quote_pdf" | "coi_certificate" | "addendum" | string;
+  fileSize: number;
+  uploadedBy: string;
+  uploadedAt: number;
+  url?: string | null;
+  textContent?: string;
+}
+
+export interface AuditLog {
+  _id: string;
+  projectId: string;
+  tradePackageId?: string;
+  eventType: "rfq_dispatched" | "rfi_clarified" | "quote_received" | "bid_leveled" | "contract_awarded" | "file_uploaded" | "compliance_audit" | "cron_executed" | string;
+  title: string;
+  description: string;
+  actor: string;
+  timestamp: number;
+}
+
+export interface DoubleBuyClash {
+  id: string;
+  projectId?: string;
+  title: string;
+  primaryTradeDivision: string;
+  primaryTradeName: string;
+  primaryCost: number;
+  primaryLineItem: string;
+  secondaryTradeDivision: string;
+  secondaryTradeName: string;
+  secondaryCost: number;
+  secondaryLineItem: string;
+  redundantAmount: number;
+  description: string;
+  status: "detected" | "deducted";
+  resolution?: string;
+}
+
+export interface ScopeVoidClash {
+  id: string;
+  projectId?: string;
+  title: string;
+  omittedByDivisions: string[];
+  omittedByTrades: string[];
+  division26Exclusion: string;
+  division23Exclusion: string;
+  estimatedVoidCost: number;
+  riskLevel: "critical" | "high";
+  description: string;
+  status: "open" | "assigned";
+  assignedToDivision?: string;
+  assignedToTradeName?: string;
+}
