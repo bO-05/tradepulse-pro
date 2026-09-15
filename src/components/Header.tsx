@@ -18,6 +18,7 @@ import {
   Tv,
 } from "lucide-react";
 import { Project } from "../types.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface HeaderProps {
   projects?: Project[];
@@ -31,6 +32,7 @@ interface HeaderProps {
     targetCompletionWeeks: number;
     specDocumentText: string;
     isDemoProject: boolean;
+    generalContractorName?: string;
   }) => Promise<void>;
   onDeleteProject?: (projectId: string) => Promise<void>;
   activeTab: string;
@@ -73,7 +75,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [newBudget, setNewBudget] = useState(5500000);
   const [newWeeks, setNewWeeks] = useState(52);
   const [newSpec, setNewSpec] = useState("");
+  const [newGeneralContractor, setNewGeneralContractor] = useState("Austin Commercial, LP");
+  const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Keyboard shortcut listener for 1-6 keys
   useEffect(() => {
@@ -102,6 +107,15 @@ export const Header: React.FC<HeaderProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setActiveTab]);
+
+  useEffect(() => {
+    if (!isNewProjectModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !creating) setIsNewProjectModalOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [creating, isNewProjectModalOpen]);
 
   const pipelineStages = [
     {
@@ -164,6 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
     e.preventDefault();
     if (!onCreateProject || !newTitle.trim()) return;
     setCreating(true);
+    setCreateError(null);
     try {
       await onCreateProject({
         title: newTitle.trim(),
@@ -173,10 +188,14 @@ export const Header: React.FC<HeaderProps> = ({
         targetCompletionWeeks: Number(newWeeks) > 0 ? Number(newWeeks) : 52,
         specDocumentText: newSpec.trim() || `Project Scope for ${newTitle.trim()}. Standard CSI MasterFormat commercial obligations.`,
         isDemoProject: false,
+        generalContractorName: newGeneralContractor.trim() || "Austin Commercial, LP",
       });
       setIsNewProjectModalOpen(false);
       setNewTitle("");
       setNewSpec("");
+      setNewGeneralContractor("Austin Commercial, LP");
+    } catch (err: any) {
+      setCreateError(err?.message || "The project could not be created.");
     } finally {
       setCreating(false);
     }
@@ -283,11 +302,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {currentProject && !currentProject.isDemoProject && onDeleteProject && (
             <button
-              onClick={async () => {
-                if (window.confirm(`Are you sure you want to delete project "${currentProject.title}"? This will permanently remove all associated trade packages, bids, and contracts.`)) {
-                  await onDeleteProject(currentProject._id);
-                }
-              }}
+              onClick={() => setIsDeleteConfirmOpen(true)}
               className="bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800/60 text-xs font-semibold px-2 py-1.5 rounded-lg flex items-center gap-1 transition shadow-sm"
               title="Delete custom project"
             >
@@ -298,10 +313,37 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
+      <ConfirmDialog
+        open={isDeleteConfirmOpen}
+        title="Delete project?"
+        description={`This permanently removes ${currentProject?.title || "this project"} and its trade packages, bids, agreements, and files.`}
+        confirmLabel="Delete project"
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={async () => {
+          if (currentProject && onDeleteProject) {
+            await onDeleteProject(currentProject._id);
+          }
+          setIsDeleteConfirmOpen(false);
+        }}
+      />
+
       {/* Procurement Pipeline Stepper & Navigation */}
-      <div className="px-4 lg:px-8 flex items-center justify-between border-t border-slate-800/80 bg-slate-950/50 overflow-x-auto no-scrollbar gap-2">
+      <div className="px-4 lg:px-8 flex items-center justify-between border-t border-slate-800/80 bg-slate-950/50 gap-2">
+        <label className="sm:hidden flex items-center gap-2 py-2 text-[11px] font-semibold text-slate-400 shrink-0">
+          Stage
+          <select
+            value={activeTab}
+            onChange={(event) => setActiveTab(event.target.value)}
+            aria-label="Navigate procurement stage"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 font-medium"
+          >
+            {[...pipelineStages.map((stage) => ({ id: stage.id, label: stage.label })), ...utilityTabs].map((tab) => (
+              <option key={tab.id} value={tab.id}>{tab.label}</option>
+            ))}
+          </select>
+        </label>
         {/* 6-Stage Pipeline Stepper */}
-        <div className="flex items-center gap-1 py-1 shrink-0">
+        <div className="hidden sm:flex items-center gap-1 py-1 shrink-0 overflow-x-auto">
           {pipelineStages.map((stage, idx) => {
             const Icon = stage.icon;
             const isActive = activeTab === stage.id;
@@ -362,7 +404,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Secondary Auxiliary Utilities (Audit & Diagnostics) */}
-        <div className="flex items-center gap-1 py-1 border-l border-slate-800/80 pl-2 shrink-0">
+        <div className="hidden sm:flex items-center gap-1 py-1 border-l border-slate-800/80 pl-2 shrink-0">
           {utilityTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -386,15 +428,16 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* New Project Modal */}
       {isNewProjectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in" role="presentation">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <h3 id="new-project-title" className="text-base font-bold text-white flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-emerald-400" />
                 Create New Construction Project
               </h3>
               <button
                 onClick={() => setIsNewProjectModalOpen(false)}
+                aria-label="Close new project dialog"
                 className="text-slate-400 hover:text-white text-xs font-mono"
               >
                 ✕
@@ -439,6 +482,18 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
 
+              <div>
+                <label className="block text-slate-400 font-medium mb-1">General Contractor / Contracting Entity</label>
+                <input
+                  type="text"
+                  required
+                  value={newGeneralContractor}
+                  onChange={(e) => setNewGeneralContractor(e.target.value)}
+                  placeholder="e.g. Austin Commercial, LP"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 font-medium mb-1">Estimated Budget ($)</label>
@@ -474,6 +529,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                {createError && <p className="mr-auto max-w-[55%] text-[11px] text-rose-400">{createError}</p>}
                 <button
                   type="button"
                   onClick={() => setIsNewProjectModalOpen(false)}

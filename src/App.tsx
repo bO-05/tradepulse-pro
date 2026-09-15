@@ -40,6 +40,7 @@ import {
   generateAiaA401AgreementText,
   numberToWords,
 } from "./standaloneStore.ts";
+import { calculateLeveledCost } from "./leveling.ts";
 
 export { extractTextFromPdfStream, cleanNumber, getStateAbbreviation, parseCityAndState, generateAiaA401AgreementText, numberToWords };
 
@@ -48,6 +49,15 @@ function getDynamicMailbox(location?: string, csiDivision?: string): string {
   const city = (parsed.city || "metro").toLowerCase().replace(/[^a-z0-9]/g, "") || "trade";
   const div = (csiDivision || "01").replace(/\s+/g, "").slice(0, 2) || "01";
   return `${city}-${div}-rfq@agentmail.to`;
+}
+
+function readStoredSelection(key: string): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
 }
 
 function syncStandaloneAgreement(
@@ -71,7 +81,7 @@ function syncStandaloneAgreement(
     (sum, x) => (x.isAccepted ? sum + (x.costDeduct || 0) : sum),
     0
   );
-  const contractSum = Math.max(0, baseBid - acceptedVeDeduct);
+  const contractSum = calculateLeveledCost({ ...targetBid, baseBidAmount: baseBid });
   const inclusions = pkg?.mandatoryInclusions || activeAgreement.mandatoryInclusions || [];
 
   const proj = prev.projects.find((p) => p._id === (pkg?.projectId || activeAgreement.projectId));
@@ -81,7 +91,7 @@ function syncStandaloneAgreement(
   const updatedText = generateAiaA401AgreementText({
     agreementNumber: activeAgreement.agreementNumber,
     formattedDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-    generalContractor: activeAgreement.generalContractorName || "Apex Commercial Builders General Partnership",
+           generalContractor: proj?.generalContractorName || activeAgreement.generalContractorName || "Austin Commercial, LP",
     gcCity: locationParsed.city,
     gcState: locationParsed.state,
     stateAbbr: locationParsed.stateAbbr,
@@ -109,9 +119,11 @@ function syncStandaloneAgreement(
     a._id === activeAgreement._id
       ? {
           ...a,
-          bidId: targetBidId,
-          subcontractorName: targetBid.subcontractorName,
-          contractSum,
+           bidId: targetBidId,
+           subcontractorName: targetBid.subcontractorName,
+           subcontractorEmail: subContractor?.contactEmail,
+           generalContractorName: proj?.generalContractorName || activeAgreement.generalContractorName || "Austin Commercial, LP",
+           contractSum,
           mandatoryInclusions: inclusions,
           contractText: updatedText,
         }
@@ -121,8 +133,8 @@ function syncStandaloneAgreement(
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("packages");
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => readStoredSelection("tradepulse.selectedProjectId"));
+  const [selectedPackageId, setSelectedPackageId] = useState<string>(() => readStoredSelection("tradepulse.selectedPackageId"));
   const [isSimulationOpen, setIsSimulationOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isTourOpen, setIsTourOpen] = useState<boolean>(true);
@@ -149,10 +161,21 @@ export const App: React.FC = () => {
     Boolean(projectsData && projectsData.some((p: any) => p._id === currentProject!._id));
 
   useEffect(() => {
-    if (!selectedProjectId && projects.length > 0) {
+    if (projects.length === 0) return;
+    if (!projects.some((project) => project._id === selectedProjectId)) {
       setSelectedProjectId(projects[0]._id);
     }
   }, [projects, selectedProjectId]);
+
+  useEffect(() => {
+    try {
+      if (selectedProjectId) window.localStorage.setItem("tradepulse.selectedProjectId", selectedProjectId);
+      if (selectedPackageId) window.localStorage.setItem("tradepulse.selectedPackageId", selectedPackageId);
+      else window.localStorage.removeItem("tradepulse.selectedPackageId");
+    } catch {
+      // Local persistence is best-effort in restricted browser contexts.
+    }
+  }, [selectedProjectId, selectedPackageId]);
 
   // Trade packages
   const tradePackagesData = useQuery(
@@ -199,6 +222,11 @@ export const App: React.FC = () => {
   const conversations: Conversation[] = isConvexConnected && conversationsData
     ? (conversationsData as any)
     : standaloneState.conversations.filter((c) => !activePackage || c.tradePackageId === activePackage._id);
+  const standaloneProjectConversations = currentProject
+    ? standaloneState.conversations.filter((c) =>
+        tradePackages.some((pkg) => pkg.projectId === currentProject._id && pkg._id === c.tradePackageId)
+      )
+    : [];
 
   // Bids for active package
   const bidsData = useQuery(
@@ -275,7 +303,6 @@ export const App: React.FC = () => {
   const deletePackageMutation = useMutation(api.tradePackages.deleteTradePackage);
   const dispatchRfqsAction = useAction(api.rfqActions.dispatchRfqsWithNotification);
   const dispatchSingleRfqAction = useAction(api.rfqActions.dispatchSingleRfqWithNotification);
-  const awardContractMutation = useMutation(api.bids.awardContract);
   const generateAgreementMutation = useMutation(api.agreements.generateAgreement);
   const triggerSimulationMutation = useMutation(api.simulation.triggerJudgeSimulation);
   const submitCustomRfiMutation = useMutation(api.simulation.submitCustomRfi);
@@ -338,7 +365,9 @@ export const App: React.FC = () => {
       if (isRealPkg) {
         const res = await dispatchRfqsAction({ tradePackageId: packageId as any });
         showToast(
-          `RFQs dispatched to ${res.dispatchedCount} contractors via AgentMail (${res.emailsSent} live outbound emails transmitted)!`
+          res.emailsSent > 0
+            ? `RFQs sent to ${res.emailsSent} contractors via AgentMail (${res.dispatchedCount} records updated).`
+            : `RFQs queued for ${res.dispatchedCount} contractors; live email delivery is not yet confirmed.`
         );
       } else {
         updateStandaloneAndPersist((prev) => {
@@ -373,7 +402,8 @@ export const App: React.FC = () => {
         );
       }
     } catch (err: any) {
-      showToast(`RFQ Dispatch completed: ${err?.message || "Invitations logged."}`);
+      showToast(`RFQ dispatch failed: ${err?.message || "No invitations were confirmed."}`);
+      throw err;
     }
   };
 
@@ -385,6 +415,7 @@ export const App: React.FC = () => {
     targetCompletionWeeks: number;
     specDocumentText: string;
     isDemoProject: boolean;
+    generalContractorName?: string;
   }) => {
     try {
       if (isConvexConnected) {
@@ -417,6 +448,7 @@ export const App: React.FC = () => {
       }
     } catch (err: any) {
       showToast(`Error creating project: ${err?.message}`);
+      throw err;
     }
   };
 
@@ -451,6 +483,7 @@ export const App: React.FC = () => {
       showToast("Project deleted successfully.");
     } catch (err: any) {
       showToast(`Delete project: ${err?.message || "Error"}`);
+      throw err;
     }
   };
 
@@ -507,6 +540,7 @@ export const App: React.FC = () => {
       showToast(`CSI Division ${pkg.csiDivision} (${pkg.tradeName}) created successfully.`);
     } catch (err: any) {
       showToast(`Error creating package: ${err?.message}`);
+      throw err;
     }
   };
 
@@ -524,6 +558,7 @@ export const App: React.FC = () => {
           contractors: prev.contractors.filter((c) => c.tradePackageId !== packageId),
           conversations: prev.conversations.filter((c) => c.tradePackageId !== packageId),
           agreements: prev.agreements.filter((a) => a.tradePackageId !== packageId),
+          projectFiles: prev.projectFiles.filter((f) => f.tradePackageId !== packageId),
           auditLogs: [
             {
               _id: `audit_${Date.now()}`,
@@ -546,6 +581,7 @@ export const App: React.FC = () => {
       showToast(`Deleted trade package ${targetPkg.tradeName}`);
     } catch (err: any) {
       showToast(`Error deleting trade package: ${err?.message || err}`);
+      throw err;
     }
   };
 
@@ -745,8 +781,8 @@ export const App: React.FC = () => {
       }));
       setSelectedPackageId(newPkgId);
       return { packagesCount: 1 };
-    } catch {
-      return { packagesCount: 1 };
+    } catch (err) {
+      throw err;
     }
   };
 
@@ -874,7 +910,8 @@ export const App: React.FC = () => {
         showToast(`Discovered 3 verified ${loc} commercial ${trade} subcontractors!`);
       }
     } catch (err: any) {
-      showToast(`Discovery result: ${err?.message || "Verified local contractors active."}`);
+      showToast(`Discovery failed: ${err?.message || "No contractors were added."}`);
+      throw err;
     }
   };
 
@@ -909,7 +946,8 @@ export const App: React.FC = () => {
       }
       showToast("Invitation to bid dispatched via AgentMail.");
     } catch (err: any) {
-      showToast(`Contractor invited: ${err?.message || "Status updated"}`);
+      showToast(`RFQ invitation failed: ${err?.message || "The invitation was not sent."}`);
+      throw err;
     }
   };
 
@@ -954,7 +992,8 @@ export const App: React.FC = () => {
       }
       showToast(`Contractor '${contractor.companyName}' added to bidding roster.`);
     } catch (err: any) {
-      showToast(`Contractor added: ${err?.message || "Updated"}`);
+      showToast(`Contractor add failed: ${err?.message || "The contractor was not saved."}`);
+      throw err;
     }
   };
 
@@ -986,7 +1025,8 @@ export const App: React.FC = () => {
       }
       showToast(`Contractor '${updates.companyName}' details updated.`);
     } catch (err: any) {
-      showToast(`Update recorded: ${err?.message || "Updated"}`);
+      showToast(`Contractor update failed: ${err?.message || "The contractor was not updated."}`);
+      throw err;
     }
   };
 
@@ -1021,7 +1061,8 @@ export const App: React.FC = () => {
       }
       showToast("Contractor removed from bidding roster.");
     } catch (err: any) {
-      showToast(`Contractor removed: ${err?.message || "Updated"}`);
+      showToast(`Contractor removal failed: ${err?.message || "The contractor was not removed."}`);
+      throw err;
     }
   };
 
@@ -1095,7 +1136,8 @@ export const App: React.FC = () => {
       }
       showToast("RFI submitted to TradePulse autonomous AI clarification engine.");
     } catch (err: any) {
-      showToast(`RFI clarification recorded: ${err?.message || "Answered"}`);
+      showToast(`RFI clarification failed: ${err?.message || "The clarification was not saved."}`);
+      throw err;
     }
   };
 
@@ -1136,6 +1178,9 @@ export const App: React.FC = () => {
                     status,
                     ...(newReply !== undefined ? { autonomousReply: newReply } : {}),
                     ...(note !== undefined ? { reviewNote: note } : {}),
+                    ...(status === "clarified"
+                      ? { pmCertifiedAt: Date.now(), pmCertifiedBy: "Project Manager" }
+                      : { pmCertifiedAt: undefined, pmCertifiedBy: undefined }),
                   }
                 : c
             ),
@@ -1149,7 +1194,8 @@ export const App: React.FC = () => {
           : `RFI status updated to ${status}.`
       );
     } catch (err: any) {
-      showToast(`Review action recorded: ${err?.message || "Updated"}`);
+      showToast(`RFI review failed: ${err?.message || "The review was not saved."}`);
+      throw err;
     }
   };
 
@@ -1162,10 +1208,6 @@ export const App: React.FC = () => {
         Boolean(tradePackageId) &&
         !tradePackageId.startsWith("pkg_");
       if (canAwardConvex) {
-        await awardContractMutation({
-          bidId: bidId as any,
-          tradePackageId: tradePackageId as any,
-        });
         await generateAgreementMutation({
           bidId: bidId as any,
           tradePackageId: tradePackageId as any,
@@ -1174,6 +1216,9 @@ export const App: React.FC = () => {
         updateStandaloneAndPersist((prev) => {
           const targetBid = prev.bids.find((b) => b._id === bidId);
           const pkg = prev.tradePackages.find((p) => p._id === tradePackageId);
+          if (!targetBid || targetBid.tradePackageId !== tradePackageId || !pkg) {
+            throw new Error("The selected bid is not part of the active trade package.");
+          }
           const updatedBids = prev.bids.map((b) =>
             b.tradePackageId === tradePackageId
               ? { ...b, isAwarded: b._id === bidId }
@@ -1183,22 +1228,22 @@ export const App: React.FC = () => {
             p._id === tradePackageId ? { ...p, status: "awarded" as const } : p
           );
           const agrNumber = `AIA-A401-${Date.now().toString().slice(-4)}`;
-          const acceptedVe = (targetBid?.valueEngineeringAlternates || []).reduce(
+          const acceptedVe = (targetBid.valueEngineeringAlternates || []).reduce(
             (sum, ve) => (ve.isAccepted ? sum + (ve.costDeduct || 0) : sum),
             0
           );
-          const baseBidAmount = targetBid?.baseBidAmount || 1225000;
-          const contractSum = Math.max(0, baseBidAmount - acceptedVe);
+          const baseBidAmount = targetBid.baseBidAmount;
+          const contractSum = calculateLeveledCost(targetBid);
           const locParsed = parseCityAndState(currentProject?.location || "Austin, TX");
           const subContractor = prev.contractors.find((c) => c._id === targetBid?.contractorId);
           const fullContractText = generateAiaA401AgreementText({
             agreementNumber: agrNumber,
             formattedDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-            generalContractor: "Austin Commercial, LP",
+            generalContractor: currentProject?.generalContractorName || "Austin Commercial, LP",
             gcCity: locParsed.city,
             gcState: locParsed.state,
             stateAbbr: locParsed.stateAbbr,
-            subName: targetBid?.subcontractorName || "Rosendin Electric, Inc.",
+            subName: targetBid.subcontractorName,
             contactEmail: subContractor?.contactEmail || "estimating@rosendin.com",
             licenseNumber: subContractor?.licenseNumber || `${locParsed.stateAbbr}-LIC-90184`,
             licenseStatus: subContractor?.licenseStatus || `Active / Verified (${locParsed.stateAbbr} Licensing Board)`,
@@ -1212,7 +1257,7 @@ export const App: React.FC = () => {
             contractSum,
             baseBidAmount,
             acceptedVeTotal: acceptedVe,
-            leveledTotalCost: targetBid?.leveledTotalCost || contractSum,
+            leveledTotalCost: contractSum,
             retainagePercent: 10,
             liquidatedDamagesDaily: 1200,
             bidDeadline: pkg?.bidDeadline || "2026-09-30",
@@ -1223,11 +1268,12 @@ export const App: React.FC = () => {
             projectId: currentProject?._id || "proj_domain_tower_b",
             tradePackageId,
             bidId,
-            contractorId: targetBid?.contractorId || "ctr_elec_01",
+            contractorId: targetBid.contractorId,
             agreementNumber: agrNumber,
             documentTitle: "AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor",
-            subcontractorName: targetBid?.subcontractorName || "Rosendin Electric, Inc.",
-            generalContractorName: "Austin Commercial, LP",
+            subcontractorName: targetBid.subcontractorName,
+            subcontractorEmail: subContractor?.contactEmail,
+            generalContractorName: currentProject?.generalContractorName || "Austin Commercial, LP",
             projectTitle: currentProject?.title || "Commercial Construction Project",
             projectLocation: currentProject?.location || "Austin, TX",
             csiDivision: pkg?.csiDivision || "26 00 00",
@@ -1268,9 +1314,10 @@ export const App: React.FC = () => {
           };
         });
       }
-      showToast("Subcontract Agreement awarded and AIA Document A401 generated!");
-    } catch (err: any) {
-      showToast(`Award executed: ${err?.message || "Subcontract recorded"}`);
+       showToast("Subcontract award and AIA Document A401 generated successfully.");
+      } catch (err: any) {
+       showToast(`Award failed: ${err?.message || "The agreement was not generated."}`);
+       throw err;
     }
   };
 
@@ -1379,7 +1426,8 @@ export const App: React.FC = () => {
         `1-Click Deduct Credit applied (-$${amount.toLocaleString()})! Redundant double-buy eliminated from buyout.`
       );
     } catch (err: any) {
-      showToast(`Deduct credit applied: ${err?.message || "Updated"}`);
+      showToast(`Deduct credit failed: ${err?.message || "The credit was not applied."}`);
+      throw err;
     }
   };
 
@@ -1505,7 +1553,8 @@ export const App: React.FC = () => {
         `Scope void '${description}' assigned to Division ${pkg?.csiDivision || "Trade"}! Closed gap between contractors.`
       );
     } catch (err: any) {
-      showToast(`Scope void assigned: ${err?.message || "Updated"}`);
+      showToast(`Scope assignment failed: ${err?.message || "The scope void was not assigned."}`);
+      throw err;
     }
   };
 
@@ -1537,8 +1586,8 @@ export const App: React.FC = () => {
       showToast("Forensic cross-trade clash scan completed!");
       return summary;
     } catch (err: any) {
-      showToast(`Clash scan completed: ${err?.message || "Analysis logged."}`);
-      return "Cross-trade analysis complete.";
+      showToast(`Clash scan failed: ${err?.message || "No analysis was saved."}`);
+      return `Cross-trade analysis failed: ${err?.message || "No analysis was saved."}`;
     }
   };
 
@@ -1562,20 +1611,15 @@ export const App: React.FC = () => {
       } else {
         updateStandaloneAndPersist((prev) => {
           const target = prev.bids.find((b) => b._id === bidId);
-          const activeExclusions = exclusions.reduce(
-            (sum, exc) => (exc.isWaived ? sum : sum + (exc.costImpact || 0)),
-            0
-          );
-          const acceptedVeDeduct = alternates.reduce(
-            (sum, ve) => (ve.isAccepted ? sum + (ve.costDeduct || 0) : sum),
-            0
-          );
-          const newLeveled =
-            (target?.baseBidAmount || 0) +
-            activeExclusions +
-            leadPenalty +
-            coiPenalty -
-            acceptedVeDeduct;
+          const newLeveled = target
+            ? calculateLeveledCost({
+                ...target,
+                identifiedExclusions: exclusions,
+                valueEngineeringAlternates: alternates,
+                leadTimePenalty: leadPenalty,
+                coiPenalty,
+              })
+            : 0;
 
           const updatedBids = prev.bids.map((b) =>
             b._id === bidId
@@ -1615,7 +1659,8 @@ export const App: React.FC = () => {
       }
       showToast("Bid adjustments saved and leveled cost recalculated per ADR-0003.");
     } catch (err: any) {
-      showToast(`Adjustments recorded: ${err?.message || "Saved"}`);
+      showToast(`Adjustments failed: ${err?.message || "The changes were not saved."}`);
+      throw err;
     }
   };
 
@@ -1666,7 +1711,8 @@ export const App: React.FC = () => {
       }
       showToast("Contract unawarded. Trade package returned to leveling matrix.");
     } catch (err: any) {
-      showToast(`Unaward recorded: ${err?.message || "Updated"}`);
+      showToast(`Unaward failed: ${err?.message || "The award was not changed."}`);
+      throw err;
     }
   };
 
@@ -1698,7 +1744,8 @@ export const App: React.FC = () => {
       }
       showToast("Proposal deleted from leveling matrix.");
     } catch (err: any) {
-      showToast(`Delete recorded: ${err?.message || "Deleted"}`);
+      showToast(`Delete failed: ${err?.message || "The proposal was not deleted."}`);
+      throw err;
     }
   };
 
@@ -1723,8 +1770,8 @@ export const App: React.FC = () => {
           projectId: currentProject?._id || "proj_domain_tower_b",
           tradePackageId: target?.tradePackageId,
           eventType: "contract_awarded",
-          title: `AIA A401 Agreement Executed: ${target?.agreementNumber || "Contract"}`,
-          description: `Subcontract agreement for ${target?.subcontractorName || "Trade"} ($${(target?.contractSum || 0).toLocaleString()}) signed and executed as legally binding.`,
+          title: `AIA A401 Execution Status Recorded: ${target?.agreementNumber || "Contract"}`,
+           description: `Recorded execution status for ${target?.subcontractorName || "Trade"} ($${(target?.contractSum || 0).toLocaleString()}); external signature verification remains required.`,
           actor: "Authorized General Contractor Signatory",
           timestamp: Date.now(),
         };
@@ -1735,9 +1782,10 @@ export const App: React.FC = () => {
         };
       });
       }
-      showToast("AIA Document A401 Subcontract Agreement signed & executed!");
+      showToast("AIA Document A401 execution status recorded; external signature verification remains required.");
     } catch (err: any) {
-      showToast(`Agreement executed: ${err?.message || "Signed"}`);
+      showToast(`Agreement execution failed: ${err?.message || "The agreement was not updated."}`);
+      throw err;
     }
   };
 
@@ -1798,7 +1846,7 @@ export const App: React.FC = () => {
             rfqStatus: "bid_received",
           });
         }
-        await extractBidAction({
+        const result: any = await extractBidAction({
           projectId: currentProject._id as any,
           tradePackageId: activePackage._id as any,
           contractorId: targetContractorId as any,
@@ -1806,6 +1854,7 @@ export const App: React.FC = () => {
           quoteText: data.quoteText,
           fileName: data.fileName,
         });
+        if (result?.success === false) throw new Error(result.error || "The proposal could not be read.");
       } else {
         let contractor = contractors.find((c) => c._id === data.contractorId);
         let createdContractor: Contractor | null = null;
@@ -2218,7 +2267,8 @@ export const App: React.FC = () => {
       }
       showToast("Quote ingested, forensically parsed, and normalized into Bid Leveling Matrix!");
     } catch (err: any) {
-      showToast(`Ingestion complete: ${err?.message || "Bid leveled"}`);
+      showToast(`Ingestion failed: ${err?.message || "No bid was created."}`);
+      throw err;
     }
   };
 
@@ -2228,7 +2278,7 @@ export const App: React.FC = () => {
       if (isRealConvexProject && !currentProject._id.startsWith("proj_")) {
         await generateTradePackagesAction({
           projectId: currentProject._id as any,
-          specDocumentTextOverride: `SPECIFICATION PARSED FROM ${file.fileName}:\n${currentProject.specDocumentText}`,
+           specDocumentTextOverride: file.textContent?.trim() || currentProject.specDocumentText,
         });
       } else {
         let decodedContent = file.textContent || "";
@@ -2518,7 +2568,7 @@ export const App: React.FC = () => {
       }
       showToast(`Auto-scoped CSI Trade Packages from ${file.fileName} via Gemini 3.8 Flash! Inboxes provisioned.`);
     } catch (err: any) {
-      showToast(`Spec parsed: ${err?.message || "Trade packages ready."}`);
+      showToast(`Spec parsing failed: ${err?.message || "No trade packages were created."}`);
     }
   };
 
@@ -2537,7 +2587,7 @@ export const App: React.FC = () => {
         !targetPkgId.startsWith("pkg_");
 
       if (canExtractConvex) {
-        await extractBidAction({
+        const result: any = await extractBidAction({
           projectId: currentProject._id as any,
           tradePackageId: targetPkgId as any,
           contractorId: undefined,
@@ -2545,12 +2595,16 @@ export const App: React.FC = () => {
           fileName: file.fileName,
           fileSize: file.fileSize,
         });
+        if (result?.success === false) throw new Error(result.error || "The proposal could not be read.");
       } else {
         const targetPkg = activePackage || tradePackages.find((p) => p._id === file.tradePackageId) || tradePackages[0];
         const targetPkgId = file.tradePackageId || targetPkg?._id || "pkg_elec_26";
         const csi = (targetPkg?.csiDivision || "").replace(/[^0-9]/g, "");
 
         let rawContent = file.textContent || "";
+        if (!rawContent.trim()) {
+          throw new Error("The selected quote has no readable text. Upload a text-readable PDF or TXT proposal.");
+        }
         if (
           rawContent.startsWith("%PDF") ||
           file.fileType === "application/pdf" ||
@@ -2663,17 +2717,7 @@ export const App: React.FC = () => {
         }
 
         if (!baseBidAmount || baseBidAmount <= 0) {
-          if (targetPkg?.budgetEstimate && targetPkg.budgetEstimate > 0) {
-            baseBidAmount = Math.round(targetPkg.budgetEstimate * 0.96);
-          } else if (csi.startsWith("23")) {
-            baseBidAmount = 1420000;
-          } else if (csi.startsWith("22")) {
-            baseBidAmount = 745000;
-          } else if (csi.startsWith("03")) {
-            baseBidAmount = 2180000;
-          } else {
-            baseBidAmount = 1195000;
-          }
+          throw new Error("No bid amount was found in the selected proposal. Enter the bid amount manually before ingesting it.");
         }
 
         // Trade-aware line items fallback
@@ -3104,7 +3148,7 @@ export const App: React.FC = () => {
         tradePackageId: targetPkgId,
         eventType: "contract_awarded",
         title: `Full Procurement Loop Completed: ${agrNumber}`,
-        description: `Awarded ${winningBidder} ($${winningLeveledCost.toLocaleString()}) after catching $${hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${deceptiveBidder}. AIA A401 generated & executed.`,
+        description: `Awarded ${winningBidder} ($${winningLeveledCost.toLocaleString()}) after catching $${hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${deceptiveBidder}. AIA A401 generated; external signature verification remains required.`,
         actor: "Autonomous Procurement Simulation Engine",
         timestamp: Date.now(),
       };
@@ -3142,7 +3186,7 @@ export const App: React.FC = () => {
       }
       showToast("Bid Deadline Monitor cron executed successfully!");
     } catch (err: any) {
-      showToast(`Deadline cron completed: ${err?.message || "Verified"}`);
+      showToast(`Deadline monitor failed: ${err?.message || "No deadline audit was saved."}`);
     }
   };
 
@@ -3166,7 +3210,7 @@ export const App: React.FC = () => {
       }
       showToast("Compliance & Insurance Audit cron executed successfully!");
     } catch (err: any) {
-      showToast(`Compliance cron completed: ${err?.message || "Audited"}`);
+      showToast(`Compliance audit failed: ${err?.message || "No compliance audit was saved."}`);
     }
   };
 
@@ -3288,7 +3332,7 @@ export const App: React.FC = () => {
         await handleExecuteAgreement(activeAgr._id);
       }
       setActiveTab("audit");
-      showToast("AIA Document A401 executed successfully! Viewing Live Activity Audit Stream.");
+      showToast("AIA Document A401 execution status recorded. Viewing Live Activity Audit Stream.");
     }
   };
 
@@ -3308,7 +3352,10 @@ export const App: React.FC = () => {
         isStandaloneMode={!isConvexConnected}
         projects={projects}
         currentProject={currentProject}
-        onSelectProject={(id) => setSelectedProjectId(id)}
+            onSelectProject={(id) => {
+              setSelectedProjectId(id);
+              setSelectedPackageId("");
+            }}
         onCreateProject={handleCreateProject}
         onDeleteProject={handleDeleteProject}
         onOpenSimulation={() => setIsSimulationOpen(true)}
@@ -3345,6 +3392,7 @@ export const App: React.FC = () => {
         {activeTab === "packages" && (
           <div className="space-y-8">
             <TradePackagesView
+              key={`packages-${currentProject?._id || "none"}`}
               currentProject={currentProject}
               tradePackages={tradePackages}
               activePackageId={activePackage?._id ?? ""}
@@ -3358,6 +3406,7 @@ export const App: React.FC = () => {
 
             {/* Convex File Storage Section embedded under packages */}
             <ProjectFilesView
+              key={`files-${currentProject?._id || "none"}-${activePackage?._id || "none"}`}
               currentProject={currentProject}
               activePackage={activePackage}
               fallbackFiles={projectFiles}
@@ -3383,6 +3432,7 @@ export const App: React.FC = () => {
 
         {activeTab === "discovery" && (
           <SubcontractorDiscoveryView
+            key={`discovery-${currentProject?._id || "none"}-${activePackage?._id || "none"}`}
             currentPackage={activePackage}
             tradePackages={tradePackages}
             onSelectPackage={(id) => setSelectedPackageId(id)}
@@ -3399,12 +3449,14 @@ export const App: React.FC = () => {
 
         {activeTab === "qna" && (
           <PreBidQnAView
+            key={`qna-${currentProject?._id || "none"}-${activePackage?._id || "none"}`}
             projectId={currentProject?._id}
             projectTitle={currentProject?.title}
             currentPackage={activePackage}
             tradePackages={tradePackages}
             onSelectPackage={(id) => setSelectedPackageId(id)}
             conversations={conversations}
+            projectConversationsForAddendum={isConvexConnected ? undefined : standaloneProjectConversations}
             contractors={contractors}
             onSubmitRfi={handleSubmitRfi}
             onOpenSimulation={() => setIsSimulationOpen(true)}
@@ -3415,6 +3467,7 @@ export const App: React.FC = () => {
 
         {activeTab === "leveling" && (
           <BidLevelingMatrixView
+            key={`leveling-${currentProject?._id || "none"}-${activePackage?._id || "none"}`}
             currentPackage={activePackage}
             tradePackages={tradePackages}
             onSelectPackage={(id) => setSelectedPackageId(id)}
@@ -3435,6 +3488,7 @@ export const App: React.FC = () => {
 
         {activeTab === "coordination" && (
           <CrossTradeCoordinationView
+            key={`coordination-${currentProject?._id || "none"}`}
             currentProject={currentProject}
             tradePackages={tradePackages}
             doubleBuys={doubleBuys}
@@ -3450,6 +3504,7 @@ export const App: React.FC = () => {
 
         {activeTab === "contracts" && (
           <ContractsRegisterView
+            key={`contracts-${currentProject?._id || "none"}`}
             currentProject={currentProject}
             onNavigateToLeveling={() => setActiveTab("leveling")}
             fallbackAgreements={agreements}

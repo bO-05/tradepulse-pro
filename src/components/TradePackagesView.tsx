@@ -18,6 +18,7 @@ import {
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { TradePackage, Project } from "../types.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface TradePackagesViewProps {
   currentProject?: Project | null;
@@ -58,6 +59,9 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   const [specInputText, setSpecInputText] = useState("");
   const [isGeneratingPackages, setIsGeneratingPackages] = useState(false);
   const [generationSuccessMessage, setGenerationSuccessMessage] = useState<string | null>(null);
+  const [generationErrorMessage, setGenerationErrorMessage] = useState<string | null>(null);
+  const [packageToDelete, setPackageToDelete] = useState<TradePackage | null>(null);
+  const [creationError, setCreationError] = useState<string | null>(null);
 
   // Form state
   const [csiDivision, setCsiDivision] = useState("26 00 00");
@@ -80,17 +84,22 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onCreatePackage({
-      csiDivision,
-      tradeName,
-      budgetEstimate: Number(budgetEstimate),
-      scopeSummary,
-      mandatoryInclusions: mandatoryInclusions.split("\n").map((s) => s.trim()).filter(Boolean),
-      bidDeadline,
-    });
-    setIsModalOpen(false);
-    setTradeName("");
-    setScopeSummary("");
+    setCreationError(null);
+    try {
+      await onCreatePackage({
+        csiDivision,
+        tradeName,
+        budgetEstimate: Number(budgetEstimate),
+        scopeSummary,
+        mandatoryInclusions: mandatoryInclusions.split("\n").map((s) => s.trim()).filter(Boolean),
+        bidDeadline,
+      });
+      setIsModalOpen(false);
+      setTradeName("");
+      setScopeSummary("");
+    } catch (err: any) {
+      setCreationError(err?.message || "The trade package could not be created.");
+    }
   };
 
   const handleSpecBreakdownSubmit = async (e: React.FormEvent) => {
@@ -98,6 +107,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
     if (!currentProject || !specInputText.trim()) return;
     setIsGeneratingPackages(true);
     setGenerationSuccessMessage(null);
+    setGenerationErrorMessage(null);
     try {
       let count = 2;
       if (onGenerateTradePackagesFromSpec) {
@@ -119,7 +129,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
         setSpecInputText("");
       }, 2000);
     } catch (err: any) {
-      alert("Spec breakdown failed: " + (err?.message || "Unknown error"));
+      setGenerationErrorMessage(err?.message || "Specification breakdown failed.");
     } finally {
       setIsGeneratingPackages(false);
     }
@@ -379,9 +389,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (window.confirm(`Delete trade package ${pkg.tradeName} (Division ${pkg.csiDivision}) and all associated proposals?`)) {
-                          onDeletePackage(pkg._id);
-                        }
+                        setPackageToDelete(pkg);
                       }}
                       className="bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 hover:border-rose-800/60 border border-slate-700 text-slate-400 text-xs font-semibold p-1.5 rounded-lg transition"
                       title="Delete Trade Package"
@@ -477,6 +485,11 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   {generationSuccessMessage}
                 </div>
               )}
+              {generationErrorMessage && (
+                <div className="bg-rose-950/60 border border-rose-800 text-rose-300 p-3 rounded-lg text-xs font-semibold">
+                  Specification breakdown failed: {generationErrorMessage}
+                </div>
+              )}
 
               <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
                 <span className="text-[11px] text-slate-500">
@@ -518,6 +531,8 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   required
                   placeholder="e.g. 26 00 00"
                   value={csiDivision}
+                  pattern="[0-9]{2} [0-9]{2} [0-9]{2}"
+                  title="Use CSI format NN NN NN, for example 26 00 00."
                   onChange={(e) => setCsiDivision(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                 />
@@ -541,6 +556,8 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   type="number"
                   required
                   value={budgetEstimate}
+                  min={1}
+                  max={1000000000}
                   onChange={(e) => setBudgetEstimate(Number(e.target.value))}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                 />
@@ -574,12 +591,14 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   type="date"
                   required
                   value={bidDeadline}
+                  min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setBidDeadline(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                {creationError && <p className="mr-auto max-w-[55%] text-[11px] text-rose-400">{creationError}</p>}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -598,6 +617,20 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(packageToDelete)}
+        title="Delete trade package?"
+        description={packageToDelete ? `This removes ${packageToDelete.tradeName} (Division ${packageToDelete.csiDivision}) and its associated proposals, files, and contractor records.` : ""}
+        confirmLabel="Delete package"
+        onCancel={() => setPackageToDelete(null)}
+        onConfirm={async () => {
+          if (packageToDelete && onDeletePackage) {
+            await onDeletePackage(packageToDelete._id);
+          }
+          setPackageToDelete(null);
+        }}
+      />
     </div>
   );
 };

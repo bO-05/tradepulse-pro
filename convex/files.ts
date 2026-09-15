@@ -2,6 +2,12 @@ import { mutation, query, action, internalMutation, internalAction, internalQuer
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { sanitizeBidLevelingOutput, extractTextFromPdfStream } from "./llmRouter";
+import {
+  MAX_UPLOAD_BYTES,
+  validateUploadContentType,
+  validateUploadFileName,
+  validateUploadFileType,
+} from "./validation";
 
 export { extractTextFromPdfStream };
 
@@ -27,17 +33,38 @@ export const saveFileRecord = mutation({
     fileType: v.string(), // "blueprint" | "spec" | "quote_pdf" | "coi_certificate" | "addendum"
     fileSize: v.number(),
     uploadedBy: v.string(),
+    textContent: v.optional(v.string()),
+    contentType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (args.storageId.startsWith("http") || args.storageId.startsWith("/")) {
+      throw new Error("Project uploads must use a Convex Storage identifier.");
+    }
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
+    if (args.tradePackageId) {
+      const tradePackage = await ctx.db.get(args.tradePackageId);
+      if (!tradePackage || tradePackage.projectId !== args.projectId) {
+        throw new Error("The file trade package does not belong to the selected project.");
+      }
+    }
+    const fileName = validateUploadFileName(args.fileName, args.fileType === "addendum");
+    const fileType = validateUploadFileType(args.fileType);
+    validateUploadContentType(fileName, args.contentType);
+    const fileSize = await getAuthoritativeFileSize(ctx, args.storageId, args.fileSize, fileName);
+    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_UPLOAD_BYTES) {
+      throw new Error("File size must be greater than zero and no more than 50 MB.");
+    }
     const fileId = await ctx.db.insert("projectFiles", {
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       storageId: args.storageId,
-      fileName: args.fileName,
-      fileType: args.fileType,
-      fileSize: args.fileSize,
+      fileName,
+      fileType,
+      fileSize,
       uploadedBy: args.uploadedBy,
       uploadedAt: Date.now(),
+      ...(args.textContent ? { textContent: args.textContent.slice(0, 100_000) } : {}),
     });
 
     // Record in reactive audit stream
@@ -45,8 +72,8 @@ export const saveFileRecord = mutation({
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       eventType: "file_uploaded",
-      title: `File Uploaded: ${args.fileName}`,
-      description: `Uploaded ${args.fileType} (${(args.fileSize / 1024).toFixed(1)} KB) to Convex File Storage.`,
+      title: `File Uploaded: ${fileName}`,
+      description: `Uploaded ${fileType} (${(fileSize / 1024).toFixed(1)} KB) to Convex File Storage.`,
       actor: args.uploadedBy,
       timestamp: Date.now(),
     });
@@ -64,25 +91,41 @@ export const saveFileRecordInternal = internalMutation({
     fileType: v.string(),
     fileSize: v.number(),
     uploadedBy: v.string(),
+    textContent: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
+    if (args.tradePackageId) {
+      const tradePackage = await ctx.db.get(args.tradePackageId);
+      if (!tradePackage || tradePackage.projectId !== args.projectId) {
+        throw new Error("The file trade package does not belong to the selected project.");
+      }
+    }
+    const fileName = validateUploadFileName(args.fileName, args.fileType === "addendum");
+    const fileType = validateUploadFileType(args.fileType);
+    const fileSize = await getAuthoritativeFileSize(ctx, args.storageId, args.fileSize, fileName);
+    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_UPLOAD_BYTES) {
+      throw new Error("File size must be greater than zero and no more than 50 MB.");
+    }
     const fileId = await ctx.db.insert("projectFiles", {
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       storageId: args.storageId,
-      fileName: args.fileName,
-      fileType: args.fileType,
-      fileSize: args.fileSize,
+      fileName,
+      fileType,
+      fileSize,
       uploadedBy: args.uploadedBy,
       uploadedAt: Date.now(),
+      ...(args.textContent ? { textContent: args.textContent.slice(0, 100_000) } : {}),
     });
 
     await ctx.db.insert("auditLogs", {
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       eventType: "file_uploaded",
-      title: `File Stored: ${args.fileName}`,
-      description: `Saved ${args.fileType} (${(args.fileSize / 1024).toFixed(1)} KB) to Project Files.`,
+      title: `File Stored: ${fileName}`,
+      description: `Saved ${fileType} (${(fileSize / 1024).toFixed(1)} KB) to Project Files.`,
       actor: args.uploadedBy,
       timestamp: Date.now(),
     });
@@ -157,6 +200,14 @@ export const deleteFile = mutation({
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error("File not found");
 
+    const linkedBids = await ctx.db
+      .query("bids")
+      .withIndex("by_source_file", (q: any) => q.eq("sourceFileId", args.fileId))
+      .collect();
+    if (linkedBids.length > 0) {
+      throw new Error("This quote file is linked to a bid and cannot be deleted until the bid is removed.");
+    }
+
     try {
       await ctx.storage.delete(file.storageId as any);
     } catch {
@@ -167,7 +218,7 @@ export const deleteFile = mutation({
     await ctx.db.insert("auditLogs", {
       projectId: file.projectId,
       tradePackageId: file.tradePackageId,
-      eventType: "file_uploaded",
+      eventType: "file_deleted",
       title: `File Deleted: ${file.fileName}`,
       description: `Removed ${file.fileName} from Convex File Storage.`,
       actor: "System Administrator",
@@ -185,6 +236,30 @@ export const getFileRecordInternal = internalQuery({
   },
 });
 
+async function getAuthoritativeFileSize(ctx: any, storageId: string, requestedSize: number, fileName: string): Promise<number> {
+  // Email URLs and text-only extraction records do not point at Convex Storage.
+  const isExternalReference = storageId.startsWith("http") || storageId.startsWith("/");
+  const isSyntheticTextRecord = storageId.startsWith("quote_") || storageId.startsWith("text_");
+  if (isExternalReference || isSyntheticTextRecord) return requestedSize;
+
+  const blob = await ctx.storage.get(storageId as any);
+  if (!blob) throw new Error("The uploaded storage object could not be found.");
+  const extension = fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+  if (extension === ".pdf") {
+    const header = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+    if (new TextDecoder().decode(header) !== "%PDF-") {
+      throw new Error("The uploaded PDF does not contain a valid PDF header.");
+    }
+  }
+  if (extension === ".txt" || extension === ".md") {
+    const sample = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
+    if (sample.some((byte) => byte === 0)) {
+      throw new Error("The uploaded text file contains binary data.");
+    }
+  }
+  return blob.size;
+}
+
 async function doExtractBid(
   ctx: any,
   args: {
@@ -201,6 +276,18 @@ async function doExtractBid(
   let proposalText = args.quoteText || "";
   let effectiveFileName = args.fileName;
   let effectiveFileSize = args.fileSize;
+
+  const tradePackage: any = await ctx.runQuery(internal.tradePackages.getPackageInternal, {
+    tradePackageId: args.tradePackageId,
+  });
+  if (!tradePackage || tradePackage.projectId !== args.projectId) {
+    throw new Error("The selected trade package does not belong to the selected project.");
+  }
+
+  if (effectiveFileName) validateUploadFileName(effectiveFileName);
+  if (effectiveFileSize !== undefined && (!Number.isFinite(effectiveFileSize) || effectiveFileSize <= 0 || effectiveFileSize > MAX_UPLOAD_BYTES)) {
+    throw new Error("Quote file size must be greater than zero and no more than 50 MB.");
+  }
 
   if (proposalText.startsWith("%PDF") || /[\x00-\x08\x0E-\x1F]/.test(proposalText.slice(0, 100))) {
     const extracted = extractTextFromPdfStream(proposalText);
@@ -229,9 +316,18 @@ async function doExtractBid(
     const fileRecord = await ctx.runQuery(internal.files.getFileRecordInternal, {
       fileId: args.fileId,
     });
+    if (!fileRecord) {
+      throw new Error("The selected quote file could not be found.");
+    }
     if (fileRecord) {
+      if (fileRecord.projectId !== args.projectId || fileRecord.tradePackageId !== args.tradePackageId) {
+        throw new Error("The selected quote file does not belong to the selected project and trade package.");
+      }
       if (!effectiveFileName) effectiveFileName = fileRecord.fileName;
       if (!effectiveFileSize) effectiveFileSize = fileRecord.fileSize;
+      if ((!proposalText || proposalText.startsWith("Extracted proposal from")) && fileRecord.textContent) {
+        proposalText = fileRecord.textContent;
+      }
       if ((!proposalText || proposalText.startsWith("Extracted proposal from")) && fileRecord.storageId && !fileRecord.storageId.startsWith("http")) {
         try {
           const blob = await ctx.storage.get(fileRecord.storageId as any);
@@ -251,7 +347,7 @@ async function doExtractBid(
                 success: false,
                 error: "Uploaded PDF file structure is corrupted or incomplete.",
               };
-            } else if (decompressedExtracted.trim().length <= 15 && (fileRecord.fileName.toLowerCase().endsWith(".pdf") || fileRecord.fileType === "application/pdf")) {
+            } else if (decompressedExtracted.trim().length <= 15 && (fileRecord.fileName.toLowerCase().endsWith(".pdf") || fileRecord.fileType === "quote_pdf")) {
               return {
                 success: false,
                 error: "This PDF appears to be a scanned document or flattened raster image without selectable text streams. Please enter quote details manually or paste the proposal text.",
@@ -276,13 +372,13 @@ async function doExtractBid(
         }
       }
       if (!proposalText || proposalText.trim().length < 15) {
-        proposalText = `Proposal extracted from ${fileRecord.fileName} (${(fileRecord.fileSize / 1024).toFixed(1)} KB). Base commercial trade package proposal.`;
+        return { success: false, error: `No readable quote text was found in ${fileRecord.fileName}. Upload a text-readable PDF or TXT proposal.` };
       }
     }
   }
 
   if (!proposalText || proposalText.trim().length < 15) {
-    proposalText = `Base commercial proposal for trade package ${args.tradePackageId}`;
+    return { success: false, error: "No readable proposal text was provided." };
   }
 
   // 1. Forensic reasoning via token-optimized LLM router
@@ -454,6 +550,7 @@ async function doExtractBid(
     coiComplianceStatus: coiStatus,
     coiPenalty,
     leveledTotalCost: leveledTotal,
+    sourceFileId: args.fileId,
   });
 
   // Update contractor rfqStatus to "bid_received"
@@ -470,7 +567,7 @@ async function doExtractBid(
 
   // 3. Save a quote file record if fileName provided and fileId wasn't already registered
   let linkedFileId = args.fileId;
-  if (effectiveFileName && !args.fileId) {
+  if (effectiveFileName && !args.fileId && effectiveFileSize !== undefined) {
     linkedFileId = await ctx.runMutation(internal.files.saveFileRecordInternal, {
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
@@ -503,13 +600,19 @@ async function doGeneratePreBidAddendum(
   }
 ): Promise<any> {
   const addendumNum = args.addendumNumber || "ADDENDUM NO. 01";
-  const project: any = await ctx.runQuery(internal.projects.getProjectInternal, {
+    const project: any = await ctx.runQuery(internal.projects.getProjectInternal, {
     projectId: args.projectId,
   });
-  const conversations: any = await ctx.runQuery(
+  const certificationResult: any = await ctx.runQuery(
     internal.rfq.listClarifiedConversationsForProject,
     { projectId: args.projectId }
   );
+  if (certificationResult.pending.length > 0) {
+    throw new Error(
+      `PM certification is required before issuing a binding addendum. Review ${certificationResult.pending.length} pending RFI(s).`
+    );
+  }
+  const conversations = certificationResult.clarified;
 
   const nowStr = new Date().toLocaleDateString("en-US", {
     year: "numeric",
@@ -565,16 +668,9 @@ Each proposal submitted must include affirmative written acknowledgement of ${ad
 **END OF ${addendumNum}**
 `;
 
-  let storageId = `addendum_${Date.now()}`;
-  let downloadUrl: string | undefined = undefined;
-  try {
-    const blob = new Blob([addendumText], { type: "text/markdown" });
-    storageId = await ctx.storage.store(blob);
-    const url = await ctx.storage.getUrl(storageId as any);
-    if (url) downloadUrl = url;
-  } catch {
-    // Storage fallback
-  }
+  const blob = new Blob([addendumText], { type: "text/markdown" });
+  const storageId = await ctx.storage.store(blob);
+  const downloadUrl = (await ctx.storage.getUrl(storageId as any)) ?? undefined;
 
   const fileId: any = await ctx.runMutation(internal.files.saveFileRecordInternal, {
     projectId: args.projectId,
@@ -583,6 +679,7 @@ Each proposal submitted must include affirmative written acknowledgement of ${ad
     fileName: `${addendumNum.replace(/\s+/g, "_")}_CLARIFICATIONS.md`,
     fileType: "addendum",
     fileSize: addendumText.length,
+    textContent: addendumText,
     uploadedBy: "TradePulse Legal Addendum Generator",
   });
 

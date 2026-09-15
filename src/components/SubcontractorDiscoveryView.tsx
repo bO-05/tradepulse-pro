@@ -22,6 +22,7 @@ import {
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Contractor, TradePackage } from "../types.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface SubcontractorDiscoveryViewProps {
   currentPackage: TradePackage | null;
@@ -109,6 +110,8 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
     licenseStatus: "Active & Verified",
     sourceUrl: "",
   });
+  const [contractorToDelete, setContractorToDelete] = useState<Contractor | null>(null);
+  const [contractorActionError, setContractorActionError] = useState<string | null>(null);
 
   const scrapeAction = useAction(api.contractorDiscovery.scrapeContractorWebsite);
   const createContractorMutation = useMutation(api.contractors.createContractor);
@@ -165,6 +168,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
     e.preventDefault();
     if (!addForm.companyName.trim() || !addForm.contactEmail.trim()) return;
     setIsSubmittingAdd(true);
+    setContractorActionError(null);
     try {
       if (onCreateContractor) {
         await onCreateContractor({
@@ -198,8 +202,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
         sourceUrl: "",
       });
     } catch (err: any) {
-      console.warn("Create contractor fallback:", err);
-      setIsAddModalOpen(false);
+      setContractorActionError(err?.message || "The contractor could not be saved.");
     } finally {
       setIsSubmittingAdd(false);
     }
@@ -221,6 +224,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
     e.preventDefault();
     if (!editingContractor || !editForm.companyName.trim() || !editForm.contactEmail.trim()) return;
     setIsSubmittingEdit(true);
+    setContractorActionError(null);
     try {
       if (onUpdateContractor) {
         await onUpdateContractor(editingContractor._id, {
@@ -244,24 +248,38 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
       }
       setEditingContractor(null);
     } catch (err: any) {
-      console.warn("Edit contractor fallback:", err);
-      setEditingContractor(null);
+      setContractorActionError(err?.message || "The contractor could not be updated.");
     } finally {
       setIsSubmittingEdit(false);
     }
   };
 
   const handleDelete = async (contractorId: string, companyName: string) => {
-    if (confirm(`Remove "${companyName}" from this trade package?`)) {
-      try {
-        if (onDeleteContractor) {
-          await onDeleteContractor(contractorId);
-        } else {
-          await deleteContractorMutation({ contractorId: contractorId as any });
-        }
-      } catch (err: any) {
-        console.warn("Delete contractor fallback:", err);
+    setContractorActionError(null);
+    const contractor = contractors.find((item) => item._id === contractorId);
+    setContractorToDelete(contractor || {
+      _id: contractorId,
+      tradePackageId: currentPackage._id,
+      companyName,
+      contactEmail: "",
+      licenseNumber: "",
+      licenseStatus: "",
+      sourceUrl: "",
+      rfqStatus: "discovered",
+    });
+  };
+
+  const confirmDeleteContractor = async () => {
+    if (!contractorToDelete) return;
+    try {
+      if (onDeleteContractor) {
+        await onDeleteContractor(contractorToDelete._id);
+      } else {
+        await deleteContractorMutation({ contractorId: contractorToDelete._id as any });
       }
+      setContractorToDelete(null);
+    } catch (err: any) {
+      setContractorActionError(err?.message || "The contractor could not be removed.");
     }
   };
 
@@ -307,6 +325,11 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
   return (
     <div className="space-y-4">
+      {contractorActionError && (
+        <div className="rounded-xl border border-rose-800/80 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert">
+          Contractor action failed: {contractorActionError}
+        </div>
+      )}
       {/* Header Banner with Trade Package Switcher */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
         {/* Trade Package Switcher Ribbon */}
@@ -357,7 +380,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <span>💡 Why GCs Care</span>
                 <span className="text-[9px]">{showWhyCare ? "▲" : "▼"}</span>
               </button>
-            </div>
+      </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -884,6 +907,14 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(contractorToDelete)}
+        title="Remove contractor?"
+        description={contractorToDelete ? `Remove ${contractorToDelete.companyName} from ${currentPackage.tradeName}? Existing bid and communication records may also be affected.` : ""}
+        confirmLabel="Remove contractor"
+        onCancel={() => setContractorToDelete(null)}
+        onConfirm={confirmDeleteContractor}
+      />
     </div>
   );
 };

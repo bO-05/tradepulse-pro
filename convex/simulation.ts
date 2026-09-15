@@ -299,8 +299,14 @@ export const runFullProcurementCycle = mutation({
     tradePackageId: v.optional(v.id("tradePackages")),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
+
     // 1. Select or create trade package
     let tradePkg = args.tradePackageId ? await ctx.db.get(args.tradePackageId) : null;
+    if (tradePkg && tradePkg.projectId !== args.projectId) {
+      throw new Error("The trade package does not belong to the selected project.");
+    }
     if (!tradePkg) {
       tradePkg = await ctx.db
         .query("tradePackages")
@@ -643,7 +649,6 @@ export const runFullProcurementCycle = mutation({
     await ctx.db.patch(packageId, { status: "awarded" });
 
     // 6. Generate AIA Document A401 Subcontract Agreement for Winning Bidder
-    const project = await ctx.db.get(tradePkg.projectId);
     const divPrefix = tradePkg.csiDivision.replace(/\s+/g, "").slice(0, 4);
     const agreementNumber = `A401-2026-${divPrefix}-${now.toString().slice(-4)}`;
     const formattedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });

@@ -1,6 +1,12 @@
 import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { generateAiaA401AgreementText } from "./agreements";
+import {
+  DEFAULT_GENERAL_CONTRACTOR,
+  validatePositiveAmount,
+  validatePositiveInteger,
+  validateProjectText,
+} from "./validation";
 
 export const getDemoProject = query({
   args: {},
@@ -45,10 +51,28 @@ export const createProject = mutation({
     targetCompletionWeeks: v.number(),
     specDocumentText: v.string(),
     isDemoProject: v.boolean(),
+    generalContractorName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const title = validateProjectText(args.title, "Project title");
+    const location = validateProjectText(args.location, "Project location");
+    const projectType = validateProjectText(args.projectType, "Project type");
+    const estBudget = validatePositiveAmount(args.estBudget, "Estimated budget");
+    const targetCompletionWeeks = validatePositiveInteger(args.targetCompletionWeeks, "Target completion", 520);
+    const specDocumentText = args.specDocumentText.trim() || `Project Scope for ${title}.`;
+    const generalContractorName = args.generalContractorName?.trim()
+      ? validateProjectText(args.generalContractorName, "General contractor name")
+      : DEFAULT_GENERAL_CONTRACTOR;
+
     const projectId = await ctx.db.insert("projects", {
-      ...args,
+      title,
+      location,
+      projectType,
+      estBudget,
+      targetCompletionWeeks,
+      specDocumentText,
+      isDemoProject: args.isDemoProject,
+      generalContractorName,
       createdAt: Date.now(),
     });
 
@@ -56,7 +80,7 @@ export const createProject = mutation({
       projectId,
       eventType: "compliance_audit",
       title: `Project Initialized: ${args.title}`,
-      description: `Established commercial project in ${args.location} ($${args.estBudget.toLocaleString()} budget, ${args.targetCompletionWeeks} weeks target completion).`,
+      description: `Established commercial project in ${location} ($${estBudget.toLocaleString()} budget, ${targetCompletionWeeks} weeks target completion).`,
       actor: "Chief Estimator / GC Project Executive",
       timestamp: Date.now(),
     });
@@ -260,6 +284,7 @@ All trade subcontractors shall provide continuous jobsite cleanup, hoist their o
 Section 26 00 00 - Electrical Systems:
 Furnish and install 1600A main service switchboard, 480/277V step-down distribution dry transformers, lighting control panels, emergency battery backup inverters, and branch conduit routing. Subcontractor is strictly responsible for crane rigging and hoisting up to 14th-floor penthouse plant room. All firestop floor/wall penetration penetrations must comply with UL 1479.`,
       isDemoProject: true,
+      generalContractorName: DEFAULT_GENERAL_CONTRACTOR,
       createdAt: Date.now() - 86400000 * 3,
     });
 
@@ -871,7 +896,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
         month: "long",
         day: "numeric",
       }),
-      generalContractor: "Apex Commercial General Contractors LLC",
+      generalContractor: DEFAULT_GENERAL_CONTRACTOR,
       gcCity: "Austin",
       gcState: "Texas",
       stateAbbr: "TX",
@@ -908,7 +933,8 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       agreementNumber,
       documentTitle: "AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor",
       subcontractorName: "Rosendin Electric, Inc.",
-      generalContractorName: "Apex Commercial General Contractors LLC",
+      generalContractorName: DEFAULT_GENERAL_CONTRACTOR,
+      subcontractorEmail: "estimating@rosendin.com",
       projectTitle: "The Domain Tower B - Commercial MEP",
       projectLocation: "Austin, TX",
       csiDivision: "26 00 00",
@@ -1015,4 +1041,3 @@ export const deleteProject = mutation({
     return { success: true };
   },
 });
-

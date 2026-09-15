@@ -29,6 +29,8 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Bid, TradePackage, Agreement, Contractor, ScopeExclusion, ValueEngineeringAlternate } from "../types.ts";
 import { extractTextFromPdfStream } from "../standaloneStore.ts";
+import { getDeceptiveBidIds } from "../leveling.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface BidLevelingMatrixViewProps {
   currentPackage: TradePackage | null;
@@ -93,6 +95,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   const [isModalDraggingOver, setIsModalDraggingOver] = useState(false);
   const [isEmptyDraggingOver, setIsEmptyDraggingOver] = useState(false);
   const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
+  const [ingestError, setIngestError] = useState<string | null>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
 
   const autoDetectContractorFromText = (text: string, fileName?: string) => {
@@ -117,7 +120,40 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   };
 
   const handleProposalFileDrop = (file: File) => {
+    const extension = file.name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+    if (!extension || ![".pdf", ".txt"].includes(extension)) {
+      setIngestError("Quote uploads must be PDF or TXT files. Paste proposal text for other source formats.");
+      return;
+    }
+    if (file.size <= 0 || file.size > 50 * 1024 * 1024) {
+      setIngestError("Quote files must be greater than zero and no more than 50 MB.");
+      return;
+    }
+    setIngestError(null);
     setIngestFileName(file.name);
+    if (extension === ".pdf") {
+      file.arrayBuffer().then((buffer) => {
+        const extracted = extractTextFromPdfStream(new Uint8Array(buffer));
+        if (extracted.startsWith("[PDF_ENCRYPTED]")) {
+          setScannedPdfWarning("This PDF is password-protected or encrypted. Please export an unencrypted copy or paste the proposal text below.");
+          setIngestQuoteText("");
+          autoDetectContractorFromText("", file.name);
+        } else if (extracted.startsWith("[PDF_CORRUPTED]")) {
+          setScannedPdfWarning("This PDF appears to be corrupted or incomplete. Please check the file or enter quote details manually.");
+          setIngestQuoteText("");
+          autoDetectContractorFromText("", file.name);
+        } else if (extracted.trim().length < 15) {
+          setScannedPdfWarning("This PDF appears to be a scanned document or flattened raster image without selectable text streams. Please enter quote details manually or paste the proposal text below.");
+          setIngestQuoteText("");
+          autoDetectContractorFromText("", file.name);
+        } else {
+          setScannedPdfWarning(null);
+          setIngestQuoteText(extracted);
+          autoDetectContractorFromText(extracted, file.name);
+        }
+      }).catch(() => setScannedPdfWarning("Failed to read the PDF from disk. Please paste the proposal text below."));
+      return;
+    }
     const isImage = file.type.startsWith("image/") || /\.(png|jpe?g|webp|bmp|tiff?)$/i.test(file.name);
     if (isImage) {
       setScannedPdfWarning(
@@ -180,6 +216,10 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   const [newExcDesc, setNewExcDesc] = useState("");
   const [newExcCost, setNewExcCost] = useState<number>(25000);
   const [isSavingAdjustments, setIsSavingAdjustments] = useState(false);
+  const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+  const [bidToDelete, setBidToDelete] = useState<Bid | null>(null);
+  const [bidToUnaward, setBidToUnaward] = useState<Bid | null>(null);
+  const [agreementToExecute, setAgreementToExecute] = useState<string | null>(null);
 
   const executeAgreementMutation = useMutation(api.agreements.executeAgreement);
   const updateAdjustmentsMutation = useMutation(api.bids.updateBidAdjustments);
@@ -215,41 +255,57 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   };
 
   const handleUnaward = async (bidId: string) => {
+    setBidToUnaward(bids.find((bid) => bid._id === bidId) || null);
+  };
+
+  const confirmUnaward = async () => {
+    if (!bidToUnaward) return;
     try {
       if (onUnawardContract) {
-        await onUnawardContract(bidId, currentPackage._id);
+        await onUnawardContract(bidToUnaward._id, currentPackage._id);
       } else {
         await unawardContractMutation({
-          bidId: bidId as any,
+          bidId: bidToUnaward._id as any,
           tradePackageId: currentPackage._id as any,
         });
       }
+      setBidToUnaward(null);
     } catch (err: any) {
       console.warn("Unaward fallback:", err);
     }
   };
 
   const handleDeleteBid = async (bidId: string) => {
-    if (confirm("Are you sure you want to delete this proposal from the leveling matrix?")) {
-      try {
-        if (onDeleteBid) {
-          await onDeleteBid(bidId);
-        } else {
-          await deleteBidMutation({ bidId: bidId as any });
-        }
-      } catch (err: any) {
-        console.warn("Delete bid fallback:", err);
+    setBidToDelete(bids.find((bid) => bid._id === bidId) || null);
+  };
+
+  const confirmDeleteBid = async () => {
+    if (!bidToDelete) return;
+    try {
+      if (onDeleteBid) {
+        await onDeleteBid(bidToDelete._id);
+      } else {
+        await deleteBidMutation({ bidId: bidToDelete._id as any });
       }
+      setBidToDelete(null);
+    } catch (err: any) {
+      console.warn("Delete bid failed:", err);
     }
   };
 
   const handleExecuteAgreement = async (agreementId: string) => {
+    setAgreementToExecute(agreementId);
+  };
+
+  const confirmExecuteAgreement = async () => {
+    if (!agreementToExecute) return;
     try {
       if (onExecuteAgreement) {
-        await onExecuteAgreement(agreementId);
+        await onExecuteAgreement(agreementToExecute);
       } else {
-        await executeAgreementMutation({ agreementId: agreementId as any });
+        await executeAgreementMutation({ agreementId: agreementToExecute as any });
       }
+      setAgreementToExecute(null);
     } catch (err: any) {
       console.warn("Execute agreement fallback:", err);
     }
@@ -258,6 +314,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   // Open adjustment modal
   const openAdjustmentModal = (bid: Bid) => {
     setAdjustingBid(bid);
+    setAdjustmentError(null);
     setTempExclusions([...(bid.identifiedExclusions || [])]);
     setTempAlternates([...(bid.valueEngineeringAlternates || [])]);
     setTempLeadPenalty(bid.leadTimePenalty);
@@ -354,9 +411,11 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
         });
       }
       setAdjustingBid(null);
+      setAdjustmentError(null);
     } catch (err: any) {
-      console.warn("Save adjustments fallback:", err);
-      setAdjustingBid(null);
+      const message = err?.message || "The adjustments could not be saved.";
+      console.warn("Save adjustments failed:", err);
+      setAdjustmentError(message);
     } finally {
       setIsSavingAdjustments(false);
     }
@@ -370,6 +429,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
     if (effectiveContractorId === "new_contractor" && !newContractorName.trim()) return;
 
     setIsIngesting(true);
+    setIngestError(null);
     try {
       if (onIngestQuote) {
         await onIngestQuote({
@@ -393,8 +453,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
       setIngestFileName("");
       setNewContractorName("");
     } catch (err: any) {
-      console.warn("Ingest quote fallback:", err);
-      setIsIngestModalOpen(false);
+      setIngestError(err?.message || "The proposal could not be ingested.");
     } finally {
       setIsIngesting(false);
     }
@@ -563,12 +622,8 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
     null
   );
   const lowestLeveledBid = sortedBids[0] || null;
-  const isDeceptiveGap =
-    lowestBaseBid &&
-    lowestLeveledBid &&
-    lowestBaseBid._id !== lowestLeveledBid._id &&
-    lowestBaseBid.baseBidAmount < lowestLeveledBid.baseBidAmount &&
-    lowestBaseBid.leveledTotalCost > lowestLeveledBid.leveledTotalCost;
+  const deceptiveBidIds = getDeceptiveBidIds(bids);
+  const isDeceptiveGap = Boolean(lowestBaseBid && deceptiveBidIds.has(lowestBaseBid._id));
 
   const awardedBid = bids.find((b) => b.isAwarded) || null;
 
@@ -780,7 +835,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 </span>
               </div>
               <p className="text-slate-300 text-[11px] leading-tight">
-                <strong className="text-white">{lowestBaseBid.subcontractorName}</strong> ($1.10M base) omits <strong className="text-amber-300">+$147k in scope exclusions</strong>. True leveled cost is <strong className="text-amber-400">$1.286M</strong> vs <strong className="text-emerald-400">{lowestLeveledBid.subcontractorName} ($1.225M)</strong>.
+                <strong className="text-white">{lowestBaseBid.subcontractorName}</strong> (${lowestBaseBid.baseBidAmount.toLocaleString()} base) has a lower paper price but a higher normalized cost of <strong className="text-amber-400">${lowestBaseBid.leveledTotalCost.toLocaleString()}</strong> vs <strong className="text-emerald-400">{lowestLeveledBid.subcontractorName} (${lowestLeveledBid.leveledTotalCost.toLocaleString()})</strong>.
               </p>
             </div>
           </div>
@@ -1329,7 +1384,8 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                     <div className="space-y-1.5">
                       <div className="w-full bg-emerald-950/60 border border-emerald-800 text-emerald-400 font-bold text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4" />
-                        Subcontract Agreement Executed
+                         <span>Contract Awarded • AIA A401 Generated</span>
+                         <span className="text-[10px] font-normal text-emerald-300/80">External signature required</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -1507,7 +1563,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                     }
                   }}
                   className="hidden"
-                  accept=".pdf,.txt,.csv,.doc,.docx"
+                   accept=".pdf,.txt"
                 />
                 <Upload className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="text-[11px] font-medium">
@@ -1567,6 +1623,11 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   >
                     <X className="w-4 h-4" />
                   </button>
+                </div>
+              )}
+              {ingestError && (
+                <div className="rounded-lg border border-rose-800 bg-rose-950/60 p-3 text-xs text-rose-300" role="alert">
+                  Bid ingestion failed: {ingestError}
                 </div>
               )}
 
@@ -1875,7 +1936,11 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
             {/* Modal Footer */}
             <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between gap-3 text-xs">
               <div className="text-slate-400 font-mono text-[11px]">
-                Updated Total: <strong className="text-emerald-400">${calculatePreviewCost().toLocaleString()}</strong>
+                {adjustmentError ? (
+                  <span className="text-rose-400">{adjustmentError}</span>
+                ) : (
+                  <>Updated Total: <strong className="text-emerald-400">${calculatePreviewCost().toLocaleString()}</strong></>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1915,7 +1980,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                     AIA Document A401™ Subcontract Agreement
                     {activeAgreement?.status === "executed" ? (
                       <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">
-                        Executed & Signed
+                        Execution status recorded • external signature required
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full">
@@ -2004,15 +2069,15 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                         </div>
                         <div>
                           <div className="font-bold text-xs tracking-wider uppercase text-emerald-300">
-                            ✓ Digitally Certified & Legally Executed under AIA Document A401™-2017
+                            ✓ Execution recorded in TradePulse for AIA Document A401™-2017
                           </div>
                           <div className="text-[10px] text-emerald-400/80 font-mono">
-                            Cryptographic Audit Stamp: {activeAgreement.agreementNumber}-EXE • Counter-Signed & Binding Subcontract
+                            Audit record: {activeAgreement.agreementNumber}-EXE • External signature verification required
                           </div>
                         </div>
                       </div>
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-900/80 border border-emerald-600 rounded text-emerald-200 uppercase tracking-wider">
-                        ACTIVE & ENFORCEABLE
+                         RECORDED • SIGNATURE REQUIRED
                       </span>
                     </div>
                   )}
@@ -2044,7 +2109,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      Sign & Execute Agreement
+                       Record External Execution
                     </button>
                   )}
                   <button
@@ -2059,6 +2124,31 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(bidToDelete)}
+        title="Delete proposal?"
+        description={bidToDelete ? `Remove ${bidToDelete.subcontractorName}'s proposal from the ${currentPackage?.tradeName || "active"} leveling matrix?` : ""}
+        confirmLabel="Delete proposal"
+        onCancel={() => setBidToDelete(null)}
+        onConfirm={confirmDeleteBid}
+      />
+      <ConfirmDialog
+        open={Boolean(bidToUnaward)}
+        title="Unaward proposal?"
+        description={bidToUnaward ? `Reopen ${bidToUnaward.subcontractorName}'s package and supersede its active agreement?` : ""}
+        confirmLabel="Unaward proposal"
+        onCancel={() => setBidToUnaward(null)}
+        onConfirm={confirmUnaward}
+      />
+      <ConfirmDialog
+        open={Boolean(agreementToExecute)}
+        title="Record external execution?"
+        description="This records that external signatures were completed; TradePulse does not provide a signature service."
+        confirmLabel="Record execution"
+        onCancel={() => setAgreementToExecute(null)}
+        onConfirm={confirmExecuteAgreement}
+      />
     </div>
   );
 };

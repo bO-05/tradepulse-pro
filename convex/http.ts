@@ -7,7 +7,7 @@ import { getRealDocumentPdfBytes } from "./realDocuments";
 
 const http = httpRouter();
 
-// Inbound AgentMail Webhook (Svix signature verification when secret is configured, resilient ingestion fallback otherwise)
+// Inbound AgentMail Webhook. Never mutate procurement records without Svix verification.
 http.route({
   path: "/agentmail/webhook",
   method: "POST",
@@ -40,40 +40,10 @@ http.route({
       }
     }
 
-    // Resilient fallback mode: Ingest webhook gracefully even if secret is not yet set
-    try {
-      const rawText = await req.text();
-      const payload = rawText ? JSON.parse(rawText) : {};
-      const message = payload.message || payload.data?.message || payload;
-      const thread = payload.thread || payload.data?.thread || {};
-      const eventId = payload.event_id || payload.id || `evt_${Date.now()}`;
-
-      if (message && (message.text || message.subject || message.body || message.from)) {
-        await ctx.runMutation(internal.email.onMessageReceived, {
-          message,
-          thread,
-          eventId,
-        });
-      }
-
-      return new Response(
-        JSON.stringify({
-          status: "received",
-          mode: "resilient_unverified",
-          eventId,
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    } catch (err: any) {
-      console.warn("Resilient webhook processing error:", err);
-      return new Response(
-        JSON.stringify({ error: err?.message || "Webhook processing error" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    return new Response(
+      JSON.stringify({ error: "Webhook verification is not configured." }),
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    );
   }),
 });
 
@@ -87,10 +57,10 @@ http.route({
       JSON.stringify({
         status: "active",
         endpoint: "/agentmail/webhook",
-        svixVerification: isConfigured ? "enforced" : "resilient_fallback",
+        svixVerification: isConfigured ? "enforced" : "not_configured",
         instructions: isConfigured
           ? "Webhook secret configured and active."
-          : "Webhook active in resilient mode. Set AGENTMAIL_WEBHOOK_SECRET for cryptographic verification.",
+          : "Webhook disabled until AGENTMAIL_WEBHOOK_SECRET is configured.",
       }),
       {
         status: 200,

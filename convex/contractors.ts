@@ -1,5 +1,6 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { validateEmail, validateProjectText } from "./validation";
 
 export const listByPackage = query({
   args: { tradePackageId: v.id("tradePackages") },
@@ -45,8 +46,12 @@ export const createContractor = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const tradePackage = await ctx.db.get(args.tradePackageId);
+    if (!tradePackage) throw new Error("Trade package not found");
     return await ctx.db.insert("contractors", {
       ...args,
+      companyName: validateProjectText(args.companyName, "Company name"),
+      contactEmail: validateEmail(args.contactEmail),
       dispatchedAt: args.rfqStatus === "invited" ? Date.now() : undefined,
     });
   },
@@ -69,8 +74,12 @@ export const createContractorInternal = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
+    const tradePackage = await ctx.db.get(args.tradePackageId);
+    if (!tradePackage) throw new Error("Trade package not found");
     return await ctx.db.insert("contractors", {
       ...args,
+      companyName: validateProjectText(args.companyName, "Company name"),
+      contactEmail: validateEmail(args.contactEmail),
       dispatchedAt: args.rfqStatus === "invited" ? Date.now() : undefined,
     });
   },
@@ -138,7 +147,13 @@ export const updateContractor = mutation({
   },
   handler: async (ctx, args) => {
     const { contractorId, ...fields } = args;
-    await ctx.db.patch(contractorId, fields);
+    const contractor = await ctx.db.get(contractorId);
+    if (!contractor) throw new Error("Contractor not found");
+    await ctx.db.patch(contractorId, {
+      ...fields,
+      companyName: validateProjectText(args.companyName, "Company name"),
+      contactEmail: validateEmail(args.contactEmail),
+    });
     return { success: true };
   },
 });

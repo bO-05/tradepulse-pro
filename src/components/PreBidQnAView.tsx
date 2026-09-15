@@ -24,6 +24,7 @@ interface PreBidQnAViewProps {
   tradePackages?: TradePackage[];
   onSelectPackage?: (id: string) => void;
   conversations: Conversation[];
+  projectConversationsForAddendum?: Conversation[];
   contractors: Contractor[];
   onSubmitRfi: (data: {
     contractorId: string;
@@ -47,6 +48,7 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   tradePackages = [],
   onSelectPackage,
   conversations,
+  projectConversationsForAddendum,
   contractors,
   onSubmitRfi,
   onOpenSimulation,
@@ -66,9 +68,11 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   const [editingConvoId, setEditingConvoId] = useState<string | null>(null);
   const [editedReplyText, setEditedReplyText] = useState("");
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Pre-Bid Legal Addendum Generation State
   const [isGeneratingAddendum, setIsGeneratingAddendum] = useState(false);
+  const [addendumError, setAddendumError] = useState<string | null>(null);
   const [addendumResult, setAddendumResult] = useState<{
     success: boolean;
     fileName: string;
@@ -77,6 +81,7 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
     addendumText?: string;
     qaCount: number;
     csiDivisionCount: number;
+    isLocalPreview?: boolean;
   } | null>(null);
 
   const generatePreBidAddendumAction = useAction(api.files.generatePreBidAddendum);
@@ -110,13 +115,19 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
 
   const contractorMap = new Map<string, Contractor>();
   contractors.forEach((c) => contractorMap.set(c._id, c));
+  const addendumConversations = projectConversationsForAddendum ?? conversations;
 
-  const escalatedCount = conversations.filter((c) => c.status === "escalated_to_pm").length;
-  const clarifiedCount = conversations.filter((c) => c.status === "clarified").length;
+  const escalatedCount = conversations.filter((c) => c.status !== "rejected" && !c.pmCertifiedAt).length;
+  const clarifiedCount = conversations.filter((c) => c.status === "clarified" && Boolean(c.pmCertifiedAt)).length;
+  const pendingCertificationCount = addendumConversations.filter(
+    (c) => c.status !== "rejected" && !c.pmCertifiedAt
+  ).length;
 
   const filteredConversations = conversations.filter((c) => {
-    if (filterMode === "escalated") return c.status === "escalated_to_pm";
-    if (filterMode === "clarified") return c.status === "clarified";
+    if (filterMode === "escalated") {
+      return c.status !== "rejected" && !c.pmCertifiedAt;
+    }
+    if (filterMode === "clarified") return c.status === "clarified" && Boolean(c.pmCertifiedAt);
     return true;
   });
 
@@ -144,20 +155,30 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
 
   const handleGenerateAddendum = async () => {
     if (!projectId) {
-      alert("No active project ID found for generating addendum.");
+      setAddendumError("No active project is selected for generating the addendum.");
       return;
     }
     setIsGeneratingAddendum(true);
+    setAddendumError(null);
+    if (projectId.startsWith("proj_") && pendingCertificationCount > 0) {
+      setIsGeneratingAddendum(false);
+      setAddendumError(`PM certification is required before issuing a binding addendum. Review ${pendingCertificationCount} pending RFI(s).`);
+      return;
+    }
     try {
       const res = await generatePreBidAddendumAction({ projectId: projectId as any });
       setAddendumResult(res as any);
     } catch (err: any) {
-      // Fallback local addendum generation
+      if (!projectId.startsWith("proj_")) {
+        setAddendumResult(null);
+        setAddendumError(err?.message || "The addendum could not be stored in Convex File Storage.");
+      } else {
+      // Standalone mode can preview the addendum, but does not claim it was filed remotely.
       const mockFileName = `ADDENDUM_NO_01_CLARIFICATIONS.md`;
       const title = projectTitle || (currentPackage ? `${currentPackage.tradeName} Procurement Project` : "Commercial Construction Project");
       const div = currentPackage ? `${currentPackage.csiDivision} (${currentPackage.tradeName})` : "Multi-Division Specifications";
-      const clarifiedList = conversations.filter((c) => c.status === "clarified" || c.status === "autonomous_replied");
-      const activeList = clarifiedList.length > 0 ? clarifiedList : conversations;
+      const clarifiedList = addendumConversations.filter((c) => c.status === "clarified" && c.pmCertifiedAt);
+      const activeList = clarifiedList;
       const qaItems = activeList.length > 0
         ? activeList.map((c, i) => `
 #### Item 2.${i + 1} - CSI Division ${c.csiDivision || (currentPackage ? currentPackage.csiDivision : "Multi-Trade")} (${c.tradeName || (currentPackage ? currentPackage.tradeName : "Commercial Scope")}): ${c.inboundSubject}
@@ -202,7 +223,9 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
         addendumText: dynamicAddendumText,
         qaCount: activeList.length,
         csiDivisionCount: currentPackage ? 1 : 2,
+        isLocalPreview: true,
       });
+      }
     } finally {
       setIsGeneratingAddendum(false);
     }
@@ -210,6 +233,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
   const handleApprove = async (convo: Conversation) => {
     setReviewingId(convo._id);
+    setReviewError(null);
     try {
       const newReply = editingConvoId === convo._id ? editedReplyText : convo.autonomousReply;
       if (onReviewRfi) {
@@ -225,6 +249,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
       setEditingConvoId(null);
     } catch (err: any) {
       console.warn("Approve RFI fallback:", err);
+      setReviewError(err?.message || "The RFI approval could not be saved.");
     } finally {
       setReviewingId(null);
     }
@@ -232,6 +257,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
   const handleReject = async (convo: Conversation) => {
     setReviewingId(convo._id);
+    setReviewError(null);
     try {
       if (onReviewRfi) {
         await onReviewRfi(convo._id, "rejected", undefined, "Returned to subcontractor for scope clarification");
@@ -244,6 +270,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
       }
     } catch (err: any) {
       console.warn("Reject RFI fallback:", err);
+      setReviewError(err?.message || "The RFI rejection could not be saved.");
     } finally {
       setReviewingId(null);
     }
@@ -256,6 +283,11 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
   return (
     <div className="space-y-4">
+      {reviewError && (
+        <div className="rounded-xl border border-rose-800/80 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert">
+          RFI review failed: {reviewError}
+        </div>
+      )}
       {/* Header Banner with Trade Package Switcher */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
         {/* Trade Package Switcher Ribbon */}
@@ -348,7 +380,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
             <div className="text-xs space-y-0.5">
               <span className="font-bold text-amber-300">
-                {escalatedCount} Subcontractor RFI{escalatedCount > 1 ? "s" : ""} Escalated to PM Review Queue
+                {escalatedCount} Subcontractor RFI{escalatedCount > 1 ? "s" : ""} Require PM Certification
               </span>
               <p className="text-slate-300">
                 Requires Lead Estimator / Project Manager verification before being certified into official ADDENDUM NO. 01.
@@ -359,7 +391,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             onClick={() => setFilterMode("escalated")}
             className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shrink-0 transition"
           >
-            Review Escalated ({escalatedCount})
+             Review PM Queue ({escalatedCount})
           </button>
         </div>
       )}
@@ -371,10 +403,10 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
               <h4 className="font-bold text-emerald-300 text-sm">
-                Official Pre-Bid Legal Addendum NO. 01 Successfully Issued & Filed!
+                 {addendumResult.isLocalPreview ? "Local Pre-Bid Addendum Preview Ready" : "Official Pre-Bid Legal Addendum NO. 01 Successfully Issued & Filed!"}
               </h4>
               <p className="text-slate-300 leading-relaxed">
-                Compiled <strong className="text-white">{addendumResult.qaCount} PM-certified RFIs</strong> across{" "}
+                 {addendumResult.isLocalPreview ? "Preview only; this artifact was not filed to Convex Storage. " : "Compiled "}<strong className="text-white">{addendumResult.qaCount} PM-certified RFIs</strong> across{" "}
                 <strong className="text-white">{addendumResult.csiDivisionCount} CSI divisions</strong> into an official AIA A401 standard pre-bid legal addendum. Filed to CSI Project Documents register as{" "}
                 <span className="font-mono text-emerald-400 font-bold">{addendumResult.fileName}</span>.
               </p>
@@ -400,6 +432,11 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
               Download Addendum
             </button>
           )}
+        </div>
+      )}
+      {addendumError && (
+        <div className="bg-rose-950/40 border border-rose-800/80 rounded-xl p-4 text-xs text-rose-300">
+          Addendum generation failed: {addendumError}
         </div>
       )}
 
@@ -454,8 +491,10 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
           ) : (
             filteredConversations.map((conv) => {
               const contractor = contractorMap.get(conv.contractorId);
-              const isEscalated = conv.status === "escalated_to_pm";
-              const isClarified = conv.status === "clarified";
+               const isEscalated = conv.status === "escalated_to_pm";
+               const isClarified = conv.status === "clarified";
+               const isCertified = isClarified && Boolean(conv.pmCertifiedAt);
+               const isPendingCertification = !isCertified && conv.status !== "rejected";
               const isEditing = editingConvoId === conv._id;
               const isReviewing = reviewingId === conv._id;
 
@@ -463,8 +502,8 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                 <div
                   key={conv._id}
                   className={`bg-slate-900 border rounded-xl p-5 space-y-4 shadow-sm transition ${
-                    isEscalated
-                      ? "border-amber-800/80 bg-amber-950/10"
+                     isPendingCertification
+                       ? "border-amber-800/80 bg-amber-950/10"
                       : isClarified
                       ? "border-slate-800"
                       : "border-rose-800/50 bg-rose-950/10"
@@ -480,7 +519,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {isClarified && (
+                       {isCertified && (
                         <span className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full">
                           <CheckCircle2 className="w-3 h-3" /> Approved for Addendum
                         </span>
@@ -490,11 +529,11 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                           <AlertTriangle className="w-3 h-3 text-amber-400" /> PM Review Required
                         </span>
                       )}
-                      {!isClarified && !isEscalated && (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-800/60 px-2 py-0.5 rounded-full">
-                          <Clock className="w-3 h-3" /> Returned / Rejected
-                        </span>
-                      )}
+                       {isPendingCertification && !isEscalated && (
+                         <span className="flex items-center gap-1 text-[11px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-800/60 px-2 py-0.5 rounded-full">
+                           <Clock className="w-3 h-3" /> PM Review Required
+                         </span>
+                       )}
                       <span className="text-[11px] text-slate-500 font-mono">
                         {new Date(conv.timestamp).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -576,9 +615,9 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
                     <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
                       <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                      {isClarified
-                        ? "Certified for inclusion in binding legal addenda."
-                        : "Requires PM verification before addendum inclusion."}
+                       {isCertified
+                         ? "Certified for inclusion in binding legal addenda."
+                         : "Requires PM verification before addendum inclusion."}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -593,7 +632,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                         </button>
                       )}
 
-                      {isEscalated && (
+                       {isPendingCertification && (
                         <>
                           <button
                             onClick={() => handleReject(conv)}

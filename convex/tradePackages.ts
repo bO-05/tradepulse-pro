@@ -1,6 +1,13 @@
 import { query, mutation, internalMutation, internalQuery, action } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
+import {
+  normalizeCsiDivision,
+  validateBidDeadline,
+  validateCsiDivision,
+  validatePositiveAmount,
+  validateProjectText,
+} from "./validation";
 
 export const listByProject = query({
   args: { projectId: v.id("projects") },
@@ -39,15 +46,28 @@ export const createTradePackage = mutation({
     agentMailboxId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const csiDivision = validateCsiDivision(args.csiDivision);
+    const tradeName = validateProjectText(args.tradeName, "Trade package name");
+    const scopeSummary = validateProjectText(args.scopeSummary, "Scope summary");
+    const budgetEstimate = validatePositiveAmount(args.budgetEstimate, "Budget estimate");
+    const bidDeadline = validateBidDeadline(args.bidDeadline);
+    const existing = await ctx.db
+      .query("tradePackages")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    if (existing.some((pkg) => normalizeCsiDivision(pkg.csiDivision) === csiDivision)) {
+      throw new Error(`CSI Division ${csiDivision} already exists in this project. Use the existing package or choose a different division.`);
+    }
+
     const pkgId = await ctx.db.insert("tradePackages", {
       projectId: args.projectId,
-      csiDivision: args.csiDivision,
-      tradeName: args.tradeName,
-      budgetEstimate: args.budgetEstimate,
-      scopeSummary: args.scopeSummary,
+      csiDivision,
+      tradeName,
+      budgetEstimate,
+      scopeSummary,
       mandatoryInclusions: args.mandatoryInclusions,
-      bidDeadline: args.bidDeadline,
-      agentMailbox: args.agentMailbox ?? `trade-${args.csiDivision.replace(/\s+/g, "")}@agentmail.to`,
+      bidDeadline,
+      agentMailbox: args.agentMailbox ?? `trade-${csiDivision.replace(/\s+/g, "")}@agentmail.to`,
       agentMailboxId: args.agentMailboxId ?? `inbox_${Date.now()}`,
       status: "draft",
     });
@@ -56,8 +76,8 @@ export const createTradePackage = mutation({
       projectId: args.projectId,
       tradePackageId: pkgId,
       eventType: "rfq_dispatched",
-      title: `CSI Trade Package Scoped: Division ${args.csiDivision}`,
-      description: `Created ${args.tradeName} package ($${args.budgetEstimate.toLocaleString()} budget, ${args.mandatoryInclusions.length} mandatory inclusions).`,
+      title: `CSI Trade Package Scoped: Division ${csiDivision}`,
+      description: `Created ${tradeName} package ($${budgetEstimate.toLocaleString()} budget, ${args.mandatoryInclusions.length} mandatory inclusions).`,
       actor: "Lead Estimator / GC Procurement",
       timestamp: Date.now(),
     });
@@ -106,25 +126,30 @@ export const createTradePackageInternal = internalMutation({
     bidDeadline: v.string(),
   },
   handler: async (ctx, args) => {
+    const csiDivision = validateCsiDivision(args.csiDivision);
+    const tradeName = validateProjectText(args.tradeName, "Trade package name");
+    const scopeSummary = validateProjectText(args.scopeSummary, "Scope summary");
+    const budgetEstimate = validatePositiveAmount(args.budgetEstimate, "Budget estimate");
+    const bidDeadline = validateBidDeadline(args.bidDeadline);
     const existing = await ctx.db
       .query("tradePackages")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .filter((q) => q.eq(q.field("csiDivision"), args.csiDivision))
-      .first();
+      .collect();
 
-    if (existing) {
-      return existing._id;
+    const duplicate = existing.find((pkg) => normalizeCsiDivision(pkg.csiDivision) === csiDivision);
+    if (duplicate) {
+      return duplicate._id;
     }
 
     const pkgId = await ctx.db.insert("tradePackages", {
       projectId: args.projectId,
-      csiDivision: args.csiDivision,
-      tradeName: args.tradeName,
-      budgetEstimate: args.budgetEstimate,
-      scopeSummary: args.scopeSummary,
+      csiDivision,
+      tradeName,
+      budgetEstimate,
+      scopeSummary,
       mandatoryInclusions: args.mandatoryInclusions,
-      bidDeadline: args.bidDeadline,
-      agentMailbox: `trade-${args.csiDivision.replace(/\s+/g, "")}@agentmail.to`,
+      bidDeadline,
+      agentMailbox: `trade-${csiDivision.replace(/\s+/g, "")}@agentmail.to`,
       agentMailboxId: `inbox_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       status: "draft",
     });
@@ -133,8 +158,8 @@ export const createTradePackageInternal = internalMutation({
       projectId: args.projectId,
       tradePackageId: pkgId,
       eventType: "rfq_dispatched",
-      title: `AI Auto-Scoped Trade Package: Division ${args.csiDivision}`,
-      description: `Auto-scoped ${args.tradeName} ($${args.budgetEstimate.toLocaleString()} budget) via AI specification deconstruction.`,
+      title: `AI Auto-Scoped Trade Package: Division ${csiDivision}`,
+      description: `Auto-scoped ${tradeName} ($${budgetEstimate.toLocaleString()} budget) via AI specification deconstruction.`,
       actor: "Autonomous AI Spec Scoping Agent",
       timestamp: Date.now(),
     });
@@ -259,7 +284,23 @@ export const deleteTradePackage = mutation({
       await ctx.db.delete(c._id);
     }
 
-    // 4. Delete all agreements for this package
+    // 4. Delete package files and their storage blobs.
+    const files = await ctx.db
+      .query("projectFiles")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+      .collect();
+    for (const file of files) {
+      if (!file.storageId.startsWith("http") && !file.storageId.startsWith("/")) {
+        try {
+          await ctx.storage.delete(file.storageId as any);
+        } catch {
+          // Keep deletion idempotent for legacy/external storage identifiers.
+        }
+      }
+      await ctx.db.delete(file._id);
+    }
+
+    // 5. Delete all agreements for this package
     const packageAgreements = await ctx.db
       .query("agreements")
       .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
@@ -268,7 +309,7 @@ export const deleteTradePackage = mutation({
       await ctx.db.delete(a._id);
     }
 
-    // 5. Delete the trade package itself
+    // 6. Delete the trade package itself
     await ctx.db.delete(args.tradePackageId);
 
     // Audit log

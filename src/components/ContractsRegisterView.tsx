@@ -14,6 +14,7 @@ import {
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Project, Agreement } from "../types.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface ContractsRegisterViewProps {
   currentProject: Project | null;
@@ -35,6 +36,8 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
   const [selectedAgreement, setSelectedAgreement] = useState<Agreement | null>(null);
   const [copied, setCopied] = useState(false);
   const [showWhyCare, setShowWhyCare] = useState(false);
+  const [executionError, setExecutionError] = useState<string | null>(null);
+  const [agreementToExecute, setAgreementToExecute] = useState<string | null>(null);
 
   const agreementsData = useQuery(
     api.agreements.listAgreements,
@@ -45,22 +48,28 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
   const executeAgreementMutation = useMutation(api.agreements.executeAgreement);
 
   const handleExecute = async (agreementId: string) => {
+    setAgreementToExecute(agreementId);
+  };
+
+  const confirmExecute = async () => {
+    if (!agreementToExecute) return;
+    setExecutionError(null);
     try {
       if (onExecuteAgreement) {
-        await onExecuteAgreement(agreementId);
+        await onExecuteAgreement(agreementToExecute);
       } else {
-        await executeAgreementMutation({ agreementId: agreementId as any });
+        await executeAgreementMutation({ agreementId: agreementToExecute as any });
       }
-      if (selectedAgreement && selectedAgreement._id === agreementId) {
+      if (selectedAgreement && selectedAgreement._id === agreementToExecute) {
         setSelectedAgreement({
           ...selectedAgreement,
           status: "executed",
           executedAt: Date.now(),
         });
       }
+      setAgreementToExecute(null);
     } catch (err: any) {
-      console.warn("Execute agreement error:", err);
-      alert(`Agreement execution failed: ${err?.message || "Unknown error"}`);
+      setExecutionError(err?.message || "The agreement was not updated.");
     }
   };
 
@@ -115,6 +124,11 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
 
   return (
     <div className="space-y-4">
+      {executionError && (
+        <div className="rounded-xl border border-rose-800/80 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert">
+          Agreement execution failed: {executionError}
+        </div>
+      )}
       {/* Header Bar */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -129,7 +143,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-slate-400">
-                Centrally register, execute, and inspect legally binding standard form agreements.
+                Centrally register, review, and record execution status for standard form agreements.
               </p>
               <button
                 onClick={() => setShowWhyCare(!showWhyCare)}
@@ -152,7 +166,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
             </div>
 
             <div className="bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-lg text-right">
-              <span className="text-[10px] text-slate-400 block uppercase">Executed & Signed</span>
+               <span className="text-[10px] text-slate-400 block uppercase">Execution Status Recorded</span>
               <span className="text-sm font-bold font-mono text-white">
                 {executedCount} / {activeAgreements.length}
               </span>
@@ -188,7 +202,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
           <span className="text-xs text-slate-400 mr-1">Status:</span>
           {[
             { id: "all", label: "Active Contracts" },
-            { id: "executed", label: "Executed & Signed" },
+             { id: "executed", label: "Execution Status Recorded" },
             { id: "generated", label: "Pending Execution" },
             ...(supersededCount > 0 ? [{ id: "superseded", label: `Superseded (${supersededCount})` }] : []),
           ].map((st) => (
@@ -275,7 +289,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                     <td className="px-4 py-3.5">
                       {agr.status === "executed" ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
-                          <CheckCircle2 className="w-3 h-3" /> Executed & Signed
+                           <CheckCircle2 className="w-3 h-3" /> Execution Status Recorded
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400 border border-amber-800">
@@ -299,7 +313,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                           className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 transition shadow-sm"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          Sign
+                           Record Execution Status
                         </button>
                       )}
                     </td>
@@ -320,7 +334,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
             </div>
             <div>
               <div className="text-xs font-bold text-white">
-                Subcontract Agreements In Place ({activeAgreements.length} Active, {executedCount} Executed)
+                 Subcontract Agreements In Place ({activeAgreements.length} Active, {executedCount} Execution Statuses Recorded)
               </div>
               <div className="text-[11px] text-slate-400">
                 Next Stage: Inspect the immutable reactive audit stream tracking every RFI, bid leveling calculation, and cron audit.
@@ -352,7 +366,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                     AIA Document A401™ Subcontract Agreement
                     {selectedAgreement.status === "executed" ? (
                       <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">
-                        Executed & Signed
+                         Execution Status Recorded • Signature Verification Required
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full">
@@ -436,15 +450,15 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                       </div>
                       <div>
                         <div className="font-bold text-xs tracking-wider uppercase text-emerald-300">
-                          ✓ Digitally Certified & Legally Executed under AIA Document A401™-2017
+                          ✓ Execution recorded in TradePulse for AIA Document A401™-2017
                         </div>
                         <div className="text-[10px] text-emerald-400/80 font-mono">
-                          Cryptographic Audit Stamp: {selectedAgreement.agreementNumber}-EXE • Counter-Signed & Binding Subcontract
+                          Audit record: {selectedAgreement.agreementNumber}-EXE • External signature verification required
                         </div>
                       </div>
                     </div>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-900/80 border border-emerald-600 rounded text-emerald-200 uppercase tracking-wider">
-                      ACTIVE & ENFORCEABLE
+                        RECORDED • SIGNATURE REQUIRED
                     </span>
                   </div>
                 )}
@@ -469,7 +483,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    Sign & Execute Agreement
+                     Record External Execution
                   </button>
                 )}
                 <button
@@ -483,6 +497,14 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(agreementToExecute)}
+        title="Record external execution?"
+        description="This records that external signatures were completed; TradePulse does not provide a signature service."
+        confirmLabel="Record execution"
+        onCancel={() => setAgreementToExecute(null)}
+        onConfirm={confirmExecute}
+      />
     </div>
   );
 };

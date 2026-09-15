@@ -2,6 +2,7 @@ import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { syncAgreementForBid } from "./agreements";
+import { validateNonNegativeAmount, validateProjectText } from "./validation";
 
 export interface DoubleBuyClash {
   id: string;
@@ -217,13 +218,24 @@ export const deductDoubleBuyCredit = mutation({
     bidId: v.optional(v.id("bids")),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
     const tradePkg = await ctx.db.get(args.tradePackageId);
     if (!tradePkg) throw new Error("Trade package not found");
+    if (tradePkg.projectId !== args.projectId) {
+      throw new Error("The trade package does not belong to the selected project.");
+    }
+    const deductAmount = validateNonNegativeAmount(args.deductAmount, "Double-buy credit");
+    const description = validateProjectText(args.description, "Double-buy description");
 
     // Locate single target bid: explicitly passed, or awarded bid, or best leveled bid
     let targetBid: any = null;
     if (args.bidId) {
       targetBid = await ctx.db.get(args.bidId);
+      if (!targetBid) throw new Error("The selected bid was not found.");
+      if (targetBid && targetBid.tradePackageId !== args.tradePackageId) {
+        throw new Error("The selected bid does not belong to the target trade package.");
+      }
     } else {
       const bids = await ctx.db
         .query("bids")
@@ -235,33 +247,37 @@ export const deductDoubleBuyCredit = mutation({
         null;
     }
 
+    if (targetBid && targetBid.tradePackageId !== args.tradePackageId) {
+      throw new Error("The selected bid does not belong to the target trade package.");
+    }
+
     if (!targetBid) {
       // Gracefully record intent in audit stream even if no bids are ingested yet
       await ctx.db.insert("auditLogs", {
         projectId: args.projectId,
         tradePackageId: args.tradePackageId,
         eventType: "bid_leveled",
-        title: `Double-Buy Credit Logged: -$${args.deductAmount.toLocaleString()}`,
-        description: `Flagged $${args.deductAmount.toLocaleString()} credit for redundant ${args.description} on Division ${tradePkg.csiDivision} (${tradePkg.tradeName}). Will apply to incoming proposals.`,
+        title: `Double-Buy Credit Logged: -$${deductAmount.toLocaleString()}`,
+        description: `Flagged $${deductAmount.toLocaleString()} credit for redundant ${description} on Division ${tradePkg.csiDivision} (${tradePkg.tradeName}). Will apply to incoming proposals.`,
         actor: "Cross-Trade Clash Coordination Engine",
         timestamp: Date.now(),
       });
       return {
         success: true,
         clashId: args.clashId,
-        deductAmount: args.deductAmount,
+        deductAmount,
         newLeveledCost: 0,
         note: "No proposals currently in package; buyout credit logged.",
       };
     }
 
-    const veDescription = `Cross-Trade Clash Credit: Deduct redundant ${args.description}`;
+    const veDescription = `Cross-Trade Clash Credit: Deduct redundant ${description}`;
     const currentAlternates = targetBid.valueEngineeringAlternates || [];
     const updatedAlternates = [
-      ...currentAlternates.filter((a: any) => !a.description.includes(args.description)),
+      ...currentAlternates.filter((a: any) => !a.description.includes(description)),
       {
         description: veDescription,
-        costDeduct: args.deductAmount,
+        costDeduct: deductAmount,
         isAccepted: true,
       },
     ];
@@ -296,8 +312,8 @@ export const deductDoubleBuyCredit = mutation({
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       eventType: "bid_leveled",
-      title: `Double-Buy Credit Deducted: -$${args.deductAmount.toLocaleString()}`,
-      description: `Applied 1-click cross-trade deduct credit to ${targetBid.subcontractorName} in Division ${tradePkg.csiDivision} (${tradePkg.tradeName}) for redundant ${args.description}. Normalized leveled cost updated to $${newLeveledCost.toLocaleString()}.`,
+      title: `Double-Buy Credit Deducted: -$${deductAmount.toLocaleString()}`,
+      description: `Applied 1-click cross-trade deduct credit to ${targetBid.subcontractorName} in Division ${tradePkg.csiDivision} (${tradePkg.tradeName}) for redundant ${description}. Normalized leveled cost updated to $${newLeveledCost.toLocaleString()}.`,
       actor: "Cross-Trade Clash Coordination Engine",
       timestamp: Date.now(),
     });
@@ -306,7 +322,7 @@ export const deductDoubleBuyCredit = mutation({
       success: true,
       clashId: args.clashId,
       bidId: targetBid._id,
-      deductAmount: args.deductAmount,
+      deductAmount,
       newLeveledCost,
     };
   },
@@ -327,14 +343,21 @@ export const assignScopeVoidToTrade = mutation({
     bidId: v.optional(v.id("bids")),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
     const tradePkg = await ctx.db.get(args.tradePackageId);
     if (!tradePkg) throw new Error("Trade package not found");
+    if (tradePkg.projectId !== args.projectId) {
+      throw new Error("The trade package does not belong to the selected project.");
+    }
+    const additionalCost = validateNonNegativeAmount(args.additionalCost, "Scope void cost");
+    const description = validateProjectText(args.description, "Scope void description");
 
     // Add to package mandatoryInclusions
     const currentInclusions = tradePkg.mandatoryInclusions || [];
-    if (!currentInclusions.includes(args.description)) {
+    if (!currentInclusions.includes(description)) {
       await ctx.db.patch(args.tradePackageId, {
-        mandatoryInclusions: [...currentInclusions, args.description],
+        mandatoryInclusions: [...currentInclusions, description],
       });
     }
 
@@ -342,6 +365,10 @@ export const assignScopeVoidToTrade = mutation({
     let targetBid: any = null;
     if (args.bidId) {
       targetBid = await ctx.db.get(args.bidId);
+      if (!targetBid) throw new Error("The selected bid was not found.");
+      if (targetBid && targetBid.tradePackageId !== args.tradePackageId) {
+        throw new Error("The selected bid does not belong to the target trade package.");
+      }
     } else {
       const bids = await ctx.db
         .query("bids")
@@ -354,7 +381,7 @@ export const assignScopeVoidToTrade = mutation({
     }
 
     if (targetBid) {
-      const itemTitle = `Assigned Scope Void: ${args.description}`;
+      const itemTitle = `Assigned Scope Void: ${description}`;
       const currentItems = targetBid.lineItems || [];
       if (!currentItems.some((i: any) => i.item === itemTitle)) {
         const updatedItems = [
@@ -363,13 +390,13 @@ export const assignScopeVoidToTrade = mutation({
             item: itemTitle,
             unit: "LS",
             quantity: 1,
-            unitCost: args.additionalCost,
-            totalCost: args.additionalCost,
+            unitCost: additionalCost,
+            totalCost: additionalCost,
           },
         ];
 
         // Update base and leveled cost
-        const newBase = targetBid.baseBidAmount + args.additionalCost;
+        const newBase = targetBid.baseBidAmount + additionalCost;
         const activeExclusionsCost = (targetBid.identifiedExclusions || []).reduce(
           (sum: number, x: any) => (x.isWaived ? sum : sum + (x.costImpact || 0)),
           0
@@ -404,8 +431,8 @@ export const assignScopeVoidToTrade = mutation({
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       eventType: "compliance_audit",
-      title: `Scope Void Assigned: ${args.description}`,
-      description: `Assigned orphaned $${args.additionalCost.toLocaleString()} scope void to Division ${tradePkg.csiDivision} (${tradePkg.tradeName}). Added to mandatory contract scope obligations.`,
+      title: `Scope Void Assigned: ${description}`,
+      description: `Assigned orphaned $${additionalCost.toLocaleString()} scope void to Division ${tradePkg.csiDivision} (${tradePkg.tradeName}). Added to mandatory contract scope obligations.`,
       actor: "Cross-Trade Clash Coordination Engine",
       timestamp: Date.now(),
     });
@@ -414,7 +441,7 @@ export const assignScopeVoidToTrade = mutation({
       success: true,
       voidId: args.voidId,
       tradePackageId: args.tradePackageId,
-      additionalCost: args.additionalCost,
+      additionalCost,
     };
   },
 });
@@ -591,4 +618,3 @@ Identify:
     };
   },
 });
-

@@ -27,6 +27,7 @@ import type * as rfq from "../rfq.js";
 import type * as rfqActions from "../rfqActions.js";
 import type * as simulation from "../simulation.js";
 import type * as tradePackages from "../tradePackages.js";
+import type * as validation from "../validation.js";
 
 import type {
   ApiFromModules,
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   rfqActions: typeof rfqActions;
   simulation: typeof simulation;
   tradePackages: typeof tradePackages;
+  validation: typeof validation;
 }>;
 
 /**

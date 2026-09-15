@@ -353,7 +353,7 @@ def test_dynamic_audit_stream_logging_coverage():
     assert 'ctx.db.insert("auditLogs"' in packages_content, "tradePackages.ts createTradePackage must insert into auditLogs"
 
     crons_content = Path("convex/crons.ts").read_text(encoding="utf-8")
-    assert "projectId: v.optional(v.id(\"projects\"))" in crons_content, "crons.ts must allow project-scoped execution"
+    assert "projectId: v.id(\"projects\")" in crons_content, "crons.ts must require project-scoped execution"
 
     print("PASS: test_dynamic_audit_stream_logging_coverage")
 
@@ -673,14 +673,15 @@ def test_vertex_ai_rest_pipeline():
 
     print("PASS: test_vertex_ai_rest_pipeline")
 
-def test_resilient_webhook_and_automation():
+def test_verified_webhook_and_automation():
     """
-    Validates resilient AgentMail webhook ingestion in convex/http.ts,
+    Validates fail-closed AgentMail webhook handling in convex/http.ts,
     automated webhook registration in convex/emailActions.ts, and setup CLI script.
     """
     http_content = Path("convex/http.ts").read_text(encoding="utf-8")
-    assert "resilient_unverified" in http_content, "http.ts must include resilient unverified mode for webhooks"
-    assert "onMessageReceived" in http_content, "http.ts must call onMessageReceived in resilient mode"
+    assert "Webhook verification is not configured" in http_content, "http.ts must fail closed when webhook verification is unavailable"
+    assert "status: 503" in http_content, "http.ts must return a service-unavailable response until verification is configured"
+    assert "onMessageReceived" in http_content, "http.ts must route verified messages to onMessageReceived"
 
     email_actions_content = Path("convex/emailActions.ts").read_text(encoding="utf-8")
     assert "registerAgentMailWebhook" in email_actions_content, "emailActions.ts must export registerAgentMailWebhook"
@@ -889,6 +890,56 @@ def test_real_world_file_extraction_and_location_robustness():
 
     print("PASS: test_real_world_file_extraction_and_location_robustness")
 
+def test_p1_server_side_integrity_guards():
+    """Regression coverage for canonical parties, file validation, and quote idempotency."""
+    agreements_src = Path("convex/agreements.ts").read_text(encoding="utf-8")
+    assert "project.generalContractorName?.trim() || DEFAULT_GENERAL_CONTRACTOR" in agreements_src
+    assert "const subName = contractor.companyName.trim()" in agreements_src
+    assert "project.generalContractorName?.trim() || DEFAULT_GENERAL_CONTRACTOR" in agreements_src
+    assert "Executed agreements are immutable" in agreements_src
+
+    files_src = Path("convex/files.ts").read_text(encoding="utf-8")
+    assert "validateUploadFileType(args.fileType)" in files_src
+    assert "getAuthoritativeFileSize(ctx, args.storageId, args.fileSize, fileName)" in files_src
+    assert "fileRecord.projectId !== args.projectId" in files_src
+
+    schema_src = Path("convex/schema.ts").read_text(encoding="utf-8")
+    assert 'sourceFileId: v.optional(v.id("projectFiles"))' in schema_src
+    assert '.index("by_source_file", ["sourceFileId"])' in schema_src
+    bids_src = Path("convex/bids.ts").read_text(encoding="utf-8")
+    assert 'withIndex("by_source_file"' in bids_src
+    assert "existingBySource" in bids_src
+    assert "cannot be unawarded" in bids_src
+
+    print("PASS: test_p1_server_side_integrity_guards")
+
+def test_binding_addendum_requires_pm_certification():
+    schema_src = Path("convex/schema.ts").read_text(encoding="utf-8")
+    rfq_src = Path("convex/rfq.ts").read_text(encoding="utf-8")
+    files_src = Path("convex/files.ts").read_text(encoding="utf-8")
+    prebid_src = Path("src/components/PreBidQnAView.tsx").read_text(encoding="utf-8")
+    assert "pmCertifiedAt: v.optional(v.number())" in schema_src
+    assert 'c.status === "clarified" && c.pmCertifiedAt' in rfq_src
+    assert "PM certification is required before issuing a binding addendum" in files_src
+    assert "does not belong to the selected project" in files_src
+    assert "pendingCertificationCount" in prebid_src
+    assert 'pmCertifiedAt: Date.now()' in Path("src/App.tsx").read_text(encoding="utf-8")
+
+    print("PASS: test_binding_addendum_requires_pm_certification")
+
+def test_eval_rollups_show_real_cross_trade_drift():
+    evals_src = Path("convex/evals.ts").read_text(encoding="utf-8")
+    diagnostics_src = Path("src/components/SponsorDiagnosticsView.tsx").read_text(encoding="utf-8")
+    assert "calculatePercentageError" in evals_src
+    assert "const voidAiCost" in evals_src
+    assert "const clashRecallAvg" in evals_src
+    assert "precision >= 0.9" in evals_src
+    assert "internalMutation" in evals_src
+    assert "latestEvalData.run.clashRecallAvg" in diagnostics_src
+    assert "Computed from cross-trade cases" in diagnostics_src
+
+    print("PASS: test_eval_rollups_show_real_cross_trade_drift")
+
 if __name__ == "__main__":
     test_normalization_formula_adr0003()
     test_csi_schema_and_models()
@@ -923,9 +974,7 @@ if __name__ == "__main__":
     test_real_world_production_robustness_and_edge_cases()
     test_real_world_commercial_quote_ingestion_and_package_resilience()
     test_real_world_file_extraction_and_location_robustness()
-    print("\nALL 33 TRADEPULSE PRO DOMAIN, EVALS & ARCHITECTURE TESTS PASSED SUCCESSFULLY!")
-
-
-
-
-
+    test_p1_server_side_integrity_guards()
+    test_binding_addendum_requires_pm_certification()
+    test_eval_rollups_show_real_cross_trade_drift()
+    print("\nALL 36 TRADEPULSE PRO DOMAIN, EVALS & ARCHITECTURE TESTS PASSED SUCCESSFULLY!")

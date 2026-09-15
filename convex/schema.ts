@@ -11,6 +11,7 @@ export default defineSchema({
     targetCompletionWeeks: v.number(),
     specDocumentText: v.string(),
     isDemoProject: v.boolean(), // Allows public read access for judges
+    generalContractorName: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_demo", ["isDemoProject"]),
 
@@ -51,6 +52,9 @@ export default defineSchema({
     autonomousReply: v.string(),
     confidenceScore: v.number(),
     status: v.string(), // "clarified" | "escalated_to_pm"
+    pmCertifiedAt: v.optional(v.number()),
+    pmCertifiedBy: v.optional(v.string()),
+    reviewNote: v.optional(v.string()),
     timestamp: v.number(),
   })
     .index("by_contractor", ["contractorId"])
@@ -96,10 +100,12 @@ export default defineSchema({
     coiPenalty: v.number(),
     leveledTotalCost: v.number(), // True normalized cost = base + un-waived scope gaps + penalties - accepted alternates
     isAwarded: v.boolean(),
+    sourceFileId: v.optional(v.id("projectFiles")),
     receivedAt: v.number(),
   })
     .index("by_package", ["tradePackageId"])
-    .index("by_contractor", ["contractorId"]),
+    .index("by_contractor", ["contractorId"])
+    .index("by_source_file", ["sourceFileId"]),
 
   // AIA Document A401 Subcontract Agreements
   agreements: defineTable({
@@ -110,6 +116,7 @@ export default defineSchema({
     agreementNumber: v.string(), // e.g. "A401-2026-2601"
     documentTitle: v.string(), // "AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor"
     subcontractorName: v.string(),
+    subcontractorEmail: v.optional(v.string()),
     generalContractorName: v.string(),
     projectTitle: v.string(),
     projectLocation: v.string(),
@@ -139,6 +146,7 @@ export default defineSchema({
     fileSize: v.number(),
     uploadedBy: v.string(),
     uploadedAt: v.number(),
+    textContent: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_package", ["tradePackageId"]),
@@ -204,4 +212,3 @@ export default defineSchema({
     .index("by_run_and_timestamp", ["runId", "timestamp"])
     .index("by_timestamp", ["timestamp"]),
 });
-

@@ -23,6 +23,10 @@ import {
 } from "../../convex/realDocuments.ts";
 import { extractTextFromPdfStream } from "../standaloneStore.ts";
 import { Project, TradePackage, ProjectFile, Contractor } from "../types.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const SUPPORTED_UPLOAD_EXTENSIONS = [".pdf", ".dwg", ".dxf", ".txt"];
 
 interface ProjectFilesViewProps {
   currentProject: Project | null;
@@ -52,6 +56,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [processingFileId, setProcessingFileId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<ProjectFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateUploadUrlMutation = useMutation(api.files.generateUploadUrl);
@@ -85,8 +90,6 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
     if (
       lower.endsWith(".dwg") ||
       lower.endsWith(".dxf") ||
-      lower.endsWith(".rvt") ||
-      lower.endsWith(".ifc") ||
       lower.includes("drawing") ||
       lower.includes("plan") ||
       lower.includes("mep") ||
@@ -99,10 +102,24 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
 
   const uploadSingleFile = async (file: File, targetType?: string) => {
     if (!currentProject) return;
-    if (file.size === 0) {
-      throw new Error(`File '${file.name}' is empty (0 bytes) and cannot be processed.`);
+    const extension = file.name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+    if (!extension || !SUPPORTED_UPLOAD_EXTENSIONS.includes(extension)) {
+      throw new Error(`${file.name}: upload PDF, DWG, DXF, or TXT files only.`);
+    }
+    if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+      throw new Error(`${file.name}: file size must be greater than zero and no more than 50 MB.`);
     }
     const effectiveType = targetType || detectFileType(file.name);
+    const allowedExtensionsByType: Record<string, string[]> = {
+      blueprint: [".pdf", ".dwg", ".dxf"],
+      spec: [".pdf", ".txt"],
+      quote_pdf: [".pdf", ".txt"],
+      coi_certificate: [".pdf"],
+      addendum: [".pdf", ".txt"],
+    };
+    if (allowedExtensionsByType[effectiveType] && !allowedExtensionsByType[effectiveType].includes(extension)) {
+      throw new Error(`${file.name}: ${effectiveType.replace(/_/g, " ")} files must use ${allowedExtensionsByType[effectiveType].join(", ")}.`);
+    }
     let textContent: string | undefined;
     if (file.size < 10 * 1024 * 1024) {
       try {
@@ -120,38 +137,37 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
         // Ignore binary decode errors
       }
     }
-    let storageId = `storage_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    try {
+    let storageId: string;
+    if (currentProject._id.startsWith("proj_")) {
+      storageId = `local_storage_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    } else {
       const postUrl = await generateUploadUrlMutation();
       const result = await fetch(postUrl, {
         method: "POST",
         headers: { "Content-Type": file.type || "application/octet-stream" },
         body: file,
       });
-      if (result.ok) {
-        const res = await result.json();
-        storageId = res.storageId;
+      if (!result.ok) {
+        throw new Error(`Storage upload failed with HTTP ${result.status}.`);
       }
-    } catch {
-      // Localhost standalone storage fallback
-      storageId = `local_storage_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const res = await result.json();
+      if (!res.storageId) throw new Error("Storage upload did not return a file identifier.");
+      storageId = res.storageId;
     }
 
-    try {
-      if (!currentProject._id.startsWith("proj_")) {
-        await saveFileRecordMutation({
-          projectId: currentProject._id as any,
-          tradePackageId:
-            activePackage && !activePackage._id.startsWith("pkg_") ? (activePackage._id as any) : undefined,
-          storageId,
-          fileName: file.name,
-          fileType: effectiveType,
-          fileSize: file.size,
-          uploadedBy: "Chief Estimator / Project PM",
-        });
-      }
-    } catch {
-      // Fallback store update
+    if (!currentProject._id.startsWith("proj_")) {
+      await saveFileRecordMutation({
+        projectId: currentProject._id as any,
+        tradePackageId:
+          activePackage && !activePackage._id.startsWith("pkg_") ? (activePackage._id as any) : undefined,
+        storageId,
+        fileName: file.name,
+        fileType: effectiveType,
+        fileSize: file.size,
+        contentType: file.type || undefined,
+        textContent,
+        uploadedBy: "Chief Estimator / Project PM",
+      });
     }
 
     if (onFileUploaded) {
@@ -185,7 +201,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setTimeout(() => setStatusMsg(null), 4000);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      setStatusMsg(`Upload completed: ${err?.message || "Saved locally"}`);
+      setStatusMsg(`Upload failed: ${err?.message || "The file was not saved."}`);
       setTimeout(() => setStatusMsg(null), 4000);
     } finally {
       setUploading(false);
@@ -212,7 +228,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setStatusMsg(`Successfully uploaded ${droppedFiles.length} file(s) to Convex Storage!`);
       setTimeout(() => setStatusMsg(null), 4500);
     } catch (err: any) {
-      setStatusMsg(`Drop upload completed: ${err?.message || "Uploaded"}`);
+      setStatusMsg(`Drop upload failed: ${err?.message || "The files were not saved."}`);
       setTimeout(() => setStatusMsg(null), 4500);
     } finally {
       setUploading(false);
@@ -261,19 +277,25 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
     URL.revokeObjectURL(blobUrl);
   };
 
-  const handleDeleteFile = async (fileId: string) => {
+  const handleDeleteFile = (file: ProjectFile) => {
+    setFileToDelete(file);
+  };
+
+  const confirmDeleteFile = async () => {
+    if (!fileToDelete) return;
     try {
-      if (!fileId.startsWith("file_")) {
-        await deleteFileMutation({ fileId: fileId as any });
+      if (!fileToDelete._id.startsWith("file_")) {
+        await deleteFileMutation({ fileId: fileToDelete._id as any });
       }
+      if (onFileDeleted) {
+        onFileDeleted(fileToDelete._id);
+      }
+      setFileToDelete(null);
+      setStatusMsg("File deleted from storage.");
+      setTimeout(() => setStatusMsg(null), 3000);
     } catch (err: any) {
-      console.warn("Convex delete file fallback:", err);
+      setStatusMsg(`Delete failed: ${err?.message || "The file was not removed."}`);
     }
-    if (onFileDeleted) {
-      onFileDeleted(fileId);
-    }
-    setStatusMsg("File deleted from storage.");
-    setTimeout(() => setStatusMsg(null), 3000);
   };
 
   const handleAutoScope = async (file: ProjectFile) => {
@@ -286,13 +308,13 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       } else {
         await generateTradePackagesAction({
           projectId: currentProject._id as any,
-          specDocumentTextOverride: `SPECIFICATION SECTION PARSED FROM ${file.fileName}:\n${currentProject.specDocumentText}`,
+           specDocumentTextOverride: file.textContent?.trim() || currentProject.specDocumentText,
         });
       }
       setStatusMsg(`Successfully auto-scoped trade packages from ${file.fileName}! Inboxes provisioned.`);
       setTimeout(() => setStatusMsg(null), 4500);
     } catch (err: any) {
-      setStatusMsg(`Auto-scoping completed: ${err?.message || "Packages generated."}`);
+      setStatusMsg(`Auto-scoping failed: ${err?.message || "No packages were generated."}`);
       setTimeout(() => setStatusMsg(null), 4500);
     } finally {
       setProcessingFileId(null);
@@ -311,7 +333,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
         if (!targetPkg) {
           throw new Error("Please select an active trade package before extracting proposals.");
         }
-        await extractBidAction({
+        const result = await extractBidAction({
           projectId: currentProject._id as any,
           tradePackageId: (file.tradePackageId || targetPkg._id) as any,
           contractorId: undefined,
@@ -319,11 +341,12 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
           fileName: file.fileName,
           fileSize: file.fileSize,
         });
+        if (result && result.success === false) throw new Error(result.error || "The proposal could not be read.");
       }
       setStatusMsg(`Bid extracted and normalized into Bid Leveling Matrix from '${file.fileName}'!`);
       setTimeout(() => setStatusMsg(null), 4500);
     } catch (err: any) {
-      setStatusMsg(`Bid extraction completed: ${err?.message || "Bid leveled."}`);
+      setStatusMsg(`Bid extraction failed: ${err?.message || "No bid was created."}`);
       setTimeout(() => setStatusMsg(null), 4500);
     } finally {
       setProcessingFileId(null);
@@ -382,6 +405,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
             className="hidden"
             id="convex-file-upload"
             multiple
+            accept=".pdf,.dwg,.dxf,.txt"
           />
 
           <label
@@ -419,6 +443,14 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
           setIsDraggingOver(false);
         }}
         onDrop={handleDropFiles}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200 ${
           isDraggingOver
@@ -500,7 +532,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
 
                     {/* Direct File-to-AI Actions */}
                     {isSpec && (
-                      <button
+                 <button
                         onClick={() => handleAutoScope(file)}
                         disabled={isProcessing}
                         className="bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
@@ -554,7 +586,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                     </button>
 
                     <button
-                      onClick={() => handleDeleteFile(file._id)}
+                       onClick={() => handleDeleteFile(file)}
                       className="p-2 bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-800/60 rounded-lg transition"
                       title="Delete file from storage"
                     >
@@ -598,10 +630,10 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                 <button
                   onClick={() => handleDownloadFile(previewFile)}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
-                  title="Download binary PDF"
+                   title={previewFile.url || getRealDocumentPdfBytes(previewFile.fileName) ? "Download document" : "Download text archive"}
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
+                   <span>{previewFile.url || getRealDocumentPdfBytes(previewFile.fileName) ? "Download document" : "Download text archive"}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -680,6 +712,14 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(fileToDelete)}
+        title="Delete file?"
+        description={fileToDelete ? `Permanently remove ${fileToDelete.fileName} from this project's document register and storage?` : ""}
+        confirmLabel="Delete file"
+        onCancel={() => setFileToDelete(null)}
+        onConfirm={confirmDeleteFile}
+      />
     </div>
   );
 };

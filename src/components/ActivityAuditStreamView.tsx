@@ -31,6 +31,7 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
 }) => {
   const [runningDeadline, setRunningDeadline] = useState(false);
   const [runningCompliance, setRunningCompliance] = useState(false);
+  const [cronError, setCronError] = useState<string | null>(null);
 
   // Live WebSocket query for real-time audit logs (Zero Polling Invariant), with resilient fallback
   const logsData = useQuery(
@@ -46,14 +47,19 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
 
   const handleRunDeadlineCron = async () => {
     setRunningDeadline(true);
+    setCronError(null);
     try {
       if (onRunDeadlineCron) {
         await onRunDeadlineCron();
       } else {
-        await runDeadlineMutation(currentProject && !currentProject._id.startsWith("proj_") ? { projectId: currentProject._id as any } : {});
+        if (!currentProject || currentProject._id.startsWith("proj_")) {
+          throw new Error("Select a connected project before running the deadline monitor.");
+        }
+        await runDeadlineMutation({ projectId: currentProject._id as any });
       }
     } catch (err: any) {
       console.warn("Deadline cron fallback:", err);
+      setCronError(err?.message || "The deadline monitor could not be executed.");
     } finally {
       setRunningDeadline(false);
     }
@@ -61,14 +67,19 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
 
   const handleRunComplianceCron = async () => {
     setRunningCompliance(true);
+    setCronError(null);
     try {
       if (onRunComplianceCron) {
         await onRunComplianceCron();
       } else {
-        await runComplianceMutation(currentProject && !currentProject._id.startsWith("proj_") ? { projectId: currentProject._id as any } : {});
+        if (!currentProject || currentProject._id.startsWith("proj_")) {
+          throw new Error("Select a connected project before running the compliance audit.");
+        }
+        await runComplianceMutation({ projectId: currentProject._id as any });
       }
     } catch (err: any) {
       console.warn("Compliance cron fallback:", err);
+      setCronError(err?.message || "The compliance audit could not be executed.");
     } finally {
       setRunningCompliance(false);
     }
@@ -162,6 +173,12 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
           </button>
         </div>
       </div>
+
+      {cronError && (
+        <div className="rounded-xl border border-rose-800/80 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert">
+          Cron execution failed: {cronError}
+        </div>
+      )}
 
       {/* Convex Cron Scheduled Status Banner */}
       {cronStatusData && (

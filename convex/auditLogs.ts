@@ -1,4 +1,4 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -29,7 +29,7 @@ export const listRecentLogs = query({
   },
 });
 
-export const recordLog = mutation({
+export const recordLog = internalMutation({
   args: {
     projectId: v.id("projects"),
     tradePackageId: v.optional(v.id("tradePackages")),

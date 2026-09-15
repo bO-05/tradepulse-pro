@@ -7,6 +7,7 @@ import {
   Award,
 } from "lucide-react";
 import { Project, TradePackage, Bid } from "../types.ts";
+import { getDeceptiveBidIds } from "../leveling.ts";
 
 interface ExecutiveKpiBarProps {
   currentProject: Project | null;
@@ -26,13 +27,14 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
 
   // 2. Package-level best leveled bids and deceptive bid detection
   let totalLeveledBuyout = 0;
-  let deceptiveBidsCount = 0;
   let totalExclusionsIdentified = 0;
+  const deceptiveBidIds = new Set<string>();
 
   tradePackages.forEach((pkg) => {
     const pkgBids = allBids.filter((b) => b.tradePackageId === pkg._id);
     if (pkgBids.length > 0) {
-      // Find lowest leveled bid
+      for (const bidId of getDeceptiveBidIds(pkgBids)) deceptiveBidIds.add(bidId);
+      // Use the awarded bid when present; otherwise use the current lowest leveled bid.
       const sortedByLeveled = [...pkgBids].sort((a, b) => a.leveledTotalCost - b.leveledTotalCost);
       const lowestLeveled = sortedByLeveled[0];
 
@@ -40,22 +42,10 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
       const awardedBid = pkgBids.find((b) => b.isAwarded);
       const effectiveBid = awardedBid || lowestLeveled;
       totalLeveledBuyout += effectiveBid.leveledTotalCost;
-
-      // Check for deceptive low bidders: base bid lower than winner's base, but leveled cost higher!
-      pkgBids.forEach((b) => {
-        if (
-          b._id !== lowestLeveled._id &&
-          b.baseBidAmount < lowestLeveled.baseBidAmount &&
-          b.leveledTotalCost > lowestLeveled.leveledTotalCost
-        ) {
-          deceptiveBidsCount++;
+      (effectiveBid.identifiedExclusions || []).forEach((exc) => {
+        if (!exc.isWaived) {
+          totalExclusionsIdentified += exc.costImpact || 0;
         }
-        // Accumulate active exclusions
-        (b.identifiedExclusions || []).forEach((exc) => {
-          if (!exc.isWaived) {
-            totalExclusionsIdentified += (exc.costImpact || 0);
-          }
-        });
       });
     } else {
       totalLeveledBuyout += pkg.budgetEstimate;
@@ -75,6 +65,10 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
   // 4. Packages awarded
   const awardedPackages = tradePackages.filter((p) => p.status === "awarded").length;
   const totalPackages = tradePackages.length;
+  const deceptiveBidsCount = tradePackages.reduce(
+    (count, pkg) => count + allBids.filter((bid) => bid.tradePackageId === pkg._id && deceptiveBidIds.has(bid._id)).length,
+    0
+  );
 
   const [isCompact, setIsCompact] = React.useState(true);
 

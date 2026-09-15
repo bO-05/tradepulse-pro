@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { DEFAULT_GENERAL_CONTRACTOR } from "./validation";
 
 /**
  * AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor.
@@ -21,6 +22,9 @@ export const generateAgreement = mutation({
 
     const bid = await ctx.db.get(args.bidId);
     if (!bid) throw new Error("Bid not found");
+    if (bid.tradePackageId !== args.tradePackageId) {
+      throw new Error("Bid and trade package do not belong to the same procurement scope.");
+    }
 
     const tradePkg = await ctx.db.get(args.tradePackageId);
     if (!tradePkg) throw new Error("Trade package not found");
@@ -32,7 +36,7 @@ export const generateAgreement = mutation({
       (sum, ve) => (ve.isAccepted ? sum + (ve.costDeduct || 0) : sum),
       0
     );
-    const contractSum = Math.max(0, bid.baseBidAmount - acceptedVeTotal);
+    const contractSum = Math.max(0, bid.leveledTotalCost);
     const retainagePercent = 10;
     const liquidatedDamagesDaily = 1200;
 
@@ -44,12 +48,18 @@ export const generateAgreement = mutation({
 
     const contractLocation = project.location || "Austin, Texas";
     const { city: gcCity, state: gcState, stateAbbr } = parseCityAndState(contractLocation);
-    const generalContractor = "Apex Commercial General Contractors LLC";
-    const subName = bid.subcontractorName;
-
+    const generalContractor = project.generalContractorName?.trim() || DEFAULT_GENERAL_CONTRACTOR;
     const contractor = await ctx.db.get(bid.contractorId);
+    if (!contractor || contractor.tradePackageId !== tradePkg._id) {
+      throw new Error("The selected bid is not linked to a valid contractor in this trade package.");
+    }
+    const subName = contractor.companyName.trim();
+    if (!subName) throw new Error("The selected contractor must have a company name before an agreement can be generated.");
 
     if (existing) {
+      if (existing.status === "executed") {
+        throw new Error("Executed agreements are immutable. Create a formal amendment instead of regenerating this agreement.");
+      }
       // Re-award this bid and package, supersede other agreements
       const packageBids = await ctx.db
         .query("bids")
@@ -65,7 +75,7 @@ export const generateAgreement = mutation({
         .withIndex("by_package", (q) => q.eq("tradePackageId", tradePkg._id))
         .collect();
       for (const prev of prevAgreements) {
-        if (prev._id !== existing._id && prev.status !== "superseded") {
+        if (prev._id !== existing._id && prev.status !== "superseded" && prev.status !== "executed") {
           await ctx.db.patch(prev._id, { status: "superseded" });
         }
       }
@@ -103,6 +113,10 @@ export const generateAgreement = mutation({
 
       await ctx.db.patch(existing._id, {
         status: "generated",
+        contractorId: bid.contractorId,
+        subcontractorName: subName,
+        subcontractorEmail: contractor.contactEmail,
+        generalContractorName: generalContractor,
         contractSum,
         contractText: updatedText,
         scopeSummary: tradePkg.scopeSummary,
@@ -160,6 +174,7 @@ export const generateAgreement = mutation({
       agreementNumber,
       documentTitle: "AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor",
       subcontractorName: subName,
+      subcontractorEmail: contractor.contactEmail,
       generalContractorName: generalContractor,
       projectTitle: project.title,
       projectLocation: project.location,
@@ -272,8 +287,8 @@ export const executeAgreement = mutation({
       projectId: agreement.projectId,
       tradePackageId: agreement.tradePackageId,
       eventType: "contract_awarded",
-      title: `AIA A401 Agreement Formally Signed & Executed`,
-      description: `Contract ${agreement.agreementNumber} between ${agreement.generalContractorName} and ${agreement.subcontractorName} is now executed and legally binding.`,
+      title: `AIA A401 Execution Status Recorded`,
+      description: `Execution status recorded for ${agreement.agreementNumber} between ${agreement.generalContractorName} and ${agreement.subcontractorName}; external signature verification remains required.`,
       actor: "Commercial Project Executive",
       timestamp: Date.now(),
     });
@@ -427,6 +442,9 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
     .first();
 
   if (!existingAgreement) return null;
+  if (existingAgreement.status === "executed") {
+    throw new Error("Executed agreements are immutable. Create a formal amendment instead of changing the bid.");
+  }
 
   const tradePkg = await ctx.db.get(bid.tradePackageId);
   if (!tradePkg) return null;
@@ -435,12 +453,17 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
   if (!project) return null;
 
   const contractor = await ctx.db.get(bid.contractorId);
+  if (!contractor || contractor.tradePackageId !== tradePkg._id || !contractor.companyName.trim()) {
+    throw new Error("The awarded bid is not linked to a valid contractor in this trade package.");
+  }
+  const subcontractorName = contractor.companyName.trim();
+  const generalContractorName = project.generalContractorName?.trim() || DEFAULT_GENERAL_CONTRACTOR;
 
   const acceptedVeTotal = (bid.valueEngineeringAlternates || []).reduce(
     (sum: number, ve: any) => (ve.isAccepted ? sum + (ve.costDeduct || 0) : sum),
     0
   );
-  const contractSum = Math.max(0, bid.baseBidAmount - acceptedVeTotal);
+  const contractSum = Math.max(0, bid.leveledTotalCost);
   const retainagePercent = existingAgreement.retainagePercent || 10;
   const liquidatedDamagesDaily = existingAgreement.liquidatedDamagesDaily || 1200;
 
@@ -456,16 +479,16 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
   const updatedContractText = generateAiaA401AgreementText({
     agreementNumber: existingAgreement.agreementNumber,
     formattedDate,
-    generalContractor: existingAgreement.generalContractorName || "Apex Commercial General Contractors LLC",
+    generalContractor: generalContractorName,
     gcCity,
     gcState,
     stateAbbr,
-    subName: bid.subcontractorName,
+    subName: subcontractorName,
     contactEmail:
-      contractor?.contactEmail ??
-      `estimating@${bid.subcontractorName.toLowerCase().replace(/[^a-z0-9]/g, "") || "contractor"}.com`,
-    licenseNumber: contractor?.licenseNumber ?? `${stateAbbr}-COMM-VERIFIED`,
-    licenseStatus: contractor?.licenseStatus ?? "Active / Verified",
+      contractor.contactEmail ||
+      `estimating@${subcontractorName.toLowerCase().replace(/[^a-z0-9]/g, "") || "contractor"}.com`,
+    licenseNumber: contractor.licenseNumber || `${stateAbbr}-COMM-VERIFIED`,
+    licenseStatus: contractor.licenseStatus || "Active / Verified",
     projectTitle: project.title,
     projectLocation: project.location,
     projectType: project.projectType,
@@ -483,6 +506,10 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
   });
 
   await ctx.db.patch(existingAgreement._id, {
+    contractorId: bid.contractorId,
+    subcontractorName,
+    subcontractorEmail: contractor.contactEmail,
+    generalContractorName,
     contractSum,
     contractText: updatedContractText,
     scopeSummary: tradePkg.scopeSummary,

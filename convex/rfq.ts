@@ -22,14 +22,21 @@ export const listClarifiedConversationsForProject = internalQuery({
       .collect();
 
     const clarified: any[] = [];
+    const pending: any[] = [];
     for (const pkg of packages) {
       const convos = await ctx.db
         .query("conversations")
         .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))
         .collect();
       for (const c of convos) {
-        if (c.status === "clarified") {
+        if (c.status === "clarified" && c.pmCertifiedAt) {
           clarified.push({
+            ...c,
+            csiDivision: pkg.csiDivision,
+            tradeName: pkg.tradeName,
+          });
+        } else if (c.status !== "rejected") {
+          pending.push({
             ...c,
             csiDivision: pkg.csiDivision,
             tradeName: pkg.tradeName,
@@ -37,7 +44,7 @@ export const listClarifiedConversationsForProject = internalQuery({
         }
       }
     }
-    return clarified;
+    return { clarified, pending };
   },
 });
 
@@ -187,6 +194,9 @@ export const recordInboundRfi = internalMutation({
   handler: async (ctx, args) => {
     // Update contractor status to rfi_submitted if not already bid_received
     const contractor = await ctx.db.get(args.contractorId);
+    if (!contractor || contractor.tradePackageId !== args.tradePackageId) {
+      throw new Error("The RFI contractor does not belong to the selected trade package.");
+    }
     if (contractor && contractor.rfqStatus !== "bid_received") {
       await ctx.db.patch(args.contractorId, { rfqStatus: "rfi_submitted" });
     }
@@ -240,12 +250,25 @@ export const reviewEscalatedRfi = mutation({
   handler: async (ctx, args) => {
     const convo = await ctx.db.get(args.conversationId);
     if (!convo) throw new Error("Conversation not found");
+    const convoContractor = await ctx.db.get(convo.contractorId);
+    if (!convoContractor || convoContractor.tradePackageId !== convo.tradePackageId) {
+      throw new Error("The RFI is linked to an invalid contractor/package relationship.");
+    }
 
     const patchData: any = {
       status: args.status,
     };
     if (args.autonomousReply !== undefined) {
       patchData.autonomousReply = args.autonomousReply;
+    }
+    if (args.status === "clarified") {
+      patchData.pmCertifiedAt = Date.now();
+      patchData.pmCertifiedBy = "Project Manager";
+      patchData.reviewNote = args.reviewNote || "Approved by Project Manager for Addendum NO. 01";
+    } else {
+      patchData.pmCertifiedAt = undefined;
+      patchData.pmCertifiedBy = undefined;
+      if (args.reviewNote !== undefined) patchData.reviewNote = args.reviewNote;
     }
     await ctx.db.patch(args.conversationId, patchData);
 

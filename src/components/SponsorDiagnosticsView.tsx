@@ -68,22 +68,10 @@ export const SponsorDiagnosticsView: React.FC = () => {
     inputCostPer1M: number;
     outputCostPer1M: number;
     totalCostUsd: number;
-    accuracyScore: number;
+    accuracyScore: number | null;
     sampleOutput: string;
-  } | null>({
-    model: "gemini-3.8-flash",
-    provider: "Google Cloud / Gemini",
-    latencyMs: 380,
-    throughputTokSec: 305,
-    inputTokens: 1420,
-    outputTokens: 512,
-    inputCostPer1M: 0.75,
-    outputCostPer1M: 3.75,
-    totalCostUsd: 0.00298,
-    accuracyScore: 99.2,
-    sampleOutput:
-      "Identified critical scope gap in Division 26 Proposal: Subcontractor omitted penthouse crane hoisting ($45,000) and UL 1479 floor penetrations ($22,000). Normalized total cost adjusted from $1,100,000 to $1,286,000.",
-  });
+    isLive: boolean;
+   } | null>(null);
 
   const modelsConfig = {
     gemini: {
@@ -153,8 +141,9 @@ export const SponsorDiagnosticsView: React.FC = () => {
           inputCostPer1M: config.inputCostPer1M,
           outputCostPer1M: config.outputCostPer1M,
           totalCostUsd: Number(totalCostUsd.toFixed(6)),
-          accuracyScore: res.parsedJson ? 99.8 : 99.2,
+          accuracyScore: null,
           sampleOutput: res.content.slice(0, 400) + (res.content.length > 400 ? "..." : ""),
+          isLive: true,
         });
       }
     } catch (err: any) {
@@ -175,8 +164,9 @@ export const SponsorDiagnosticsView: React.FC = () => {
         inputCostPer1M: config.inputCostPer1M,
         outputCostPer1M: config.outputCostPer1M,
         totalCostUsd: Number(totalCostUsd.toFixed(6)),
-        accuracyScore: 99.2,
-        sampleOutput: `[${config.name}] Live diagnostic offline fallback.`,
+          accuracyScore: null,
+          sampleOutput: `[${config.name}] Live diagnostic offline fallback.`,
+          isLive: false,
       });
     } finally {
       setIsBenchmarking(false);
@@ -318,7 +308,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
               <span className="text-base font-bold text-emerald-400 font-mono">
                 {latestEvalData.run.passedCases} / {latestEvalData.run.totalCases}
               </span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">100% Expert Alignment</span>
+               <span className="text-[10px] text-slate-400 block mt-0.5">Computed from case verdicts</span>
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
@@ -339,14 +329,14 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">MEP Clash Recall</span>
-              <span className="text-base font-bold text-purple-400 font-mono">100.0%</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">$50.5k double-buys caught</span>
+               <span className="text-base font-bold text-purple-400 font-mono">{Math.round(latestEvalData.run.clashRecallAvg * 100)}%</span>
+               <span className="text-[10px] text-slate-400 block mt-0.5">Computed from cross-trade cases</span>
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">AIA A401 Conformity</span>
-              <span className="text-base font-bold text-emerald-400 font-mono">100.0%</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Statutory Articles 1-6</span>
+               <span className="text-base font-bold text-emerald-400 font-mono">{latestEvalData.run.aiaConformityAvg > 0 ? `${Math.round(latestEvalData.run.aiaConformityAvg * 100)}%` : "N/A"}</span>
+               <span className="text-[10px] text-slate-400 block mt-0.5">Not covered by this suite</span>
             </div>
           </div>
         ) : (
@@ -391,7 +381,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
                     const gtCost = t.groundTruth?.leveledCost || t.groundTruth?.expectedRedundantAmount || t.groundTruth?.expectedVoidExposure || 0;
                     const aiCost = t.parsedOutput?.leveledTotalCost || t.parsedOutput?.totalRedundantAmount || t.parsedOutput?.totalVoidExposure || t.metrics?.aiLeveledCost || 0;
                     const delta = aiCost - gtCost;
-                    const recallPct = Math.round((t.metrics?.scopeRecall || 1.0) * 100);
+                     const recallPct = typeof t.metrics?.scopeRecall === "number" ? Math.round(t.metrics.scopeRecall * 100) : null;
 
                     return (
                       <React.Fragment key={t.caseId}>
@@ -417,7 +407,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
                             )}
                           </td>
                           <td className="p-2.5 text-center font-mono font-semibold text-emerald-400">
-                            {recallPct}%
+                             {recallPct === null ? "N/A" : `${recallPct}%`}
                           </td>
                           <td className="p-2.5 text-center">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
@@ -598,10 +588,10 @@ export const SponsorDiagnosticsView: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-800 pb-2">
               <span className="font-bold text-slate-200 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Live Token Economics & Benchmark Telemetry: {benchmarkResult.model}
+                 {benchmarkResult.isLive ? "Live" : "Offline fallback"} Token Economics & Benchmark Telemetry: {benchmarkResult.model}
               </span>
               <span className="text-emerald-400 font-mono text-[11px]">
-                Accuracy: {benchmarkResult.accuracyScore}% • Status: Optimal
+                 Accuracy: {benchmarkResult.accuracyScore === null ? "Not measured" : `${benchmarkResult.accuracyScore}%`} • Status: {benchmarkResult.isLive ? "Live" : "Fallback; not a production measurement"}
               </span>
             </div>
 
@@ -633,7 +623,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">CSI Accuracy</span>
-                <span className="text-sm font-bold text-amber-400 font-mono">{benchmarkResult.accuracyScore}%</span>
+                 <span className="text-sm font-bold text-amber-400 font-mono">{benchmarkResult.accuracyScore === null ? "N/A" : `${benchmarkResult.accuracyScore}%`}</span>
               </div>
             </div>
 

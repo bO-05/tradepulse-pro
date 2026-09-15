@@ -1,4 +1,4 @@
-import { action, mutation, query } from "./_generated/server";
+import { action, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
@@ -16,15 +16,23 @@ export interface EvalMetricResult {
   scopeF1: number;
   veAccuracy: number;
   coiPassed: boolean;
+  coiExpectedDeficiency?: boolean;
+  coiPredictedDeficiency?: boolean;
   status: "PASS" | "FAIL";
   latencyMs: number;
   verdict: string;
 }
 
+function calculatePercentageError(actual: number, expected: number): number {
+  return expected === 0
+    ? (actual === 0 ? 0 : 100)
+    : (Math.abs(actual - expected) / Math.abs(expected)) * 100;
+}
+
 /**
  * Persist an individual LLM prompt/response execution trace and comparison
  */
-export const recordAgentTrace = mutation({
+export const recordAgentTrace = internalMutation({
   args: {
     runId: v.string(),
     caseId: v.string(),
@@ -53,7 +61,7 @@ export const recordAgentTrace = mutation({
 /**
  * Persist a complete evaluation run summary
  */
-export const recordEvalRun = mutation({
+export const recordEvalRun = internalMutation({
   args: {
     runId: v.string(),
     targetEnvironment: v.string(),
@@ -439,10 +447,17 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
       const f1 = (precision + recall === 0) ? 0 : (2 * precision * recall) / (precision + recall);
 
       // VE & COI matches
-      const veAccuracy = (parsed.valueEngineeringAlternates || []).length === (tc.groundTruth.veDeduct > 0 ? 1 : 0) ? 1.0 : 1.0;
-      const coiPassed = parsed.coiComplianceStatus === tc.groundTruth.coiStatus;
+      const extractedVeDeduct = (parsed.valueEngineeringAlternates || []).reduce(
+        (sum: number, ve: any) => sum + (Number(ve.costDeduct) || 0),
+        0
+      );
+      const expectedVeDeduct = Number(tc.groundTruth.veDeduct) || 0;
+      const veAccuracy = Math.abs(extractedVeDeduct - expectedVeDeduct) <= 1 ? 1.0 : 0.0;
+      const coiExpectedDeficiency = tc.groundTruth.coiStatus === "deficiency_detected";
+      const coiPredictedDeficiency = parsed.coiComplianceStatus === "deficiency_detected";
+      const coiPassed = coiPredictedDeficiency === coiExpectedDeficiency;
 
-      const isPassed = apePercent <= 0.5 && recall >= 0.9;
+      const isPassed = apePercent <= 0.5 && recall >= 0.9 && precision >= 0.9 && veAccuracy === 1.0 && coiPassed;
 
       const metric: EvalMetricResult = {
         caseId: tc.caseId,
@@ -458,6 +473,8 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
         scopeF1: Math.round(f1 * 100) / 100,
         veAccuracy,
         coiPassed,
+        coiExpectedDeficiency,
+        coiPredictedDeficiency,
         status: isPassed ? "PASS" : "FAIL",
         latencyMs,
         verdict: isPassed ? "PARITY ACHIEVED" : "DRIFT DETECTED",
@@ -485,7 +502,7 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
         timestamp: Date.now(),
       };
 
-      await ctx.runMutation((api as any).evals.recordAgentTrace, tracePayload);
+      await ctx.runMutation(internal.evals.recordAgentTrace, tracePayload);
       return { metric, tracePayload };
     });
 
@@ -506,6 +523,8 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     const hasDisc = clashResult.doubleBuys?.some((d: any) => d.id === "clash-disconnect-02");
     const doubleBuyRecall = (hasVfd && hasDisc) ? 1.0 : 0.5;
     const doubleBuyPassed = doubleBuyRecall === 1.0 && clashResult.totalRedundantAmount === 50500;
+    const doubleBuyAiCost = Number.isFinite(clashResult.totalRedundantAmount) ? clashResult.totalRedundantAmount : 0;
+    const doubleBuyDelta = doubleBuyAiCost - 50500;
 
     const doubleBuyMetric: EvalMetricResult = {
       caseId: "case-mep-01-double-buys",
@@ -513,9 +532,9 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
       tradeName: "Div 26 & Div 23 Double-Buy Coordination",
       contractorName: "Cross-Trade Alignment Engine",
       groundTruthLeveledCost: 50500,
-      aiLeveledCost: clashResult.totalRedundantAmount || 50500,
-      dollarDelta: (clashResult.totalRedundantAmount || 50500) - 50500,
-      apePercent: 0.0,
+      aiLeveledCost: doubleBuyAiCost,
+      dollarDelta: doubleBuyDelta,
+      apePercent: Math.round(calculatePercentageError(doubleBuyAiCost, 50500) * 100) / 100,
       scopeRecall: doubleBuyRecall,
       scopePrecision: 1.0,
       scopeF1: doubleBuyRecall,
@@ -527,7 +546,7 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     };
     results.push(doubleBuyMetric);
 
-    await ctx.runMutation((api as any).evals.recordAgentTrace, {
+    await ctx.runMutation(internal.evals.recordAgentTrace, {
       runId,
       caseId: "case-mep-01-double-buys",
       csiDivision: "MEP Cross-Trade",
@@ -553,6 +572,8 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     const hasSmoke = clashResult.scopeVoids?.some((v: any) => v.id === "void-smoke-detectors-02");
     const voidRecall = (hasBas && hasSmoke) ? 1.0 : 0.5;
     const voidPassed = voidRecall === 1.0 && clashResult.totalVoidExposure === 46500;
+    const voidAiCost = Number.isFinite(clashResult.totalVoidExposure) ? clashResult.totalVoidExposure : 0;
+    const voidDelta = voidAiCost - 46500;
 
     const voidMetric: EvalMetricResult = {
       caseId: "case-mep-02-scope-voids",
@@ -560,9 +581,9 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
       tradeName: "Div 26 & Div 23 Scope Void Coordination",
       contractorName: "Cross-Trade Alignment Engine",
       groundTruthLeveledCost: 46500,
-      aiLeveledCost: clashResult.totalVoidExposure || 46500,
-      dollarDelta: (clashResult.totalVoidExposure || 46500) - 46500,
-      apePercent: 0.0,
+      aiLeveledCost: voidAiCost,
+      dollarDelta: voidDelta,
+      apePercent: Math.round(calculatePercentageError(voidAiCost, 46500) * 100) / 100,
       scopeRecall: voidRecall,
       scopePrecision: 1.0,
       scopeF1: voidRecall,
@@ -574,7 +595,7 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     };
     results.push(voidMetric);
 
-    await ctx.runMutation((api as any).evals.recordAgentTrace, {
+    await ctx.runMutation(internal.evals.recordAgentTrace, {
       runId,
       caseId: "case-mep-02-scope-voids",
       csiDivision: "MEP Cross-Trade",
@@ -598,12 +619,24 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     // 6. Aggregate KPIs across all 10 cases
     const totalDurationMs = Date.now() - startTime;
     const passedCount = results.filter((r) => r.status === "PASS").length;
-    const mapeAvg = results.reduce((sum, r) => sum + r.apePercent, 0) / results.length;
+    const costMetrics = results.filter((r) => r.csiDivision !== "MEP Cross-Trade");
+    const mapeAvg = costMetrics.reduce((sum, r) => sum + r.apePercent, 0) / Math.max(1, costMetrics.length);
     const recallAvg = results.reduce((sum, r) => sum + r.scopeRecall, 0) / results.length;
     const precisionAvg = results.reduce((sum, r) => sum + r.scopePrecision, 0) / results.length;
+    const clashMetrics = results.filter((r) => r.csiDivision === "MEP Cross-Trade");
+    const clashRecallAvg = clashMetrics.length > 0
+      ? clashMetrics.reduce((sum, r) => sum + r.scopeRecall, 0) / clashMetrics.length
+      : 0;
+    const veAccuracyAvg = results.reduce((sum, r) => sum + r.veAccuracy, 0) / results.length;
+    const coiTruePositive = results.filter((r) => r.coiExpectedDeficiency && r.coiPredictedDeficiency).length;
+    const coiFalsePositive = results.filter((r) => !r.coiExpectedDeficiency && r.coiPredictedDeficiency).length;
+    const coiFalseNegative = results.filter((r) => r.coiExpectedDeficiency && !r.coiPredictedDeficiency).length;
+    const coiPrecision = coiTruePositive / Math.max(1, coiTruePositive + coiFalsePositive);
+    const coiRecall = coiTruePositive / Math.max(1, coiTruePositive + coiFalseNegative);
+    const coiF1 = coiPrecision + coiRecall === 0 ? 0 : (2 * coiPrecision * coiRecall) / (coiPrecision + coiRecall);
     const overallScore = Math.round((passedCount / results.length) * 100);
 
-    await ctx.runMutation((api as any).evals.recordEvalRun, {
+    await ctx.runMutation(internal.evals.recordEvalRun, {
       runId,
       targetEnvironment: targetEnv,
       triggeredBy,
@@ -612,10 +645,10 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
       scopeRecallAvg: Math.round(recallAvg * 1000) / 1000,
       scopePrecisionAvg: Math.round(precisionAvg * 1000) / 1000,
       leveledCostMape: Math.round(mapeAvg * 100) / 100,
-      veAccuracyAvg: 1.0,
-      coiF1Score: 1.0,
-      clashRecallAvg: 1.0,
-      aiaConformityAvg: 1.0,
+      veAccuracyAvg: Math.round(veAccuracyAvg * 1000) / 1000,
+      coiF1Score: Math.round(coiF1 * 1000) / 1000,
+      clashRecallAvg: Math.round(clashRecallAvg * 1000) / 1000,
+      aiaConformityAvg: 0,
       overallScore,
       totalDurationMs,
     });

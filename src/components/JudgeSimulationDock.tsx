@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Zap, RefreshCw, X, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Play, RotateCcw } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
@@ -29,6 +29,15 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
   const runFullCycleMutation = useMutation(api.simulation.runFullProcurementCycle);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !loadingAction) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, loadingAction, onClose]);
 
   if (!isOpen) return null;
 
@@ -64,7 +73,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
           tradePackageId: currentPkg?._id as any,
         });
         setLastMessage(
-          `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope gaps from ${res.deceptiveBidder}!`
+          `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with generated AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope gaps from ${res.deceptiveBidder}; external signature verification remains required.`
         );
       }
     } catch (err: any) {
@@ -75,8 +84,8 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" role="presentation">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="judge-dock-title">
         {/* Modal Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-amber-500/20 via-slate-800 to-slate-900 border-b border-slate-700/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -85,7 +94,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                ⚡ 60-Second Executive Demo & Simulation Engine
+                <span id="judge-dock-title">⚡ 60-Second Executive Demo & Simulation Engine</span>
                 <span className="text-[10px] font-semibold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full">
                   Instant Showcase
                 </span>
@@ -97,6 +106,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close 60-second judge dock"
             className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />

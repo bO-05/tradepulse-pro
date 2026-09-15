@@ -137,15 +137,17 @@ export const auditContractorCompliance = internalMutation({
  * Public mutations to allow 1-click execution from UI and verification tests.
  */
 export const runDeadlineMonitorNow = mutation({
-  args: { projectId: v.optional(v.id("projects")) },
+  args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
     const packages = await ctx.db.query("tradePackages").collect();
     const today = new Date().toISOString().slice(0, 10);
     let monitoredCount = 0;
     let transitionedCount = 0;
 
     for (const pkg of packages) {
-      if (!args.projectId || pkg.projectId === args.projectId) {
+      if (pkg.projectId === args.projectId) {
         monitoredCount++;
         if (pkg.bidDeadline <= today && pkg.status === "rfqs_dispatched") {
           await ctx.db.patch(pkg._id, { status: "leveling" });
@@ -154,42 +156,34 @@ export const runDeadlineMonitorNow = mutation({
       }
     }
 
-    const firstProject = await ctx.db.query("projects").first();
-    const targetProjectId = args.projectId ?? firstProject?._id;
-
-    if (targetProjectId) {
-      await ctx.db.insert("auditLogs", {
-        projectId: targetProjectId,
+    await ctx.db.insert("auditLogs", {
+        projectId: args.projectId,
         eventType: "cron_executed",
         title: "Manual Trigger: Bid Deadline Monitor Executed",
         description: `Audited ${monitoredCount} CSI trade packages (${transitionedCount} transitioned to active leveling).`,
         actor: "Lead Project Manager",
         timestamp: Date.now(),
-      });
-    }
+    });
 
     return { success: true, monitoredCount, transitionedCount };
   },
 });
 
 export const runComplianceAuditNow = mutation({
-  args: { projectId: v.optional(v.id("projects")) },
+  args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
     let contractors = await ctx.db.query("contractors").collect();
     let bids = await ctx.db.query("bids").collect();
 
-    const firstProject = await ctx.db.query("projects").first();
-    const targetProjectId = args.projectId ?? firstProject?._id;
-
-    if (targetProjectId) {
-      const projectPackages = await ctx.db
+    const projectPackages = await ctx.db
         .query("tradePackages")
-        .withIndex("by_project", (q) => q.eq("projectId", targetProjectId))
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
         .collect();
-      const pkgIds = new Set(projectPackages.map((p) => p._id));
-      contractors = contractors.filter((c) => pkgIds.has(c.tradePackageId));
-      bids = bids.filter((b) => pkgIds.has(b.tradePackageId));
-    }
+    const pkgIds = new Set(projectPackages.map((p) => p._id));
+    contractors = contractors.filter((c) => pkgIds.has(c.tradePackageId));
+    bids = bids.filter((b) => pkgIds.has(b.tradePackageId));
 
     let verifiedCount = 0;
     let coiDeficiencies = 0;
@@ -206,16 +200,14 @@ export const runComplianceAuditNow = mutation({
       }
     }
 
-    if (targetProjectId) {
-      await ctx.db.insert("auditLogs", {
-        projectId: targetProjectId,
+    await ctx.db.insert("auditLogs", {
+        projectId: args.projectId,
         eventType: "compliance_audit",
         title: "Manual Trigger: Subcontractor Compliance Sweep",
         description: `Live audit verified ${verifiedCount} licensed contractors and identified ${coiDeficiencies} insurance deficiencies.`,
         actor: "Director of Risk Management",
         timestamp: Date.now(),
-      });
-    }
+    });
 
     return {
       success: true,

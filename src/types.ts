@@ -7,6 +7,7 @@ export interface Project {
   targetCompletionWeeks: number;
   specDocumentText: string;
   isDemoProject: boolean;
+  generalContractorName?: string;
   createdAt: number;
 }
 
@@ -51,6 +52,8 @@ export interface Conversation {
   csiDivision?: string;
   tradeName?: string;
   reviewNote?: string;
+  pmCertifiedAt?: number;
+  pmCertifiedBy?: string;
 }
 
 export interface BidLineItem {
@@ -89,6 +92,7 @@ export interface Bid {
   coiPenalty: number;
   leveledTotalCost: number;
   isAwarded: boolean;
+  sourceFileId?: string;
   receivedAt: number;
 }
 
@@ -101,6 +105,7 @@ export interface Agreement {
   agreementNumber: string;
   documentTitle: string;
   subcontractorName: string;
+  subcontractorEmail?: string;
   generalContractorName: string;
   projectTitle: string;
   projectLocation: string;
