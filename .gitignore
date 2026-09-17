@@ -53,6 +53,14 @@ test-temp/
 *.scratch
 *.scratch.*
 evidence/
+downloads/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+.browser-use/
+browser-use/
+recordings/
 
 # Python artifacts (for tests & verification scripts)
 __pycache__/
