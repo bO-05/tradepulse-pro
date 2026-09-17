@@ -12,9 +12,31 @@
 - **Auth:** none
 - **AI models:** gpt-4o, gemini-3.8-flash, claude-sonnet-5
 - **Started:** 2026-09-09T12:41:52Z
-- **Last updated:** 2026-09-16T10:12:40Z
+- **Last updated:** 2026-09-17T13:40:00Z
 
 ## Log
+
+### 2026-09-17 - audit2_remediation
+Remediated the independent User-Journey Audit (25 findings, `doc/tradepulse audit 2`). Every reported finding was re-verified against the live app and current source before any change; one (#BUG-04 empty-spec silent close) no longer reproduced because the submit button is already disabled on empty input, and the stale-report class was recorded rather than "fixed".
+
+Bucket A (mechanical) fixes shipped:
+1. BUG-01/15/33 — dialog contract completed: New Project modal, ConfirmDialog, Judge Dock, preview, package and spec modals all render through portals (the sticky header's `backdrop-filter` was the containing block that clipped them), with a shared `useDialogFocus` trap + focus restore, stacking z-indices, and Escape handling.
+2. BUG-06/18/26 — derived numbers unified in `computeProcurementMetrics` (`src/leveling.ts`): KPI band, header stepper and tour now read one computation; "Gaps Exposed" reconciles with the flagged deceptive bid's components (exclusions + lead + COI − accepted VE), and the award count comes from non-superseded agreements so KPI and stepper agree (demo: 1/3).
+3. BUG-04/07/08 — honest action feedback: zero-recipient RFQ dispatch now fails with a readable error and leaves the package undispached; RFI submission shows an "AI is analyzing" pending banner until the clarification arrives; the RFQ toast no longer reports success when nothing was sent.
+4. BUG-09/10/11/28 — AI clarifications render through a dependency-free MarkdownLite renderer; audit and RFI timestamps show full local date + timezone; the addendum is now `ADDENDUM_NO_01_CLARIFICATIONS.md` and is described as a CSI MasterFormat pre-bid addendum (AIA A401 is the subcontract form); issuing an addendum with zero certified RFIs is blocked in the UI.
+5. BUG-17/19/20/21/22 — control relabel ("Simulate Inbound Bid…" opens the dock), CSV header names accepted-only VE, clash cards distinguish deductible value vs exposure, and the coordination footer separates double-buy credits from assigned voids.
+6. BUG-24/25/27 — commercial terms canonicalized in `convex/terms.ts`: contract liquidated damages stay $1,200/calendar day while ADR-0003 lead-time adjustments are $6,000/week, and every surface now uses those names.
+7. BUG-29/34/35 + OBS-01/03 — stepper no longer forces horizontal overflow (0px at 375/640/768/1024/1280/1440), small-text contrast raised to AA (measured 0 real failures, gradient buttons excluded), numeric inputs received min/max/step, and `<meta name="color-scheme" content="dark">` documents the intentional dark-only theme.
+8. BUG-13 — the file upload accept attribute now matches the selected document type (blueprint no longer advertises .txt).
+
+Bucket B (claims-integrity) decisions, implemented with "tell the truth over fabricate better":
+9. BUG-16 — discovery no longer invents phone numbers, emails or licence numbers. Firecrawl results record only data published in the source; the built-in fallback directory is labeled "Unverified — sample directory record" with licence/phone/email stripped; the UI shows per-record provenance and an unverified-records notice; `scrapeContractorWebsite` no longer fabricates a licensing profile when Firecrawl is unavailable.
+10. BUG-12/14 — Download fetches and saves the stored object under the record's own filename (no filename-keyed canned dictionary); the preview caption is now a truthful storage descriptor.
+11. BUG-30/31 — the eval surface is re-labeled "Bid Extraction & ADR-0003 Normalization Check" with the limitation stated in the UI ("not an independent estimating benchmark"); "Zero Cheating"/"PARITY ACHIEVED" removed; Run IDs show their start timestamp and a re-run creates a fresh run (verified via the action directly).
+12. BUG-02/36 — tour narration is interpolated from live project data (counts, gaps, true variance, contract sum) so it cannot drift from the screen; hard-coded demo dollar claims removed.
+13. OBS-02 — the reset control is confirmed, labeled as resetting the shared demo project, and the dock notes scenario cards use fixed demonstration figures.
+
+Verification: `tsc -b` clean; `npm test` 21/21 (3 suites: convex regression 12, derived-number agreement 4, claims-honesty 5); live re-verification of all fixed surfaces on `brainy-skunk-440` at 1440/1024/768/375 with zero console errors; demo project byte-stable (3 Pkgs / 4 Subs / 3 RFIs / 2 Bids / 4 Clashes, KPI 1/3 awarded, contract sum $1,225,000, LDs $1,200/day). All AUDIT-* fixtures removed from both dev and prod deployments. Raw evidence: `evidence/fix-*`. Remediation report: `doc/tradepulse audit 2/TradePulse-Pro-Remediation-2026-09-17-1345-UTC.html`.
 
 ### 2026-09-16 - production_remediation
 Responded to the independent TradePulse Pro Production Audit (Pass 1 + Pass 2) and shipped a production-grade remediation to the live deployment (`brainy-skunk-440`):

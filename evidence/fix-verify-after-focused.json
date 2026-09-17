@@ -1,0 +1,66 @@
+{
+  "BUG-12": {
+    "click": {
+      "ok": true
+    },
+    "downloads": [
+      "after-upload-normal.txt"
+    ],
+    "servedTrueBytes": true
+  },
+  "BUG-07-click": {
+    "ok": true
+  },
+  "BUG-07": {
+    "toast": "RFQ dispatch failed: Uncaught Error: Uncaught Error: No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs.\n    at handler (../convex/rfq.ts:119:8)\n\n    at async handler (../convex/rfqActions.ts:47:6)\n\n  Called by client",
+    "errorTone": false,
+    "blockHasDraft": false,
+    "blockHasDispatched": false
+  },
+  "rfiFields": {
+    "subject": true,
+    "question": true
+  },
+  "rfiButtonDisabled": false,
+  "BUG-08": {
+    "pendingBannerSeen": true,
+    "appearedAfterSeconds": 15
+  },
+  "BUG-09": {
+    "rawBoldVisible": false,
+    "rawHeadingVisible": false,
+    "strongElements": 20
+  },
+  "BUG-10": {
+    "fullDateTimes": [
+      "Sep 17, 2026, 08:10:57 PM GMT+7"
+    ]
+  },
+  "BUG-29": {
+    "headerBadge": "1",
+    "tabCount": "1"
+  },
+  "BUG-11": {
+    "success": "Pre-Bid Addendum NO. 01 Successfully Issued & Filed",
+    "filename": "ADDENDUM_NO_01_CLARIFICATIONS.md",
+    "claimsAia401Addendum": false,
+    "mentionsSeparateForm": false,
+    "error": null
+  },
+  "BUG-35": {
+    "failCount": 0,
+    "sample": []
+  },
+  "diag": {
+    "consoleErrors": [
+      {
+        "type": "error",
+        "text": "[CONVEX A(rfqActions:dispatchRfqsWithNotification)] [Request ID: b54c6ce7102d569b] Server Error\nUncaught Error: Uncaught Error: No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs.\n    at handler (../convex/rfq.ts:119:8)\n\n    at async handler (../convex/rfqActions.ts:47:6)\n"
+      }
+    ],
+    "pageErrors": [
+      "[CONVEX A(rfqActions:dispatchRfqsWithNotification)] [Request ID: b54c6ce7102d569b] Server Error\nUncaught Error: Uncaught Error: No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs.\nhandler (../convex/rfq.ts:119:8)\n\nasync handler (../convex/rfqActions.ts:47:6)\n\n  Called by client\nhandler (../convex/rfq.ts:119:8)\n\nasync handler (../convex/rfqActions.ts:47:6)\n\n  Called by client\nnx.action (http://localhost:4173/assets/index-BUQStrtR.js:41:46874)\nasync mr (http://localhost:4173/assets/index-BUQStrtR.js:694:34511)"
+    ],
+    "failedRequests": []
+  }
+}

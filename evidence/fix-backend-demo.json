@@ -1,0 +1,818 @@
+{
+  "fetchedAt": "2026-09-17T12:51:05.257Z",
+  "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+  "bids": [
+    {
+      "_creationTime": 1789635374442.215,
+      "_id": "jd75e9yffhay879ds02g1xhvqh8ej81m",
+      "baseBidAmount": 1225000,
+      "coiComplianceStatus": "compliant",
+      "coiPenalty": 0,
+      "contractorId": "jh7fahft8e4f0r521ghwp42ryh8ejrjj",
+      "csiDivision": "26 00 00",
+      "identifiedExclusions": [],
+      "isAwarded": false,
+      "leadTimePenalty": 0,
+      "leveledTotalCost": 1225000,
+      "lineItems": [
+        {
+          "item": "1600A Main Switchboard & Transformers",
+          "quantity": 1,
+          "totalCost": 450000,
+          "unit": "LS",
+          "unitCost": 450000
+        },
+        {
+          "item": "Emergency Lighting & Inverters",
+          "quantity": 1,
+          "totalCost": 185000,
+          "unit": "LS",
+          "unitCost": 185000
+        },
+        {
+          "item": "Branch Conduit & Wire Feeder Runs",
+          "quantity": 24000,
+          "totalCost": 432000,
+          "unit": "LF",
+          "unitCost": 18
+        },
+        {
+          "item": "Crane Hoisting to Penthouse Switchgear Room",
+          "quantity": 1,
+          "totalCost": 38000,
+          "unit": "LS",
+          "unitCost": 38000
+        },
+        {
+          "item": "UL 1479 Rated Firestopping Penetrations",
+          "quantity": 1,
+          "totalCost": 20000,
+          "unit": "LS",
+          "unitCost": 20000
+        },
+        {
+          "item": "Seismic Bracing System & Engineering",
+          "quantity": 1,
+          "totalCost": 100000,
+          "unit": "LS",
+          "unitCost": 100000
+        }
+      ],
+      "longLeadEquipmentWeeks": 10,
+      "receivedAt": 1789570574442,
+      "subcontractorName": "Rosendin Electric, Inc.",
+      "tradeName": "Electrical & Lighting Systems",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "valueEngineeringAlternates": [
+        {
+          "costDeduct": 35000,
+          "description": "VE-01: Feeder cable optimization (Aluminum MC cable in lieu of copper conduit)",
+          "isAccepted": false
+        }
+      ]
+    },
+    {
+      "_creationTime": 1789635374442.2153,
+      "_id": "jd7e3pzz0ts3ewwj2wd975s7gs8ekmc8",
+      "baseBidAmount": 1100000,
+      "coiComplianceStatus": "deficiency_detected",
+      "coiPenalty": 15000,
+      "contractorId": "jh7bz9c3x4j1j169v3g3fvccmx8ej155",
+      "csiDivision": "26 00 00",
+      "identifiedExclusions": [
+        {
+          "costImpact": 45000,
+          "description": "Crane hoisting & rigging to penthouse mechanical floor excluded (GC to furnish)",
+          "isWaived": false,
+          "severity": "critical"
+        },
+        {
+          "costImpact": 22000,
+          "description": "UL 1479 firestop floor penetrations excluded (By drywall trade)",
+          "isWaived": false,
+          "severity": "critical"
+        },
+        {
+          "costImpact": 55000,
+          "description": "Seismic engineered structural bracing excluded (By others)",
+          "isWaived": false,
+          "severity": "critical"
+        },
+        {
+          "costImpact": 25000,
+          "description": "Overtime/weekend acceleration excluded from base rate",
+          "isWaived": false,
+          "severity": "moderate"
+        }
+      ],
+      "isAwarded": false,
+      "leadTimePenalty": 24000,
+      "leveledTotalCost": 1286000,
+      "lineItems": [
+        {
+          "item": "1600A Main Switchboard (Furnish Only)",
+          "quantity": 1,
+          "totalCost": 420000,
+          "unit": "LS",
+          "unitCost": 420000
+        },
+        {
+          "item": "Emergency Lighting & Inverters",
+          "quantity": 1,
+          "totalCost": 170000,
+          "unit": "LS",
+          "unitCost": 170000
+        },
+        {
+          "item": "Branch Conduit & Wire Feeder Runs",
+          "quantity": 24000,
+          "totalCost": 408000,
+          "unit": "LF",
+          "unitCost": 17
+        },
+        {
+          "item": "Site Distribution & Temporary Hookups",
+          "quantity": 1,
+          "totalCost": 102000,
+          "unit": "LS",
+          "unitCost": 102000
+        }
+      ],
+      "longLeadEquipmentWeeks": 16,
+      "receivedAt": 1789592174442,
+      "subcontractorName": "Alterman, Inc.",
+      "tradeName": "Electrical & Lighting Systems",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "valueEngineeringAlternates": []
+    },
+    {
+      "_creationTime": 1789635374442.2168,
+      "_id": "jd7bantk3bj8d33hmsh704bbx98ekp3j",
+      "baseBidAmount": 1820000,
+      "coiComplianceStatus": "compliant",
+      "coiPenalty": 0,
+      "contractorId": "jh72zyp8efpefrknf0hj9dcnxn8ek7wv",
+      "csiDivision": "23 00 00",
+      "identifiedExclusions": [],
+      "isAwarded": false,
+      "leadTimePenalty": 0,
+      "leveledTotalCost": 1820000,
+      "lineItems": [
+        {
+          "item": "Chilled Water AHU Units & Piping",
+          "quantity": 1,
+          "totalCost": 820000,
+          "unit": "LS",
+          "unitCost": 820000
+        },
+        {
+          "item": "VAV Terminal Units & Electric Reheat",
+          "quantity": 110,
+          "totalCost": 385000,
+          "unit": "EA",
+          "unitCost": 3500
+        },
+        {
+          "item": "Galvanized Ductwork Distribution",
+          "quantity": 18000,
+          "totalCost": 396000,
+          "unit": "LF",
+          "unitCost": 22
+        },
+        {
+          "item": "Rooftop Crane Hoisting to Cooling Tower Pad",
+          "quantity": 1,
+          "totalCost": 48000,
+          "unit": "LS",
+          "unitCost": 48000
+        },
+        {
+          "item": "Certified TAB Air/Hydronic Balance Report",
+          "quantity": 1,
+          "totalCost": 28000,
+          "unit": "LS",
+          "unitCost": 28000
+        },
+        {
+          "item": "BACnet MS/TP Automation Gateway Card",
+          "quantity": 1,
+          "totalCost": 18000,
+          "unit": "LS",
+          "unitCost": 18000
+        },
+        {
+          "item": "Spring Vibration Isolator Hangers",
+          "quantity": 1,
+          "totalCost": 14000,
+          "unit": "LS",
+          "unitCost": 14000
+        },
+        {
+          "item": "Testing, Startup & 1-Yr Warranty",
+          "quantity": 1,
+          "totalCost": 111000,
+          "unit": "LS",
+          "unitCost": 111000
+        }
+      ],
+      "longLeadEquipmentWeeks": 12,
+      "receivedAt": 1789577774442,
+      "subcontractorName": "TDIndustries, Inc.",
+      "tradeName": "Heating, Ventilating & Air Conditioning",
+      "tradePackageId": "k173d6d8cfkeahtgjyrek0nnfh8ejfqt"
+    },
+    {
+      "_creationTime": 1789635374442.217,
+      "_id": "jd7ct458d62gnf1yv9bhhyk6nh8eksp1",
+      "baseBidAmount": 1650000,
+      "coiComplianceStatus": "deficiency_detected",
+      "coiPenalty": 15000,
+      "contractorId": "jh79n9dgqyvxja9a7y6ma3w08n8ek4a3",
+      "csiDivision": "23 00 00",
+      "identifiedExclusions": [
+        {
+          "costImpact": 48000,
+          "description": "Rooftop crane hoisting to cooling tower deck excluded (GC to furnish crane)",
+          "severity": "critical"
+        },
+        {
+          "costImpact": 28000,
+          "description": "Testing, Adjusting, and Balancing (TAB) certified report excluded",
+          "severity": "critical"
+        },
+        {
+          "costImpact": 18000,
+          "description": "BACnet MS/TP automation integration gateway excluded",
+          "severity": "moderate"
+        },
+        {
+          "costImpact": 14000,
+          "description": "Spring vibration isolation hangers excluded (Un-isolated provided)",
+          "severity": "moderate"
+        }
+      ],
+      "isAwarded": false,
+      "leadTimePenalty": 12000,
+      "leveledTotalCost": 1785000,
+      "lineItems": [
+        {
+          "item": "Chilled Water AHU Units & Piping",
+          "quantity": 1,
+          "totalCost": 780000,
+          "unit": "LS",
+          "unitCost": 780000
+        },
+        {
+          "item": "VAV Terminal Units & Electric Reheat",
+          "quantity": 110,
+          "totalCost": 352000,
+          "unit": "EA",
+          "unitCost": 3200
+        },
+        {
+          "item": "Galvanized Ductwork Distribution",
+          "quantity": 18000,
+          "totalCost": 360000,
+          "unit": "LF",
+          "unitCost": 20
+        },
+        {
+          "item": "General Testing & Start-up",
+          "quantity": 1,
+          "totalCost": 158000,
+          "unit": "LS",
+          "unitCost": 158000
+        }
+      ],
+      "longLeadEquipmentWeeks": 18,
+      "receivedAt": 1789599374442,
+      "subcontractorName": "The Brandt Companies, LLC",
+      "tradeName": "Heating, Ventilating & Air Conditioning",
+      "tradePackageId": "k173d6d8cfkeahtgjyrek0nnfh8ejfqt"
+    },
+    {
+      "_creationTime": 1789635374442.2185,
+      "_id": "jd74tc1by8t7z832a8b7md3a698ej6sg",
+      "baseBidAmount": 935000,
+      "coiComplianceStatus": "compliant",
+      "coiPenalty": 0,
+      "contractorId": "jh76sss7hkb70kmpzksjk00rk58ek57p",
+      "csiDivision": "22 00 00",
+      "identifiedExclusions": [],
+      "isAwarded": false,
+      "leadTimePenalty": 0,
+      "leveledTotalCost": 935000,
+      "lineItems": [
+        {
+          "item": "Domestic Copper Water Supply Piping",
+          "quantity": 9500,
+          "totalCost": 332500,
+          "unit": "LF",
+          "unitCost": 35
+        },
+        {
+          "item": "Cast Iron Sanitary Waste & Vent Piping",
+          "quantity": 8200,
+          "totalCost": 311600,
+          "unit": "LF",
+          "unitCost": 38
+        },
+        {
+          "item": "Triplex Water Booster Pump Skid",
+          "quantity": 1,
+          "totalCost": 145000,
+          "unit": "LS",
+          "unitCost": 145000
+        },
+        {
+          "item": "Core Drilling & Firestop Rated Sleeves",
+          "quantity": 1,
+          "totalCost": 16000,
+          "unit": "LS",
+          "unitCost": 16000
+        },
+        {
+          "item": "City of Austin Backflow Inspection Certificate",
+          "quantity": 1,
+          "totalCost": 8500,
+          "unit": "LS",
+          "unitCost": 8500
+        },
+        {
+          "item": "Booster Factory Startup & 1-Yr Warranty",
+          "quantity": 1,
+          "totalCost": 12000,
+          "unit": "LS",
+          "unitCost": 12000
+        },
+        {
+          "item": "Commercial Fixture Rough-in & Trim",
+          "quantity": 1,
+          "totalCost": 109400,
+          "unit": "LS",
+          "unitCost": 109400
+        }
+      ],
+      "longLeadEquipmentWeeks": 10,
+      "receivedAt": 1789584974442,
+      "subcontractorName": "Clarke Kent Plumbing",
+      "tradeName": "Plumbing & Domestic Water Systems",
+      "tradePackageId": "k17c7gxtryt4wd0rpw8shz19ah8ejka0"
+    },
+    {
+      "_creationTime": 1789635374442.2188,
+      "_id": "jd756q09acx3zqz67nd999rf198ejkg2",
+      "baseBidAmount": 820000,
+      "coiComplianceStatus": "deficiency_detected",
+      "coiPenalty": 15000,
+      "contractorId": "jh79smwmp1x683zf7b0xkv6g9h8ek1hj",
+      "csiDivision": "22 00 00",
+      "identifiedExclusions": [
+        {
+          "costImpact": 16000,
+          "description": "Core drilling and floor/wall penetration sleeves excluded",
+          "severity": "critical"
+        },
+        {
+          "costImpact": 8500,
+          "description": "City of Austin backflow preventer inspection certification excluded",
+          "severity": "minor"
+        },
+        {
+          "costImpact": 12000,
+          "description": "Triplex booster pump factory certified technician startup excluded",
+          "severity": "moderate"
+        },
+        {
+          "costImpact": 25000,
+          "description": "Crane hoisting & rigging to penthouse mechanical floor excluded (GC to furnish crane)",
+          "severity": "critical"
+        }
+      ],
+      "isAwarded": false,
+      "leadTimePenalty": 12000,
+      "leveledTotalCost": 908500,
+      "lineItems": [
+        {
+          "item": "Domestic Copper Water Supply Piping",
+          "quantity": 9500,
+          "totalCost": 294500,
+          "unit": "LF",
+          "unitCost": 31
+        },
+        {
+          "item": "Cast Iron Sanitary Waste & Vent Piping",
+          "quantity": 8200,
+          "totalCost": 278800,
+          "unit": "LF",
+          "unitCost": 34
+        },
+        {
+          "item": "Triplex Water Booster Pump Skid",
+          "quantity": 1,
+          "totalCost": 138000,
+          "unit": "LS",
+          "unitCost": 138000
+        },
+        {
+          "item": "Commercial Fixture Rough-in & Trim",
+          "quantity": 1,
+          "totalCost": 108700,
+          "unit": "LS",
+          "unitCost": 108700
+        }
+      ],
+      "longLeadEquipmentWeeks": 18,
+      "receivedAt": 1789606574442,
+      "subcontractorName": "Limbach Facility Services LLC",
+      "tradeName": "Plumbing & Domestic Water Systems",
+      "tradePackageId": "k17c7gxtryt4wd0rpw8shz19ah8ejka0"
+    }
+  ],
+  "agreements": [
+    {
+      "_creationTime": 1789635374442.2217,
+      "_id": "j5705mx7gp74fkgmm4awr6g7v58ejk2a",
+      "agreementNumber": "A401-2026-2601-18042",
+      "bidId": "jd75e9yffhay879ds02g1xhvqh8ej81m",
+      "contractSum": 1225000,
+      "contractText": "================================================================================\nAIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor\nAGREEMENT NO: A401-2026-2601-18042\n================================================================================\n\nAGREEMENT made as of the September 17, 2026.\n\nBETWEEN the Contractor:\n  Austin Commercial, LP\n  100 Congress Avenue, Suite 1400\n  Austin, Texas\n  License No. TX-GC-901844\n\nand the Subcontractor:\n  Rosendin Electric, Inc.\n  Contact: estimating@rosendin.com\n  License No: TX-TECL-18042 (Active / Verified (TDLR))\n\nThe Prime Project:\n  The Domain Tower B - Commercial MEP\n  Location: Austin, TX\n  Type: Class-A Commercial Mixed-Use\n  Owner: Austin Metro Development Partners LLC\n\nThe Prime Agreement between Contractor and Owner is dated: August 15, 2026.\nThe Architect / Owner Representative: Austin Commercial Engineering & Design Group LLP.\n\n--------------------------------------------------------------------------------\nTABLE OF ARTICLES\n--------------------------------------------------------------------------------\nARTICLE 1   THE SUBCONTRACT DOCUMENTS & CSI MASTERFORMAT SPECIFICATIONS\nARTICLE 2   MUTUAL RIGHTS AND RESPONSIBILITIES\nARTICLE 3   CONTRACTOR OBLIGATIONS & SITE LOGISTICS\nARTICLE 4   SUBCONTRACTOR WORK & MANDATORY SCOPE INCLUSIONS\nARTICLE 5   CHANGES IN THE WORK & CHANGE ORDER PROTOCOL\nARTICLE 6   SUBCONTRACT SUM, SCHEDULE OF VALUES & PROGRESS PAYMENTS\nARTICLE 7   INSURANCE, ACORD 25 COI & INDEMNIFICATION\nARTICLE 8   SAFETY, QUALITY ASSURANCE & STATUTORY WARRANTIES\nARTICLE 9   DISPUTE RESOLUTION & BINDING ARBITRATION\nARTICLE 10  ATTESTATION & FORMAL EXECUTION\n\n--------------------------------------------------------------------------------\nARTICLE 1 - THE SUBCONTRACT DOCUMENTS\n--------------------------------------------------------------------------------\n§ 1.1 The Subcontract Documents consist of:\n  (1) this AIA Document A401 Agreement;\n  (2) the Prime Agreement between Contractor and Owner;\n  (3) the Conditions of the Subcontract (General, Supplementary, and Special);\n  (4) CSI MasterFormat Division 26 00 00 (Electrical & Lighting Systems) Drawings and Specifications;\n  (5) Addenda issued prior to execution; and\n  (6) Written Pre-Bid Clarifications and Modifications recorded in TradePulse Pro.\n\n--------------------------------------------------------------------------------\nARTICLE 2 - MUTUAL RIGHTS AND RESPONSIBILITIES\n--------------------------------------------------------------------------------\n§ 2.1 The Contractor and Subcontractor shall be mutually bound by the terms of this\nAgreement and, to the extent that the provisions of the Prime Agreement apply to\nthe Work of the Subcontractor, the Contractor shall assume toward the Subcontractor\nall obligations and responsibilities that the Owner assumes toward the Contractor.\n\n--------------------------------------------------------------------------------\nARTICLE 3 - CONTRACTOR OBLIGATIONS & SITE LOGISTICS\n--------------------------------------------------------------------------------\n§ 3.1 Contractor shall coordinate utility hookup points, establish perimeter benchmarks,\nand administer the TradePulse Pro project procurement portal for RFI clarifications.\nAll hoisting logistics, floor loading capacities, and crane pick zones shall be\ncoordinated through Contractor's field superintendent.\n\n--------------------------------------------------------------------------------\nARTICLE 4 - SUBCONTRACTOR WORK & MANDATORY SCOPE INCLUSIONS\n--------------------------------------------------------------------------------\n§ 4.1 Scope of Work: The Subcontractor shall furnish all labor, materials, equipment,\nservices, hoisting, and supervision necessary to complete Division 26 00 00:\nElectrical & Lighting Systems.\n\nSummary of Scope:\nComplete commercial electrical distribution, 1600A switchgear, penthouse crane hoisting, emergency lighting, and seismic bracing.\n\n§ 4.2 MANDATORY SCOPE INCLUSIONS:\nThe Subcontractor explicitly certifies and agrees that the Subcontract Sum includes\ncomplete and unabridged fulfillment of the following mandatory trade obligations:\n  [✓] Crane hoisting to 14th-floor mechanical room\n  [✓] Seismic bracing (IBC Section 1613)\n  [✓] Temporary 400A jobsite power distribution\n  [✓] UL 1479 floor/wall firestopping\n\n§ 4.3 No fine-print exclusions, unauthorized substitutions, or scope gap carve-outs\nshall be recognized or allowed unless approved in an executed Change Order.\n\n--------------------------------------------------------------------------------\nARTICLE 5 - CHANGES IN THE WORK\n--------------------------------------------------------------------------------\n§ 5.1 The Contractor may, without invalidating the Subcontract, order Changes in the Work\nwithin the general scope of this Subcontract. Such changes shall be authorized by\nwritten Change Order prior to commencement of extra work. Overhead and profit\non approved change orders shall not exceed 10% overhead and 5% profit.\n\n--------------------------------------------------------------------------------\nARTICLE 6 - SUBCONTRACT SUM & PROGRESS PAYMENTS\n--------------------------------------------------------------------------------\n§ 6.1 The Contractor shall pay the Subcontractor in current funds for the Subcontractor's\nperformance of the Subcontract the Subcontract Sum of:\n  $1,225,000 (One Million Two Hundred Twenty-Five Thousand Dollars).\n  (Accounting Reconciliation: Base Bid $1,225,000 less Accepted VE Deducts $0. Baseline Leveled Cost: $1,225,000).\n\n§ 6.2 Progress Payments: Contractor shall pay Subcontractor monthly based on approved\nSchedule of Values minus 10% retainage.\nPayment terms: Net 30 days following Owner funding.\nLiquidated Damages: $1,200 per calendar day for unexcused project delays past the 2026-09-25 milestone.\n\n--------------------------------------------------------------------------------\nARTICLE 7 - INSURANCE & INDEMNIFICATION\n--------------------------------------------------------------------------------\n§ 7.1 Prior to commencing Work, Subcontractor shall furnish Contractor with an official\nACORD 25 Certificate of Liability Insurance evidencing:\n  - Commercial General Liability: $1,000,000 per occurrence / $2,000,000 general aggregate\n  - Commercial Umbrella / Excess Liability: $5,000,000 each occurrence\n  - Workers' Compensation & Employer's Liability: Statutory limits\n  - Contractor and Owner named as Additional Insureds on Primary & Non-Contributory basis\n  - 30-Day Written Notice of Cancellation\n\n--------------------------------------------------------------------------------\nARTICLE 8 - SAFETY & STATUTORY WARRANTIES\n--------------------------------------------------------------------------------\n§ 8.1 Subcontractor warrants that all materials and equipment furnished under this\nSubcontract will be new and of recent manufacture, and that Work will be free from\ndefects and conform strictly to CSI MasterFormat Division 26 00 00 specs.\nWarranty period: One (1) full year from Substantial Completion.\n\n--------------------------------------------------------------------------------\nARTICLE 9 - DISPUTE RESOLUTION\n--------------------------------------------------------------------------------\n§ 9.1 Any claim arising out of or related to this Subcontract Agreement shall be\nsubject to mediation as a condition precedent to binding dispute resolution administered\nby the American Arbitration Association (AAA) in Austin, Texas.\n\n--------------------------------------------------------------------------------\nARTICLE 10 - ATTESTATION & FORMAL EXECUTION\n--------------------------------------------------------------------------------\nIN WITNESS WHEREOF, the parties hereto have executed this AIA Document A401\nSubcontract Agreement as of the day and year first written above.\n\nCONTRACTOR: Austin Commercial, LP\nBy: ___________________________________       Date: September 17, 2026\n    Authorized Executive Officer\n\nSUBCONTRACTOR: Rosendin Electric, Inc.\nBy: ___________________________________       Date: September 17, 2026\n    Authorized Corporate Principal\n\n================================================================================\nGenerated autonomously via TradePulse Pro Procurement Platform\nConvex \"All Gas\" Hackathon Architecture • AIA Document A401™ Compliant\n================================================================================",
+      "contractorId": "jh7fahft8e4f0r521ghwp42ryh8ejrjj",
+      "createdAt": 1789613774442,
+      "csiDivision": "26 00 00",
+      "documentTitle": "AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor",
+      "generalContractorName": "Austin Commercial, LP",
+      "liquidatedDamagesDaily": 1200,
+      "mandatoryInclusions": [
+        "Crane hoisting to 14th-floor mechanical room",
+        "Seismic bracing (IBC Section 1613)",
+        "Temporary 400A jobsite power distribution",
+        "UL 1479 floor/wall firestopping"
+      ],
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "projectLocation": "Austin, TX",
+      "projectTitle": "The Domain Tower B - Commercial MEP",
+      "retainagePercent": 10,
+      "scopeSummary": "Complete commercial electrical distribution, 1600A switchgear, penthouse crane hoisting, emergency lighting, and seismic bracing.",
+      "status": "generated",
+      "subcontractorEmail": "estimating@rosendin.com",
+      "subcontractorName": "Rosendin Electric, Inc.",
+      "tradeName": "Electrical & Lighting Systems",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+    }
+  ],
+  "files": [
+    {
+      "_creationTime": 1789635374442.2214,
+      "_id": "js73rbtwa6j28bz5s5kxm058rx8ek2hj",
+      "fileName": "Rosendin_Electric_ACORD25_COI.pdf",
+      "fileSize": 4160,
+      "fileType": "coi_certificate",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/insurance/Rosendin_Electric_ACORD25_COI.pdf",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "uploadedAt": 1789599374442,
+      "uploadedBy": "Rosendin Risk Management / Travelers",
+      "url": "/insurance/Rosendin_Electric_ACORD25_COI.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.2212,
+      "_id": "js73djmcqw6vq40fmwzqc2cm7n8ej1c9",
+      "fileName": "Alterman_Power_Quote_Proposal.pdf",
+      "fileSize": 5270,
+      "fileType": "quote_pdf",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/quotes/Alterman_Power_Quote_Proposal.pdf",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "uploadedAt": 1789592174442,
+      "uploadedBy": "Alterman, Inc.",
+      "url": "/quotes/Alterman_Power_Quote_Proposal.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.221,
+      "_id": "js7ckscap7q8dweyc3tdkpn7g58ejy0c",
+      "fileName": "Rosendin_Electric_Proposal_AIA.pdf",
+      "fileSize": 6066,
+      "fileType": "quote_pdf",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/quotes/Rosendin_Electric_Proposal_AIA.pdf",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "uploadedAt": 1789570574442,
+      "uploadedBy": "Rosendin Electric, Inc.",
+      "url": "/quotes/Rosendin_Electric_Proposal_AIA.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.2207,
+      "_id": "js7b1gm4af4gs8rwd8grdcgse58ejhz6",
+      "fileName": "E-101_Main_Switchgear_Penthouse_Plan.pdf",
+      "fileSize": 4094,
+      "fileType": "blueprint",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/drawings/E-101_Main_Switchgear_Penthouse_Plan.pdf",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "uploadedAt": 1789462574442,
+      "uploadedBy": "Project Architect / BIM Coordinator",
+      "url": "/drawings/E-101_Main_Switchgear_Penthouse_Plan.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.2205,
+      "_id": "js72ffd4ek4z987fm3c8csxn498ek8bt",
+      "fileName": "22_00_00_Plumbing_Systems_Spec.pdf",
+      "fileSize": 2803,
+      "fileType": "spec",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/specs/22_00_00_Plumbing_Systems_Spec.pdf",
+      "tradePackageId": "k17c7gxtryt4wd0rpw8shz19ah8ejka0",
+      "uploadedAt": 1789376174442,
+      "uploadedBy": "Project Plumbing Engineer (PE)",
+      "url": "/specs/22_00_00_Plumbing_Systems_Spec.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.2202,
+      "_id": "js75s1z8yfcx2wax3fvyq3v1998ek2gh",
+      "fileName": "23_00_00_HVAC_Systems_Spec.pdf",
+      "fileSize": 2832,
+      "fileType": "spec",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/specs/23_00_00_HVAC_Systems_Spec.pdf",
+      "tradePackageId": "k173d6d8cfkeahtgjyrek0nnfh8ejfqt",
+      "uploadedAt": 1789376174442,
+      "uploadedBy": "Lead Mechanical Engineer (PE)",
+      "url": "/specs/23_00_00_HVAC_Systems_Spec.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.22,
+      "_id": "js7d8sdygdyq9kw403fbwxcwj18ej67t",
+      "fileName": "26_00_00_Electrical_Systems_Spec.pdf",
+      "fileSize": 3068,
+      "fileType": "spec",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/specs/26_00_00_Electrical_Systems_Spec.pdf",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "uploadedAt": 1789376174442,
+      "uploadedBy": "Lead Electrical Engineer (PE)",
+      "url": "/specs/26_00_00_Electrical_Systems_Spec.pdf"
+    },
+    {
+      "_creationTime": 1789635374442.2197,
+      "_id": "js76fgvttq1eym6vwa36a06pv18ekve5",
+      "fileName": "01_00_00_General_Requirements.pdf",
+      "fileSize": 3118,
+      "fileType": "spec",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "storageId": "/specs/01_00_00_General_Requirements.pdf",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "uploadedAt": 1789376174442,
+      "uploadedBy": "Chief Commercial Estimator",
+      "url": "/specs/01_00_00_General_Requirements.pdf"
+    }
+  ],
+  "logs": [
+    {
+      "_creationTime": 1789635374442.2195,
+      "_id": "j97dh0x90kn23ehtkq2xtpetah8eksq5",
+      "actor": "Forensic Leveling Engine (ADR-0003)",
+      "description": "Normalized proposals from Rosendin Electric, Inc. ($1,225,000) and Alterman, Inc. ($1,286,000 normalized with $186,000 in scope adjustments).",
+      "eventType": "bid_leveled",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "timestamp": 1789592174442,
+      "title": "Forensic Bid Leveling Matrix Generated",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+    },
+    {
+      "_creationTime": 1789635374442.2192,
+      "_id": "j979y5ypnz1hh8me408t1at8jn8eke66",
+      "actor": "TradePulse AI Spec Agent",
+      "description": "Answered temporary power query for Rosendin Electric, Inc. citing Section 01 00 00 with 96% model confidence.",
+      "eventType": "rfi_clarified",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "timestamp": 1789548974442,
+      "title": "Pre-Bid RFI #1 Clarified by TradePulse AI",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+    },
+    {
+      "_creationTime": 1789635374442.219,
+      "_id": "j97e45pz3q8pa6yzrhdpp9056x8ej9x4",
+      "actor": "TradePulse AI Agent",
+      "description": "Autonomous RFQ invitations dispatched to verified regional commercial contractors via AgentMail and TDLR registry.",
+      "eventType": "contractor_invited",
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "timestamp": 1789462574442,
+      "title": "RFQ Dispatched: Division 26 Electrical Systems",
+      "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+    }
+  ],
+  "clashes": {
+    "doubleBuys": [
+      {
+        "description": "Both Division 26 Electrical and Division 23 HVAC include furnishing VFDs for mechanical fans. Without deduplication, the GC will pay twice for 12 identical drives.",
+        "id": "clash-vfd-01",
+        "primaryCost": 42000,
+        "primaryLineItem": "12x Packaged VFD Starters with bypass & line reactors",
+        "primaryTradeDivision": "26 00 00",
+        "primaryTradeName": "Electrical & Lighting Systems",
+        "redundantAmount": 38500,
+        "secondaryCost": 38500,
+        "secondaryLineItem": "Factory-Mounted VFD units on Chilled Water AHUs",
+        "secondaryTradeDivision": "23 00 00",
+        "secondaryTradeName": "Heating, Ventilating & Air Conditioning",
+        "status": "detected",
+        "title": "Variable Frequency Drives (VFDs) for AHUs & Pumps"
+      },
+      {
+        "description": "Both electrical and HVAC trades priced local disconnect switches for chiller and cooling tower motors. Standard practice assigns to Electrical.",
+        "id": "clash-disconnect-02",
+        "primaryCost": 14500,
+        "primaryLineItem": "NEMA 3R outdoor fused disconnects at penthouse chiller pad",
+        "primaryTradeDivision": "26 00 00",
+        "primaryTradeName": "Electrical & Lighting Systems",
+        "redundantAmount": 12000,
+        "secondaryCost": 12000,
+        "secondaryLineItem": "Unit-mounted weatherproof disconnect switches",
+        "secondaryTradeDivision": "23 00 00",
+        "secondaryTradeName": "Heating, Ventilating & Air Conditioning",
+        "status": "detected",
+        "title": "Rooftop Mechanical Equipment Disconnect Switches"
+      }
+    ],
+    "elecPackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+    "hvacPackageId": "k173d6d8cfkeahtgjyrek0nnfh8ejfqt",
+    "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+    "scopeVoids": [
+      {
+        "description": "Critical cross-trade void: neither contractor included 24V wiring between VAV terminal boxes, actuators, and DDC panels. If unassigned, GC absorbs $28,000+ field change order.",
+        "division23Exclusion": "Section 23 00 00 Qualification: 'Excludes all field electrical wiring, conduit raceways, 120V power, and interlock runs (by Electrical).'",
+        "division26Exclusion": "Section 26 00 00 Qualification: 'Excludes all low-voltage HVAC control wiring, DDC sensors, and thermostat interlocks (by Mechanical).'",
+        "estimatedVoidCost": 28000,
+        "id": "void-bas-wiring-01",
+        "omittedByDivisions": [
+          "26 00 00",
+          "23 00 00"
+        ],
+        "omittedByTrades": [
+          "Division 26 Electrical",
+          "Division 23 HVAC"
+        ],
+        "riskLevel": "critical",
+        "status": "open",
+        "title": "Low-Voltage 24V BAS Control & Interlock Wiring"
+      },
+      {
+        "description": "Life-safety code requirement: Duct smoke detectors require mechanical duct penetration + electrical circuit shutdown wiring. Omitted in gap between trades.",
+        "division23Exclusion": "Division 23 Note: 'Life-safety fire alarm conduit, detector wiring, and auxiliary shutdown relays by Electrical.'",
+        "division26Exclusion": "Division 26 Note: 'Duct smoke detector sampling tube installation in ductwork by Sheet Metal trade.'",
+        "estimatedVoidCost": 18500,
+        "id": "void-smoke-detectors-02",
+        "omittedByDivisions": [
+          "26 00 00",
+          "23 00 00"
+        ],
+        "omittedByTrades": [
+          "Division 26 Electrical",
+          "Division 23 HVAC"
+        ],
+        "riskLevel": "high",
+        "status": "open",
+        "title": "Duct Smoke Detector Installation & FACP Tie-In"
+      }
+    ],
+    "success": true,
+    "summary": {
+      "activeClashesCount": 4,
+      "netBuyoutExposure": -4000,
+      "totalDoubleBuyExposure": 50500,
+      "totalScopeVoidExposure": 46500
+    }
+  },
+  "packages": [
+    {
+      "_creationTime": 1789635374442.2126,
+      "_id": "k17c5yx616xbye2sz9cfy1f22d8ekr0f",
+      "agentMailbox": "cleverneed464@agentmail.to",
+      "agentMailboxId": "cleverneed464@agentmail.to",
+      "bidDeadline": "2026-09-25",
+      "budgetEstimate": 1250000,
+      "csiDivision": "26 00 00",
+      "mandatoryInclusions": [
+        "Crane hoisting to 14th-floor mechanical room",
+        "Seismic bracing (IBC Section 1613)",
+        "Temporary 400A jobsite power distribution",
+        "UL 1479 floor/wall firestopping"
+      ],
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "scopeSummary": "Complete commercial electrical distribution, 1600A switchgear, penthouse crane hoisting, emergency lighting, and seismic bracing.",
+      "status": "leveling",
+      "tradeName": "Electrical & Lighting Systems"
+    },
+    {
+      "_creationTime": 1789635374442.213,
+      "_id": "k173d6d8cfkeahtgjyrek0nnfh8ejfqt",
+      "agentMailbox": "dullstreet57@agentmail.to",
+      "agentMailboxId": "dullstreet57@agentmail.to",
+      "bidDeadline": "2026-09-28",
+      "budgetEstimate": 1850000,
+      "csiDivision": "23 00 00",
+      "mandatoryInclusions": [
+        "Rooftop crane pick and rigging",
+        "BACnet MS/TP integration gateway",
+        "Vibration isolation spring hangers",
+        "Testing, Adjusting, and Balancing (TAB) certification"
+      ],
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "scopeSummary": "Chilled water air handling units, VAV terminal boxes, rooftop cooling tower connection, and BACnet automated controls.",
+      "status": "rfqs_dispatched",
+      "tradeName": "Heating, Ventilating & Air Conditioning"
+    },
+    {
+      "_creationTime": 1789635374442.2131,
+      "_id": "k17c7gxtryt4wd0rpw8shz19ah8ejka0",
+      "agentMailbox": "boldlevel182@agentmail.to",
+      "agentMailboxId": "boldlevel182@agentmail.to",
+      "bidDeadline": "2026-10-02",
+      "budgetEstimate": 950000,
+      "csiDivision": "22 00 00",
+      "mandatoryInclusions": [
+        "Triplex booster pump startup and testing",
+        "Core drilling and sleeve penetrations",
+        "Backflow preventer city inspection certificate"
+      ],
+      "projectId": "jx7emzjxc9q9ckdrb0pnjd90zd8ejz06",
+      "scopeSummary": "Domestic hot/cold copper supply, cast iron sanitary waste, roof drainage overflow, and triplex water booster pump skid.",
+      "status": "draft",
+      "tradeName": "Plumbing & Domestic Water Systems"
+    }
+  ],
+  "conversations": {
+    "k17c5yx616xbye2sz9cfy1f22d8ekr0f": [
+      {
+        "_creationTime": 1789635374442.2148,
+        "_id": "jn708ng7e6900d9zx280qtrphd8ej0xx",
+        "autonomousReply": "TradePulse AI Draft Clarification: Specification Section 26 24 13 Article 2.1 designates copper sandwich busway as primary feeder; drawings show alternate conduit pathway. Citing Document Priority clause: specifications govern over drawings. Flagged for Project Manager / Electrical Engineer confirmation before addendum issuance.",
+        "confidenceScore": 0.88,
+        "contractorId": "jh7bz9c3x4j1j169v3g3fvccmx8ej155",
+        "inboundQuestion": "Spec Section 26 24 13 indicates copper bus duct from vault to 14th floor, but drawing E-101 shows parallel 4-inch rigid conduits. Please clarify governing document.",
+        "inboundSubject": "RFI #3: Switchboard Bus Duct vs Conduit Feeders",
+        "status": "escalated_to_pm",
+        "threadId": "th_rfq_elec_alterman_03",
+        "timestamp": 1789613774442,
+        "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+      },
+      {
+        "_creationTime": 1789635374442.2146,
+        "_id": "jn77ese2etva73hjb744vr8pz98eka5p",
+        "autonomousReply": "Per TradePulse Spec Analysis (Section 26 00 00): Penthouse freight elevator capacity is capped at 3,500 lbs; the 1600A switchgear weighs 7,200 lbs. Rooftop crane rigging and hoisting must be included in Division 26 scope.",
+        "confidenceScore": 0.94,
+        "contractorId": "jh7bz9c3x4j1j169v3g3fvccmx8ej155",
+        "inboundQuestion": "Is the penthouse freight elevator rated for the 1600A switchgear sections, or is rooftop crane mobilization required?",
+        "inboundSubject": "RFI #2: Switchgear Hoisting Clearance",
+        "status": "clarified",
+        "threadId": "th_rfq_elec_alterman_02",
+        "timestamp": 1789592174442,
+        "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+      },
+      {
+        "_creationTime": 1789635374442.2144,
+        "_id": "jn7eba7zbg905fmht99g1xkzad8ejn02",
+        "autonomousReply": "Per TradePulse Spec Analysis (Section 01 00 00 & Div 26 Scope Summary): Subcontractor is responsible for furnishing and maintaining the 400A jobsite power distribution board from the utility tap. GC will only coordinate with Austin Energy for initial utility meter drop.",
+        "confidenceScore": 0.96,
+        "contractorId": "jh7fahft8e4f0r521ghwp42ryh8ejrjj",
+        "inboundQuestion": "Does the base electrical package include furnishing the temporary 400A jobsite distribution board, or does GC provide temporary power at the perimeter trailer?",
+        "inboundSubject": "RFI #1: Division 26 Temporary Power Responsibility",
+        "status": "clarified",
+        "threadId": "th_rfq_elec_rosendin_01",
+        "timestamp": 1789548974442,
+        "tradePackageId": "k17c5yx616xbye2sz9cfy1f22d8ekr0f"
+      }
+    ],
+    "k173d6d8cfkeahtgjyrek0nnfh8ejfqt": [
+      {
+        "_creationTime": 1789635374442.2166,
+        "_id": "jn7a206m9k440mfnf3aj8tje1x8ejrvy",
+        "autonomousReply": "Per TradePulse Spec Analysis (Section 23 09 00 & Div 23 Scope): Division 23 Subcontractor must furnish the native BACnet MS/TP integration gateway hardware and coordinate protocol points with the Master Building Automation System (BAS) contractor.",
+        "confidenceScore": 0.97,
+        "contractorId": "jh72zyp8efpefrknf0hj9dcnxn8ek7wv",
+        "inboundQuestion": "Does Division 23 HVAC include furnishing and programming the BACnet MS/TP integration gateway to the base building automation system (BAS), or is the controls vendor providing the hardware gateway?",
+        "inboundSubject": "RFI #1: Division 23 BACnet MS/TP Gateway Interface Protocol",
+        "status": "clarified",
+        "threadId": "th_rfq_hvac_tdindustries_01",
+        "timestamp": 1789563374442,
+        "tradePackageId": "k173d6d8cfkeahtgjyrek0nnfh8ejfqt"
+      }
+    ],
+    "k17c7gxtryt4wd0rpw8shz19ah8ejka0": [
+      {
+        "_creationTime": 1789635374442.2183,
+        "_id": "jn7ajjy2400wchs391mkp2w6n58ejjdw",
+        "autonomousReply": "Per TradePulse Spec Analysis (Section 22 11 23 & Div 22 Scope): Subcontractor must furnish factory-certified technician startup, 3-day on-site owner training, and manufacturer certified commissioning documentation for the triplex domestic water booster pump skid.",
+        "confidenceScore": 0.98,
+        "contractorId": "jh76sss7hkb70kmpzksjk00rk58ek57p",
+        "inboundQuestion": "Does Division 22 require the plumbing trade to contract factory certified startup technicians for the triplex domestic water booster pump skid, or does owner accept standard contractor mechanical startup?",
+        "inboundSubject": "RFI #1: Division 22 Triplex Water Booster Pump Factory Commissioning",
+        "status": "clarified",
+        "threadId": "th_rfq_plumb_clarke_01",
+        "timestamp": 1789581374442,
+        "tradePackageId": "k17c7gxtryt4wd0rpw8shz19ah8ejka0"
+      }
+    ]
+  }
+}

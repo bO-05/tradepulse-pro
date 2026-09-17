@@ -255,3 +255,36 @@ test("Guest RFI: submission without a contractor id succeeds (no v.id failure)",
   });
   expect(result.success).toBe(true);
 });
+
+test("RFQ dispatch with zero discovered contractors is rejected and leaves the package undispached", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Zero Recipient RFQ Project");
+  const packageId = await createPackage(t, projectId);
+
+  await expect(t.mutation(api.rfq.dispatchRfqs, { tradePackageId: packageId })).rejects.toThrow(
+    /No contractors have been discovered/i
+  );
+
+  const pkg = await t.query(api.tradePackages.getPackage, { tradePackageId: packageId });
+  expect(pkg?.status).toBe("draft");
+
+  const logs = await t.query(api.auditLogs.listRecentLogs, { projectId });
+  expect(logs.some((l) => l.eventType === "rfq_dispatched")).toBe(false);
+});
+
+test("RFQ dispatch with discovered contractors marks them invited", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Recipient RFQ Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  await t.run(async (ctx) => await ctx.db.patch(contractorId, { rfqStatus: "discovered" }));
+
+  const result: any = await t.mutation(api.rfq.dispatchRfqs, { tradePackageId: packageId });
+  expect(result.success).toBe(true);
+  expect(result.dispatchedCount).toBe(1);
+
+  const contractors = await t.query(api.contractors.listByPackage, { tradePackageId: packageId });
+  expect(contractors.find((c) => c._id === contractorId)?.rfqStatus).toBe("invited");
+  const pkg = await t.query(api.tradePackages.getPackage, { tradePackageId: packageId });
+  expect(pkg?.status).toBe("rfqs_dispatched");
+});

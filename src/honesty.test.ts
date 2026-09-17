@@ -1,0 +1,82 @@
+import { expect, test } from "vitest";
+
+/**
+ * Claims-integrity regression checks.
+ *
+ * These assert the source of the user-facing surfaces still tells the truth:
+ * no fabricated registry verification, no canned-document download, no
+ * "parity / zero cheating" eval framing. If someone reintroduces those strings,
+ * this suite fails before the claims reach the deployment.
+ */
+const componentSources = import.meta.glob("./components/*.tsx", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+const libSources = import.meta.glob("./lib/*.{ts,tsx}", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+const convexSources = import.meta.glob("../convex/*.ts", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+function find(pathFragment: string, sources: Record<string, string>): string {
+  const key = Object.keys(sources).find((k) => k.endsWith(pathFragment));
+  if (!key) throw new Error(`Source not found: ${pathFragment}`);
+  return sources[key];
+}
+
+test("Discovery never claims registry verification for unverified records", () => {
+  const discovery = find("contractorDiscovery.ts", convexSources);
+  expect(discovery).not.toContain("835-24");
+  expect(discovery).not.toContain("20000 + i * 142");
+  expect(discovery).not.toContain("Firecrawl Live Web Discovery");
+  expect(discovery).toContain("Unverified — sample directory record");
+
+  const view = find("SubcontractorDiscoveryView.tsx", componentSources);
+  expect(view).not.toContain("Verified Trades");
+  expect(view).not.toContain("Live Web & TDLR Directory Ingest");
+  expect(view).toContain("Provenance shown per record");
+});
+
+test("File download serves stored bytes and never synthesises documents from the filename", () => {
+  const view = find("ProjectFilesView.tsx", componentSources);
+  expect(view).not.toContain("getRealDocumentPdfBytes(");
+  expect(view).not.toContain("getRealDocumentText(");
+  expect(view).not.toContain("100% Real Construction Document Specification");
+  expect(view).toContain("resolveStoredFileUrl");
+
+  const helper = find("storedFile.ts", libSources);
+  expect(helper).toContain("resolveStoredFileUrl");
+});
+
+test("Eval surface is labeled as an extraction/normalization check, not estimating parity", () => {
+  const diagnostics = find("SponsorDiagnosticsView.tsx", componentSources);
+  expect(diagnostics).not.toContain("Zero Cheating");
+  expect(diagnostics).not.toContain("PARITY ACHIEVED");
+  expect(diagnostics).not.toContain("Chief Estimator Ground-Truth Evaluation Suite");
+  expect(diagnostics).toContain("Bid Extraction & ADR-0003 Normalization Check");
+  expect(diagnostics).toContain("not an independent estimating benchmark");
+});
+
+test("Tour narration does not hard-code demo dollar figures or verification claims", () => {
+  const tour = find("InvestorDemoTourBar.tsx", componentSources);
+  expect(tour).not.toContain("$61k-$96k");
+  expect(tour).not.toContain("100% TDLR Validated");
+  expect(tour).not.toContain("$1,225,000 Subcontract Sealed");
+  // Narrative is built from live context.
+  expect(tour).toContain("buildDemoScenes");
+  expect(tour).toContain("runnerUpBaseCost");
+});
+
+test("Lead-time adjustment copy is not presented as contract liquidated damages", () => {
+  const docs = find("realDocuments.ts", convexSources);
+  expect(docs).not.toContain("liquidated damages at $6,000/week");
+  expect(docs).toContain("LEAD-TIME DELAY ADJUSTMENT");
+});
