@@ -325,7 +325,7 @@ def test_firecrawl_website_scraping_and_array_parsing():
     ui_path = Path("src/components/SubcontractorDiscoveryView.tsx")
     ui_content = ui_path.read_text(encoding="utf-8")
     assert "scrapeContractorWebsite" in ui_content, "Missing scrapeContractorWebsite wiring in SubcontractorDiscoveryView.tsx"
-    assert "Scrape Profile" in ui_content, "Missing Scrape Profile button in SubcontractorDiscoveryView.tsx"
+    assert "Open source page" in ui_content, "Missing source-page/scrape button label in SubcontractorDiscoveryView.tsx"
     assert "scrapedData" in ui_content, "Missing scrapedData state in SubcontractorDiscoveryView.tsx"
 
     print("PASS: test_firecrawl_website_scraping_and_array_parsing")
@@ -577,7 +577,7 @@ def test_zero_cloud_localhost_standalone_resilience():
 
     header_path = Path("src/components/Header.tsx")
     header_content = header_path.read_text(encoding="utf-8")
-    assert "Zero-Cloud Localhost Resilient Mode" in header_content, "Header must indicate resilient mode"
+    assert "Offline snapshot mode" in header_content, "Header must indicate the resilient/offline snapshot mode"
 
     print("PASS: test_zero_cloud_localhost_standalone_resilience")
 

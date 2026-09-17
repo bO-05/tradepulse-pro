@@ -1,0 +1,107 @@
+<section id="reconcile">
+<h2>Fixed derived values — reconciliation table</h2>
+<p class="sub">Live demo project, captured 2026-09-17 13:38 UTC after deploy. Every headline number now traces to one computation (<span class="mono">computeProcurementMetrics</span>) or one record source (agreements, files, conversations).</p>
+<table>
+<thead><tr><th>Value</th><th>Surface A</th><th>Surface B</th><th>Surface C</th><th style="width:90px">Status</th></tr></thead>
+<tbody>
+{{RECON_ROWS}}
+</tbody>
+</table>
+<div class="callout good"><b>Pattern now holds:</b> computed values and hand-authored strings both agree because the strings are derived from the same metrics object — the tour, KPI band, stepper and register all read it. The regression suite asserts the demo arithmetic (buyout 3,918,500; gaps 186,000; award 1/3; zero gaps when no bids; budget fallback) and a source test forbids reintroducing hard-coded tour dollars.</div>
+</section>
+
+<section id="redundancy">
+<h2>Redundancy &amp; duplication changes</h2>
+<table>
+<thead><tr><th style="width:230px">Overlap</th><th>Before</th><th>After</th></tr></thead>
+<tbody>
+{{REDUNDANCY_ROWS}}
+</tbody>
+</table>
+<div class="callout"><b>Left intentionally:</b> the demo tour controls still appear on both the Audit and Evals tabs (they are persistent chrome, and the audit register itself classified them as low risk); the header stepper remains a secondary navigator next to the in-page next-CTA. Collapsing those further is a navigation redesign, not a defect fix — flagged as a follow-up rather than done.</div>
+</section>
+
+<section id="a11yperf">
+<h2>Accessibility &amp; performance</h2>
+<h3>Accessibility</h3>
+<table>
+<thead><tr><th style="width:260px">Check</th><th>Before</th><th>After</th><th style="width:80px">Status</th></tr></thead>
+<tbody>
+<tr><td>Dialog focus trap / restore</td><td>BUG-33: Judge Dock declared <span class="mono">aria-modal</span> but focus escaped and ESC did not restore.</td><td>Shared <span class="mono">useDialogFocus</span> applied to Judge Dock, New Project, preview, package and spec modals; confirms already trapped, now also restore focus and stack z-indices.</td><td><span class="pill s-pass">Fixed</span></td></tr>
+<tr><td>Small-text contrast (≤12.5px, dark bg)</td><td>7 failures measured (3.75:1 and 3.47:1) plus unreported solid-emerald chips at ~3.6:1.</td><td>0 real failures measured; slate-500 secondary text → slate-400, solid emerald-600 chips → emerald-700. Gradient-background buttons excluded (known false positive).</td><td><span class="pill s-pass">Fixed</span></td></tr>
+<tr><td>Modal semantics</td><td>Several modals had no <span class="mono">role="dialog"</span>/<span class="mono">aria-modal</span>.</td><td>Added to the primary modals; NEW-03 covers the class.</td><td><span class="pill s-pass">Fixed</span></td></tr>
+<tr><td>Responsive / 200% zoom</td><td>Horizontal page overflow 527px @640, 399px @768, 186px @1024.</td><td>0px overflow at 375 / 640 / 768 / 1024 / 1280 / 1440 / 1600.</td><td><span class="pill s-pass">Fixed</span></td></tr>
+<tr><td>Timestamps / live regions</td><td>Time-only timestamps; toasts not announced.</td><td>Full date + timezone; toast uses <span class="mono">role="status" aria-live="polite"</span> with error/info tones.</td><td><span class="pill s-pass">Fixed</span></td></tr>
+<tr><td>Screen-reader walk-through</td><td>Not performed (DOM/a11y tree only).</td><td>Still not performed — no NVDA/JAWS available in this environment.</td><td><span class="pill s-na">Blocked</span></td></tr>
+</tbody>
+</table>
+
+<h3>Performance (live, cache disabled, 1440×900)</h3>
+<table>
+<thead><tr><th>Metric</th><th>Audit (2026-09-17 09:00)</th><th>After remediation</th><th style="width:160px">Verdict</th></tr></thead>
+<tbody>
+{{PERF_ROWS}}
+</tbody>
+</table>
+<div class="callout"><b>Note on speed.</b> The fixed bundle is the same size class as before (gzip JS 190 KB vs 196 KB served). The slower paint numbers measured here are TTFB-dominated and varied run-to-run on this network (0.5–1.7s); the app itself still ships 4 files with zero console errors. No performance regression is attributable to the remediation.</div>
+</section>
+
+<section id="tests">
+<h2>Regression suite</h2>
+<p class="sub">Run from a clean checkout:</p>
+<pre>npm ci
+npx tsc -b
+npm test        # vitest: 21 tests across 3 suites
+npm run build   # tsc -b &amp;&amp; vite build</pre>
+<p class="sub">Coverage added for the fixed findings:</p>
+<ul>
+  <li><b>Derived-number agreement</b> — <span class="mono">src/leveling.test.ts</span>: seeded demo reconciles to $3,918,500 buyout, $186,000 gaps, 1/3 awarded; superseded agreements don't count; packages without bids fall back to budgets; empty project equals budget.</li>
+  <li><b>Action guards</b> — <span class="mono">convex/regression.test.ts</span>: zero-recipient RFQ dispatch is rejected, the package stays <span class="mono">draft</span>, and no <span class="mono">rfq_dispatched</span> event is written; positive path invites the contractor and advances the package.</li>
+  <li><b>Claims honesty</b> — <span class="mono">src/honesty.test.ts</span>: source-level guard against fabricated registry verification, filename-keyed download synthesis, “Zero Cheating”/parity framing, hard-coded tour dollars, and re-merging lead-time copy into liquidated damages.</li>
+  <li><b>Validation</b> — existing suite still covers CSI range, bid plausibility floor, guest RFI persistence, executed-agreement immutability, cascade delete.</li>
+</ul>
+<details><summary>Full test output (verbatim)</summary>
+<pre>{{TEST_OUTPUT}}</pre>
+</details>
+<div class="callout"><b>Suite extension note.</b> The suite asserts source-level honesty (the strings that reach users) plus the deterministic arithmetic; the browser-observed behaviors (focus trap, overflow, stored-byte download, pending banner) are scripted end-to-end in <span class="mono">scripts/audit2-rem/</span> and their outputs are in <span class="mono">evidence/</span>, because this repo does not ship a DOM test environment for React components.</div>
+</section>
+
+<section id="remaining">
+<h2>Still not fixed — with reasons and next steps</h2>
+<table>
+<thead><tr><th style="width:250px">Item</th><th>Why it is not done</th><th style="width:300px">Concrete next step</th></tr></thead>
+<tbody>
+<tr><td>True external email delivery (AgentMail)</td><td>No test mailboxes in the environment; the app's webhook and inbox provisioning were not asserted end-to-end.</td><td>Provision a throwaway inbox, dispatch one RFQ, and assert receipt via the AgentMail API; add to the regression runbook.</td></tr>
+<tr><td>Real TDLR / state registry verification</td><td>Requires an actual registry integration (terms of use, rate limits, data agreement) — external data decision.</td><td>If required for production, implement a server-side registry lookup with caching and show the raw registry response as provenance.</td></tr>
+<tr><td>Standalone snapshot staleness</td><td>Header now labels offline snapshot mode, but the localStorage snapshot is still not refreshed after successful mutations.</td><td>Persist connected query results into the standalone store on a debounce, or badge every number while offline (follow-up, ~1 day).</td></tr>
+<tr><td>Backend zero-RFI addendum guard</td><td>UI blocks it; the backend action still permits an empty addendum to preserve the documented F3 regression test.</td><td>Decide Bucket B6; if accepted, add the guard and update the F3 test to expect rejection.</td></tr>
+<tr><td>Holdout estimating eval</td><td>Out of the audit's “fix the claims” scope; the current suite only checks extraction.</td><td>Add a case type whose prompt contains no ground-truth figures and grade the computed leveled cost; needs a product call on tolerance.</td></tr>
+<tr><td>Screen-reader walk-through</td><td>No NVDA/JAWS in this environment.</td><td>Manual pass with VoiceOver/NVDA over the 6-stage journey; the dialog semantics are now in place to test.</td></tr>
+<tr><td>Light / high-contrast theme (OBS-01)</td><td>Product decision; dark-only is a deliberate brand choice.</td><td>Add a high-contrast preference or a light theme if accessibility-conscious buyers require it.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="self">
+<h2>Honest self-interrogation</h2>
+<table>
+<thead><tr><th style="width:320px">Question</th><th>Answer</th></tr></thead>
+<tbody>
+<tr><td>Did I re-verify every reported finding myself, and mark the ones that no longer reproduce?</td><td>Yes. Each finding's repro was re-run against the live app before any change; BUG-04 (empty-spec silent close) and BUG-29 (RFI count drift) did not reproduce in the current build and are marked Unreproduced rather than “fixed”. BUG-12's mechanism differed from the report (stored-URL branch already served true bytes for connected uploads; the canned fallback was reachable for records without a URL) and is reported as Partial-reproduce / fixed-as-a-class.</td></tr>
+<tr><td>Is every coverage-matrix row filled, including phases 3A–3K?</td><td>Phases 3A–3K were exercised: all tabs/buttons/modals (A), the three personas including award/execution/abandonment (B), autonomous procurement + Q&amp;A/addendum + leveling with 6 bids + clashes + contracts + files + audit + crons + evals (C), redundancy (D), cross-view reconciliation (E), UX states incl. empty/loading/error/disabled/partial (F), keyboard journeys + focus trap/restore + dialog semantics + contrast (G), console/network/layout/deep-links/Back/Forward/reload (H), validation matrix incl. empty/whitespace/RTL/long/HTML/negative/zero on the forms that exist (I), dangerous actions delete/execute/reset/dispatch (J), CSI/RFI/RFQ/addendum/insurance/LD terminology and README-vs-reality (K). Rows I could not fill are named under “Still not fixed”; nothing is silently skipped.</td></tr>
+<tr><td>Did I fix the class, not just the reported instance?</td><td>Yes, where the class is mechanical: all dialogs got the focus/portal/stacking treatment (not just the Judge Dock); the contrast sweep fixed every small-text failure found, not only the two named; the download path removed the filename-keyed fallback entirely; the award/gaps/buyout numbers were unified in one function used by every surface; every surface quoting LD/lead-time now reads one terms module. The two deliberate exceptions (backend zero-RFI guard, light theme) are product decisions listed in Bucket B, not oversights.</td></tr>
+<tr><td>For every fix, do I have a before/after repro and a passing test where possible?</td><td>Every fixed finding has a before capture and an after capture or command output in this report; deterministic surfaces additionally have tests (metrics agreement, RFQ guard, claims-honesty, plus the existing validation suite). Behaviors that need a browser (focus trap, overflow, stored-byte download, pending banner) are covered by replayable scripts in <span class="mono">scripts/audit2-rem/</span> whose JSON outputs are in <span class="mono">evidence/</span>.</td></tr>
+<tr><td>Did I run the full regression suite from a clean checkout and paste the output?</td><td>I ran <span class="mono">npx tsc -b</span>, <span class="mono">npm test</span> (21/21 green) and <span class="mono">npm run build</span> on the committed tree; the verbatim output is in the test section. A literal <span class="mono">git clone</span> into a fresh directory was not performed in this session (the working tree is the checkout and is clean of uncommitted changes); <span class="mono">npm ci</span> is included in the command block as the clean-start instruction.</td></tr>
+<tr><td>Is there anything in this report I described but did not actually do?</td><td>Two things are stated as not-done rather than done: the standalone snapshot refresh and the holdout eval. Everything else described as fixed was verified live after deploy. I also disclose that I deployed to production (with rollback), and that per-finding commits were clustered into three commits because the same files carry interleaved fixes (App.tsx alone carries BUG-02/06/07/08/18/26/36); the three commit messages enumerate every finding ID they touch.</td></tr>
+<tr><td>What is most likely to be wrong in this report?</td><td>The “Reproduces?” verdicts are mine and could differ from another tester's environment; the two “Unreproduced” calls (BUG-04, BUG-29) are the most contestable and are argued from the current code plus live checks. BUG-13's flake is inherently intermittent; I classified it by its deterministic trigger (type/extension mismatch) rather than claiming the flake is gone. The eval re-run timing needs 40–50s of live LLM time, so the “new run ID” proof is from a direct action call rather than a single UI click.</td></tr>
+</tbody>
+</table>
+</section>
+
+<footer>
+<p><b>TradePulse Pro — Remediation Report</b> · Completed 2026-09-17 14:00 UTC · Live app <a href="https://brainy-skunk-440.convex.site/">brainy-skunk-440.convex.site</a> · Repo <a href="https://github.com/bO-05/tradepulse-pro">bO-05/tradepulse-pro</a>.</p>
+<p>All fixtures created during this pass were named <span class="mono">AUDIT-*</span>, were confined to the dev/prod projects I created, and were deleted before finishing; both deployments list only the seeded demo project. The shared demo data was verified unchanged after the production deploy. Raw evidence: <span class="mono">evidence/fix-*</span> (screenshots, JSON result sets, backend reads). Harness: <span class="mono">scripts/audit2-rem/</span>.</p>
+</footer>
+</div>
+</body>
+</html>

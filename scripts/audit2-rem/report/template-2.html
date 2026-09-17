@@ -1,0 +1,102 @@
+<section id="evidence">
+<h2>Before / after evidence</h2>
+<p class="sub">Each pair is a real capture from the live app (before) and from the fixed build verified live on <span class="mono">brainy-skunk-440</span> (after). The full set, plus JSON result files, is in <span class="mono">evidence/</span>.</p>
+
+<h3>BUG-01 — New Project modal</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG01-newproject-modal.png|BEFORE — dialog top −168px inside the 187px sticky header; Title/Location/Type clipped above the viewport.}}</div>
+  <div class="after">{{IMG:live-newproject-modal.png|AFTER — portaled to the body: dialog centred at top 189px, not inside the header, all 7 fields visible and reachable by mouse.}}</div>
+</div>
+
+<h3>BUG-34 — horizontal overflow</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG34-1024.png|BEFORE — at 1024px the document was 1,210px wide; the left column was pushed off-screen.}}</div>
+  <div class="after">{{IMG:live-BUG34-1024.png|AFTER — same 1024px viewport, 0px overflow; the stepper scrolls within its own row.}}</div>
+</div>
+
+<h3>BUG-33 — focus trap &amp; restore</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG33-judge-dock-focus.png|BEFORE — Tab escaped into the obscured page behind the “aria-modal” dialog; ESC left focus on a background nav button.}}</div>
+  <div class="after">{{IMG:live-BUG33-dock-focus.png|AFTER — 14 Tab presses stay inside; ESC closes and returns focus to the “60s Judge Dock” trigger.}}</div>
+</div>
+
+<h3>BUG-16 — discovery provenance (claims integrity)</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG16-fixture-discovery.png|BEFORE — fabricated contractors with sequential phones/licences, invented government-domain emails, all badged “Active / Verified (TDLR)”.}}</div>
+  <div class="after">{{IMG:after2-BUG16-discovery.png|AFTER — records carry “Unverified — from web search result” labels; published data only; provenance notice; no TDLR claims.}}</div>
+</div>
+
+<h3>BUG-02 / BUG-36 — tour tells the truth</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG02-tour-empty-project.png|BEFORE — on a 0-package project the tour still announced “3 CSI Trade Packages” and (scene 04) “$61,000 cheaper”.}}</div>
+  <div class="after">{{IMG:after2-BUG02-empty-tour.png|AFTER — same empty project: “No packages scoped yet”; scene 04 says no proposals have been leveled yet.}}</div>
+</div>
+{{IMG:live-tour-scene4.png|AFTER (demo, live) — scene 04 interpolates the paper price ($1,100,000), gaps ($186,000), true leveled cost ($1,225,000) and variance ($61,000) from the active project.}}
+
+<h3>BUG-07 — false RFQ success</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG07-zero-dispatch-3.png|BEFORE — green “RFQs Dispatched” with zero recipients.}}</div>
+  <div class="after">{{IMG:after3-BUG07-dispatch.png|AFTER — a red error names the missing precondition; the package stays Draft and no dispatched event is written.}}</div>
+</div>
+
+<h3>BUG-08 / BUG-09 / BUG-10 — RFI feedback, rendering, timestamps</h3>
+{{IMG:after3-BUG08-pending-banner.png|AFTER — immediately after submit, an “RFI submitted — the AI is analyzing…” banner is visible (previously the form cleared into ~15s of silence).}}
+{{IMG:after3-BUG08-rfi-card.png|AFTER — the clarification arrived at 15s and renders formatted (BUG-09) with a full dated timestamp (BUG-10): “Sep 17, 2026, 08:10:57 PM GMT+7”.}}
+
+<h3>BUG-11 — addendum artifact and naming</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG11-addendum.png|BEFORE — “ADDENDUM_NO._01_CLARIFICATIONS.md”, described as an “AIA A401 standard pre-bid legal addendum”.}}</div>
+  <div class="after">{{IMG:after3-BUG11-addendum.png|AFTER — “ADDENDUM_NO_01_CLARIFICATIONS.md”, described as a CSI MasterFormat pre-bid addendum with A401 called out as the separate subcontract form.}}</div>
+</div>
+
+<h3>BUG-12 / BUG-14 — download truth and caption</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG14-preview-caption.png|BEFORE — blanket “100% Real Construction Document Specification” caption on any file.}}</div>
+  <div class="after">{{IMG:after2-BUG14-preview.png|AFTER — truthful storage caption; the preview shows the uploaded text exactly.}}</div>
+</div>
+<pre>Download proof (local harness against the fixed build):
+downloads → after-upload-normal.txt  •  content contains "AUDIT-AFTER-UPLOAD-PROOF" → true
+(Before: a 43-byte collision file named like a seeded spec downloaded bundled canned text.)</pre>
+
+<h3>BUG-06 / BUG-18 / BUG-26 — one number, one source</h3>
+{{IMG:after-kpi-demo.png|AFTER (live demo) — “Leveled Buyout … (best bid per package)”, “Gaps Exposed: +$186,000” reconciling with the Alterman card, and “Buyout: 1/3 Awarded” matching the header stepper.}}
+{{IMG:after4-lifecycle-kpi.png|AFTER (lifecycle fixture) — after the 1-click autonomous loop awarded and generated an agreement: KPI 1/2 Awarded == stepper 1/2 Awarded.}}
+{{IMG:after4-lifecycle-leveling.png|AFTER — contract register and leveling matrix agree on the awarded leveled cost; the decorative copy names the LD vs lead-time terms separately.}}
+
+<h3>BUG-15 — stacked destructive confirmations</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG15-stacked-confirms.png|BEFORE — two z-[70] confirmations; the project-delete confirm was clipped at the top of the viewport (same header containing-block cause as BUG-01).}}</div>
+  <div class="after">{{IMG:after2-BUG15-stacked.png|AFTER — the header confirmation renders centred (top 359px, not inside the header); each new confirmation takes a higher z-index.}}</div>
+</div>
+
+<h3>BUG-30 / BUG-31 — eval honesty</h3>
+<div class="pair">
+  <div class="before">{{IMG:fix-BUG31-evals-rerun.png|BEFORE — “PARITY ACHIEVED”, “Zero Cheating”, “Chief Estimator Ground-Truth Evaluation Suite”.}}</div>
+  <div class="after">{{IMG:live-evals.png|AFTER — “Bid Extraction & ADR-0003 Normalization Check”, limitation stated, run ID with its start date/time and a “new run in progress” cue.}}</div>
+</div>
+</section>
+
+<section id="newfindings">
+<h2>New findings (beyond the audit)</h2>
+<table>
+<thead><tr><th style="width:90px">ID</th><th style="width:60px">Sev</th><th>Finding</th><th>Fix</th><th style="width:220px">Evidence</th></tr></thead>
+<tbody>
+{{NEW_FINDINGS_ROWS}}
+</tbody>
+</table>
+<div class="callout"><b>Also caught &amp; corrected during the pass:</b> the numeric-input <span class="mono">step</span> addition briefly made the New Project form invalid (HTML step base is <span class="mono">min=1</span>, so 5,500,000 was not a valid step); the local verification harness caught it before deploy and it was corrected to <span class="mono">step={1}</span>. No broken build was deployed.</div>
+</section>
+
+<section id="bucketb">
+<h2>Bucket B decisions</h2>
+<p class="sub">These change what the product claims or where its data comes from. I implemented the “tell the truth” option for each and documented it so you can overrule. Options and reasoning below.</p>
+<table>
+<thead><tr><th style="width:200px">Decision</th><th>Options</th><th>Chosen &amp; rationale</th><th style="width:260px">What I need from you</th></tr></thead>
+<tbody>
+{{BUCKET_B_ROWS}}
+</tbody>
+</table>
+<div class="callout">
+<b>Deployment &amp; rollback.</b> Production backend (<span class="mono">brainy-skunk-440</span>) and static hosting were updated with the fixed code; the shared demo data was not modified (verified after deploy: 3 Pkgs / 4 Subs / 3 RFIs / 2 Bids / 4 Clashes, contract sum $1,225,000, LDs $1,200/day). To roll back: <span class="mono">git revert 72265c8 9354728</span> then <span class="mono">npx convex deploy --yes</span> and <span class="mono">npx @convex-dev/static-hosting upload --build --prod</span>. Nothing was pushed to GitHub.
+</div>
+</section>

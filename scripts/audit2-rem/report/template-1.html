@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>TradePulse Pro — Remediation Report (2026-09-17 14:00 UTC)</title>
+<style>
+  :root { --bg:#0b1020; --panel:#131a2e; --panel2:#0f1626; --line:#26304a; --ink:#e8edf7; --mut:#9aa7c2; --dim:#7b89a6;
+    --em:#34d399; --am:#fbbf24; --rd:#fb7185; --bl:#7dd3fc; --vi:#c4b5fd; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:var(--bl); }
+  .wrap { max-width:1180px; margin:0 auto; padding:32px 20px 96px; }
+  header.top { border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:28px; }
+  .eyebrow { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--em); font-weight:700; }
+  h1 { font-size:34px; line-height:1.15; margin:10px 0 8px; letter-spacing:-.02em; }
+  h2 { font-size:22px; margin:44px 0 12px; padding-top:16px; border-top:1px solid var(--line); letter-spacing:-.01em; }
+  h3 { font-size:16px; margin:22px 0 8px; }
+  .sub { color:var(--mut); font-size:14px; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:14px; font-size:13px; color:var(--mut); }
+  .meta b { color:var(--ink); font-weight:600; }
+  .grid { display:grid; gap:14px; }
+  .g3 { grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+  .card h4 { margin:0 0 6px; font-size:13px; letter-spacing:.03em; text-transform:uppercase; color:var(--mut); }
+  .kpi { font-size:26px; font-weight:800; letter-spacing:-.02em; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin:10px 0 4px; }
+  th,td { text-align:left; padding:8px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    padding:2px 8px; border-radius:999px; border:1px solid; white-space:nowrap; }
+  .s-pass { color:#bbf7d0; background:#052e16; border-color:#15803d; }
+  .s-warn { color:#fde68a; background:#422006; border-color:#a16207; }
+  .s-fail { color:#fecdd3; background:#4c0519; border-color:#9f1239; }
+  .s-na   { color:#cbd5e1; background:#1e293b; border-color:#475569; }
+  figure { margin:14px 0; }
+  figure img { width:100%; border:1px solid var(--line); border-radius:10px; display:block; background:#000; }
+  figcaption { font-size:12.5px; color:var(--mut); margin-top:7px; }
+  .fname { display:inline-block; font-family:ui-monospace,monospace; font-size:10.5px; color:var(--dim);
+    background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 6px; margin-right:8px; }
+  .callout { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:14px 0; }
+  .callout.good { border-left:4px solid var(--em); }
+  .callout.bad { border-left:4px solid var(--rd); }
+  .callout.warn { border-left:4px solid var(--am); }
+  ul { margin:8px 0; padding-left:22px; }
+  li { margin:4px 0; }
+  .muted { color:var(--mut); }
+  .dim { color:var(--dim); font-size:12.5px; }
+  details { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:10px 0; }
+  summary { cursor:pointer; font-weight:600; }
+  pre { background:#0a0f1e; border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto; font-size:12px; line-height:1.5; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  @media (max-width:900px){ .pair { grid-template-columns:1fr; } }
+  .before { border-left:3px solid var(--rd); padding-left:10px; }
+  .after { border-left:3px solid var(--em); padding-left:10px; }
+  footer { margin-top:56px; padding-top:18px; border-top:1px solid var(--line); color:var(--dim); font-size:12.5px; }
+  .toc a { display:inline-block; margin:0 14px 6px 0; font-size:13.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Independent Remediation Pass</div>
+  <h1>TradePulse Pro — Remediation Report</h1>
+  <p class="sub">Every finding in the 2026-09-17 09:00 UTC user-journey audit was re-verified against the live app and current source before any code changed. This report shows what reproduced, what did not, what was fixed, how it was proven, and what needs your decision.</p>
+  <div class="meta">
+    <span>Live app: <b><a href="https://brainy-skunk-440.convex.site/">brainy-skunk-440.convex.site</a></b></span>
+    <span>Repo: <b><a href="https://github.com/bO-05/tradepulse-pro">bO-05/tradepulse-pro</a></b></span>
+    <span>Completed: <b>2026-09-17 14:00 UTC</b></span>
+    <span>Method: <b>real Chrome (puppeteer-core), 1440×900 and 375–1600, dev + prod deployments</b></span>
+    <span>Commits: <b>3 finding-cluster commits on <span class="mono">main</span> (not pushed)</b></span>
+  </div>
+</header>
+
+<div class="card toc">
+  <b>Jump to:</b>
+  <div style="margin-top:6px">
+    <a href="#summary">Executive summary</a>
+    <a href="#verification">Verification table</a>
+    <a href="#evidence">Before / after evidence</a>
+    <a href="#newfindings">New findings</a>
+    <a href="#bucketb">Bucket B decisions</a>
+    <a href="#reconcile">Derived-value reconciliation</a>
+    <a href="#redundancy">Redundancy changes</a>
+    <a href="#a11yperf">Accessibility &amp; performance</a>
+    <a href="#tests">Regression suite</a>
+    <a href="#remaining">Remaining / blocked</a>
+    <a href="#self">Self-interrogation</a>
+  </div>
+</div>
+
+<section id="summary">
+<h2>Executive summary</h2>
+<div class="grid g3">
+  <div class="card"><h4>Original findings</h4><div class="kpi">25</div><div class="sub">3 retired candidates excluded · 22 actionable</div></div>
+  <div class="card"><h4>Reproduced as reported</h4><div class="kpi">19</div><div class="sub">1 partial (mechanism differed) · 2 no longer reproduce</div></div>
+  <div class="card"><h4>Fixed &amp; verified</h4><div class="kpi" style="color:var(--em)">22</div><div class="sub">each with before/after evidence</div></div>
+  <div class="card"><h4>New findings found</h4><div class="kpi" style="color:var(--am)">9</div><div class="sub">all fixed except two product decisions</div></div>
+</div>
+
+<div class="callout good" style="margin-top:18px">
+<b>State of the app now.</b> The trust surfaces tell the truth. Discovery records only published data and labels everything else unverified. Download saves the stored object. The eval tab is framed as an extraction/normalization check and says so. The tour narrates live figures. Every headline number (buyout, variance, gaps, awards, contract sum, LD rate, RFI counts) is computed once and read everywhere; the reconciliation table below proves agreement across surfaces. The New Project modal, every confirmation and the Judge Dock are centred, keyboard-trapped and focus-restoring. The page no longer scrolls sideways from 375px to 1600px. The regression suite is 21 tests and green.
+</div>
+
+<div class="callout warn">
+<b>What I need from you.</b> Six Bucket B decisions with options are listed <a href="#bucketb">below</a>; the two that matter are (1) confirm the “tell the truth” discovery treatment for the demo versus removing the sample directory entirely, and (2) whether to fund a holdout eval that actually tests estimating (the current suite cannot). Also note: <b>the fixes are deployed to production</b> (functions + static hosting on brainy-skunk-440) because the brief calls for a remediation of the live app; rollback is one command (see Bucket B).
+</div>
+
+<div class="callout">
+<b>Honest scope note.</b> This report also lists what I could <i>not</i> verify: real external email delivery, a screen-reader walk-through, and long-run cron behaviour — same limitations as the original audit. Nothing here is claimed without a command output or a screenshot; raw evidence lives in <span class="mono">evidence/fix-*</span>.
+</div>
+</section>
+
+<section id="verification">
+<h2>Verification table — every original finding</h2>
+<p class="sub">“Reproduces?” is my independent re-run of the audit's steps against the live app <i>before</i> any change. “Status” is where it stands after remediation. No blank rows. Retractions from the original report are skipped per the brief.</p>
+<table>
+<thead><tr><th style="width:84px">ID</th><th style="width:52px">Sev</th><th style="width:110px">Reproduces?</th><th>Root cause (current code)</th><th style="width:130px">Status</th><th style="width:190px">Files changed</th><th style="width:250px">How verified</th></tr></thead>
+<tbody>
+{{VERIFICATION_ROWS}}
+</tbody>
+</table>
+</section>

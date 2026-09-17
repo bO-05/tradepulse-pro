@@ -36,7 +36,7 @@ Bucket B (claims-integrity) decisions, implemented with "tell the truth over fab
 12. BUG-02/36 — tour narration is interpolated from live project data (counts, gaps, true variance, contract sum) so it cannot drift from the screen; hard-coded demo dollar claims removed.
 13. OBS-02 — the reset control is confirmed, labeled as resetting the shared demo project, and the dock notes scenario cards use fixed demonstration figures.
 
-Verification: `tsc -b` clean; `npm test` 21/21 (3 suites: convex regression 12, derived-number agreement 4, claims-honesty 5); live re-verification of all fixed surfaces on `brainy-skunk-440` at 1440/1024/768/375 with zero console errors; demo project byte-stable (3 Pkgs / 4 Subs / 3 RFIs / 2 Bids / 4 Clashes, KPI 1/3 awarded, contract sum $1,225,000, LDs $1,200/day). All AUDIT-* fixtures removed from both dev and prod deployments. Raw evidence: `evidence/fix-*`. Remediation report: `doc/tradepulse audit 2/TradePulse-Pro-Remediation-2026-09-17-1345-UTC.html`.
+Verification: `tsc -b` clean; `npm test` 21/21 (3 suites: convex regression 12, derived-number agreement 4, claims-honesty 5); live re-verification of all fixed surfaces on `brainy-skunk-440` at 1440/1024/768/375 with zero console errors; demo project byte-stable (3 Pkgs / 4 Subs / 3 RFIs / 2 Bids / 4 Clashes, KPI 1/3 awarded, contract sum $1,225,000, LDs $1,200/day). All AUDIT-* fixtures removed from both dev and prod deployments. Raw evidence: `evidence/fix-*`. Remediation report: `doc/tradepulse audit 2/TradePulse-Pro-Remediation-2026-09-17-1400-UTC.html`.
 
 ### 2026-09-16 - production_remediation
 Responded to the independent TradePulse Pro Production Audit (Pass 1 + Pass 2) and shipped a production-grade remediation to the live deployment (`brainy-skunk-440`):
