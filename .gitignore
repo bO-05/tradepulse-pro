@@ -52,6 +52,7 @@ tests/temp/
 test-temp/
 *.scratch
 *.scratch.*
+evidence/
 
 # Python artifacts (for tests & verification scripts)
 __pycache__/
