@@ -59,6 +59,12 @@ export const dispatchRfqs = mutation({
       .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
       .collect();
 
+    if (contractors.length === 0) {
+      throw new Error(
+        "No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs."
+      );
+    }
+
     let dispatchedCount = 0;
     const now = Date.now();
 
@@ -109,6 +115,12 @@ export const dispatchRfqsInternal = internalMutation({
       .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
       .collect();
 
+    if (contractors.length === 0) {
+      throw new Error(
+        "No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs."
+      );
+    }
+
     let dispatchedCount = 0;
     const now = Date.now();
 
@@ -134,7 +146,10 @@ export const dispatchRfqsInternal = internalMutation({
       tradePackageId: tradePkg._id,
       eventType: "rfq_dispatched",
       title: `RFQs Dispatched: Division ${tradePkg.csiDivision} (${tradePkg.tradeName})`,
-      description: `Dispatched invitations to bid to ${totalNotified} commercial contractor(s) via AgentMail (${tradePkg.agentMailbox}).`,
+      description:
+        dispatchedCount > 0
+          ? `Dispatched invitations to bid to ${dispatchedCount} commercial contractor(s) via AgentMail (${tradePkg.agentMailbox}).`
+          : `No new invitations were required: ${totalNotified} contractor(s) are already invited. Package marked as RFQs dispatched (${tradePkg.agentMailbox}).`,
       actor: "Lead Project Manager",
       timestamp: now,
     });

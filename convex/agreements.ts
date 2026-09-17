@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { DEFAULT_GENERAL_CONTRACTOR } from "./validation";
+import { LIQUIDATED_DAMAGES_PER_DAY, RETAINAGE_PERCENT } from "./terms";
 
 /**
  * AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor.
@@ -37,8 +38,8 @@ export const generateAgreement = mutation({
       0
     );
     const contractSum = Math.max(0, bid.leveledTotalCost);
-    const retainagePercent = 10;
-    const liquidatedDamagesDaily = 1200;
+    const retainagePercent = RETAINAGE_PERCENT;
+    const liquidatedDamagesDaily = LIQUIDATED_DAMAGES_PER_DAY;
 
     const formattedDate = new Date().toLocaleDateString("en-US", {
       year: "numeric",
@@ -464,8 +465,8 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
     0
   );
   const contractSum = Math.max(0, bid.leveledTotalCost);
-  const retainagePercent = existingAgreement.retainagePercent || 10;
-  const liquidatedDamagesDaily = existingAgreement.liquidatedDamagesDaily || 1200;
+  const retainagePercent = existingAgreement.retainagePercent || RETAINAGE_PERCENT;
+  const liquidatedDamagesDaily = existingAgreement.liquidatedDamagesDaily || LIQUIDATED_DAMAGES_PER_DAY;
 
   const formattedDate = new Date(existingAgreement.createdAt || Date.now()).toLocaleDateString("en-US", {
     year: "numeric",

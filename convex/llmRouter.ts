@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import { inflate } from "pako";
 import { internal } from "./_generated/api";
+import { leadTimePenaltyFor } from "./terms";
 
 export interface ReasoningResult {
   provider: string;
@@ -1510,7 +1511,7 @@ Ensure all cost numbers are pure numeric primitives.`
       // Division 23 custom mechanical chillers milestone: 16 weeks
       // Division 22 triplex booster pumps milestone: 16 weeks
       const targetWeeks = isDiv23 ? 16 : isDiv22 ? 16 : 12;
-      const leadTimePenalty = leadWeeks > targetWeeks ? (leadWeeks - targetWeeks) * 6000 : 0;
+      const leadTimePenalty = leadTimePenaltyFor(leadWeeks, targetWeeks);
 
       // Detect COI compliance
       let coiComplianceStatus = "compliant";
@@ -2019,7 +2020,7 @@ export const runModelDiagnostic = action({
       samplePrompt = `Subcontractor: Alterman, Inc.
 Trade: Division 26 Electrical Systems
 Base proposal: $1,100,000 lump sum.
-Equipment: 1600A main switchboard, 480/277V step-down transformers. Lead time: 16 weeks (standard liquidated damages: 4 weeks late at $6,000/week = $24,000 penalty).
+Equipment: 1600A main switchboard, 480/277V step-down transformers. Lead time: 16 weeks (ADR-0003 lead-time adjustment: 4 weeks late at $6,000/week = $24,000 penalty).
 Scope Qualifications & Exclusions:
 1. Crane rigging and hoisting to 14th-floor penthouse plant room excluded ($45,000 impact).
 2. UL 1479 floor penetration firestopping excluded ($22,000 impact).

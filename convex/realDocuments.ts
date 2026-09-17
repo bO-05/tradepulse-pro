@@ -127,7 +127,7 @@ export const REAL_DOCUMENTS: Record<string, RealDocumentDefinition> = {
           "3.01 PENETRATION FIRESTOPPING: All floor and wall sleeve penetrations must comply with UL 1479 (ASTM E814).",
           "3.02 SEISMIC RESTRAINTS: Engineered structural seismic bracing required per IBC 2024 Section 1613 and ASCE 7-22.",
           "3.03 HOUSEKEEPING: Continuous broom-clean site conditions required; debris disposed daily in GC dumpsters.",
-          "3.04 DELAY DAMAGES: Unexcused equipment lead times beyond schedule milestone incur liquidated damages at $6,000/week.",
+          "3.04 LEAD-TIME DELAY ADJUSTMENT: Unexcused equipment lead times beyond the schedule milestone incur ADR-0003 schedule-impact adjustments at $6,000/week. Subcontract liquidated damages for completion delay are stated separately in the agreement at $1,200/calendar day.",
         ],
       },
     ],

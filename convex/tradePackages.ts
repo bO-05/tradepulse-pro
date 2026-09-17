@@ -75,7 +75,7 @@ export const createTradePackage = mutation({
     await ctx.db.insert("auditLogs", {
       projectId: args.projectId,
       tradePackageId: pkgId,
-      eventType: "rfq_dispatched",
+      eventType: "package_created",
       title: `CSI Trade Package Scoped: Division ${csiDivision}`,
       description: `Created ${tradeName} package ($${budgetEstimate.toLocaleString()} budget, ${args.mandatoryInclusions.length} mandatory inclusions).`,
       actor: "Lead Estimator / GC Procurement",
@@ -157,7 +157,7 @@ export const createTradePackageInternal = internalMutation({
     await ctx.db.insert("auditLogs", {
       projectId: args.projectId,
       tradePackageId: pkgId,
-      eventType: "rfq_dispatched",
+      eventType: "package_created",
       title: `AI Auto-Scoped Trade Package: Division ${csiDivision}`,
       description: `Auto-scoped ${tradeName} ($${budgetEstimate.toLocaleString()} budget) via AI specification deconstruction.`,
       actor: "Autonomous AI Spec Scoping Agent",

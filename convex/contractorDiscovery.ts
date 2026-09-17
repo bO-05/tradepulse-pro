@@ -10,8 +10,10 @@ export interface DiscoveredContractor {
   companyName: string;
   contactEmail: string;
   phone?: string;
-  licenseNumber: string;
-  licenseStatus: string;
+  /** Only present when the source actually published a license number. */
+  licenseNumber?: string;
+  /** Human-readable provenance label; never a bare "Verified" without a registry source. */
+  licenseStatus?: string;
   sourceUrl: string;
 }
 
@@ -40,6 +42,76 @@ function sanitizeContractorCompanyName(rawTitle: string, fallbackName: string): 
     return fallbackName;
   }
   return title;
+}
+
+const PUBLISHED_EMAIL_RX = /[\w.+-]+@[\w-]+\.[\w.-]{2,}/;
+const PUBLISHED_PHONE_RX = /(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/;
+const PUBLISHED_LICENSE_RX = /\b(?:TX[-\s]?)?(TECL|TACLA|TACLB|TSBPE|RMP|PLMB|FIRE|CONC|STEEL|ROOF|FIN|ELEC)[-\s]?([A-Z0-9]{3,10})\b/i;
+const REGISTRY_HOSTS = [
+  "tdlr.texas.gov",
+  "pels.texas.gov",
+  "tsbpe.texas.gov",
+  "cslb.ca.gov",
+  "dos.ny.gov",
+  "myfloridalicense.com",
+  "lni.wa.gov",
+  "nclbgc.org",
+  "roc.az.gov",
+];
+
+function findPublishedEmail(text: string | undefined): string | null {
+  if (!text) return null;
+  const match = text.match(PUBLISHED_EMAIL_RX);
+  return match ? match[0].toLowerCase() : null;
+}
+
+function findPublishedPhone(text: string | undefined): string | null {
+  if (!text) return null;
+  const match = text.match(PUBLISHED_PHONE_RX);
+  return match ? `+1 (${match[1]}) ${match[2]}-${match[3]}` : null;
+}
+
+function findPublishedLicense(text: string | undefined): string | null {
+  if (!text) return null;
+  const match = text.match(PUBLISHED_LICENSE_RX);
+  return match ? `${match[1].toUpperCase()}-${match[2].toUpperCase()}` : null;
+}
+
+function isRegistrySource(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    return REGISTRY_HOSTS.some((registry) => host === registry || host.endsWith(`.${registry}`));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Maps one search hit to a contractor record using only published data.
+ * License numbers, phone numbers and emails are recorded only when the scraped
+ * page actually contains them; otherwise the record is explicitly unverified.
+ */
+function mapSearchItemToContractor(item: any, fallbackName: string, registryUrl: string): DiscoveredContractor {
+  const cleanTitle = sanitizeContractorCompanyName(item?.title, fallbackName);
+  const markdown: string = typeof item?.markdown === "string" ? item.markdown : "";
+  const description: string = typeof item?.description === "string" ? item.description : "";
+  const combinedText = `${markdown}\n${description}`;
+  const sourceUrl: string = item?.url || registryUrl;
+  const publishedEmail = findPublishedEmail(combinedText);
+  const publishedPhone = findPublishedPhone(combinedText);
+  const publishedLicense = findPublishedLicense(combinedText);
+  const registryMatch = isRegistrySource(item?.url);
+  return {
+    companyName: cleanTitle,
+    contactEmail: publishedEmail || "not-published@verify-required.invalid",
+    phone: publishedPhone || undefined,
+    licenseNumber: publishedLicense || "Not verified",
+    licenseStatus: publishedLicense && registryMatch
+      ? "Verified in listing (registry page)"
+      : "Unverified — from web search result",
+    sourceUrl,
+  };
 }
 
 export const discoverSubcontractors = action({
@@ -113,25 +185,7 @@ export const discoverSubcontractors = action({
           for (let i = 0; i < items.length; i++) {
             const item: any = items[i];
             const fallbackName = `${city} Commercial ${tradePkg.tradeName.split(" ")[0]} Services ${i + 1}`;
-            const cleanTitle = sanitizeContractorCompanyName(item.title, fallbackName);
-            let emailDomain = "rosendin.com";
-            if (item.url) {
-              try {
-                const parsed = new URL(item.url);
-                const host = parsed.hostname.replace(/^www\./, "");
-                if (host && host.includes(".")) emailDomain = host;
-              } catch {
-                // Keep default
-              }
-            }
-            discoveredContractors.push({
-              companyName: cleanTitle,
-              contactEmail: `estimating@${emailDomain}`,
-              phone: `+1 (${stateCfg.areaCode}) 835-24${10 + i}`,
-              licenseNumber: `${stateCfg.prefix}-${tradePkg.csiDivision.slice(0, 2)}-${20000 + i * 142}`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
-              sourceUrl: item.url || stateCfg.registryUrl,
-            });
+            discoveredContractors.push(mapSearchItemToContractor(item, fallbackName, stateCfg.registryUrl));
           }
         } catch {
           // Direct API fallback with country: "US"
@@ -161,25 +215,7 @@ export const discoverSubcontractors = action({
             for (let i = 0; i < items.length; i++) {
               const item = items[i];
               const fallbackName = `${city} Commercial ${tradePkg.tradeName.split(" ")[0]} Services ${i + 1}`;
-              const cleanTitle = sanitizeContractorCompanyName(item.title, fallbackName);
-              let emailDomain = "rosendin.com";
-              if (item.url) {
-                try {
-                  const parsed = new URL(item.url);
-                  const host = parsed.hostname.replace(/^www\./, "");
-                  if (host && host.includes(".")) emailDomain = host;
-                } catch {
-                  // Keep default
-                }
-              }
-              discoveredContractors.push({
-                companyName: cleanTitle,
-                contactEmail: `estimating@${emailDomain}`,
-                phone: `+1 (${stateCfg.areaCode}) 835-24${10 + i}`,
-                licenseNumber: `${stateCfg.prefix}-${tradePkg.csiDivision.slice(0, 2)}-${20000 + i * 142}`,
-                licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
-                sourceUrl: item.url || stateCfg.registryUrl,
-              });
+              discoveredContractors.push(mapSearchItemToContractor(item, fallbackName, stateCfg.registryUrl));
             }
           }
         }
@@ -189,7 +225,9 @@ export const discoverSubcontractors = action({
     }
 
     // High-quality verified trade directory fallback if Firecrawl didn't return items or key missing
+    let usedSampleDirectory = false;
     if (discoveredContractors.length === 0) {
+      usedSampleDirectory = true;
       const div = tradePkg.csiDivision.slice(0, 2);
       if (div === "26") {
         if (state === "TX") {
@@ -197,33 +235,21 @@ export const discoverSubcontractors = action({
             {
               companyName: "Rosendin Electric, Inc.",
               contactEmail: "estimating@rosendin.com",
-              phone: "+1 (512) 835-2400",
-              licenseNumber: "TX-TECL-18042",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://www.rosendin.com",
             },
             {
               companyName: "Alterman, Inc.",
               contactEmail: "estimating@goalterman.com",
-              phone: "+1 (512) 454-0326",
-              licenseNumber: "TX-TECL-19204",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://goalterman.com",
             },
             {
               companyName: "Prism Electric, Inc.",
               contactEmail: "estimating@prismelectric.com",
-              phone: "+1 (512) 419-7476",
-              licenseNumber: "TX-TECL-33109",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://prismelectric.com",
             },
             {
               companyName: "Bergelectric Corp.",
               contactEmail: "estimating@bergelectric.com",
-              phone: "+1 (512) 458-1221",
-              licenseNumber: "TX-TECL-28941",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://www.bergelectric.com",
             }
           );
@@ -232,33 +258,21 @@ export const discoverSubcontractors = action({
             {
               companyName: "Rosendin Electric, Inc.",
               contactEmail: "estimating@rosendin.com",
-              phone: `+1 (${stateCfg.areaCode}) 835-2400`,
-              licenseNumber: `${stateCfg.prefix}-TECL-18042`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://www.rosendin.com",
             },
             {
               companyName: "Alterman, Inc.",
               contactEmail: "estimating@goalterman.com",
-              phone: `+1 (${stateCfg.areaCode}) 454-0326`,
-              licenseNumber: `${stateCfg.prefix}-TECL-19204`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://goalterman.com",
             },
             {
               companyName: "Prism Electric, Inc.",
               contactEmail: "estimating@prismelectric.com",
-              phone: `+1 (${stateCfg.areaCode}) 419-7476`,
-              licenseNumber: `${stateCfg.prefix}-TECL-33109`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://prismelectric.com",
             },
             {
               companyName: "Bergelectric Corp.",
               contactEmail: "estimating@bergelectric.com",
-              phone: `+1 (${stateCfg.areaCode}) 458-1221`,
-              licenseNumber: `${stateCfg.prefix}-TECL-28941`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://www.bergelectric.com",
             }
           );
@@ -269,33 +283,21 @@ export const discoverSubcontractors = action({
             {
               companyName: "TDIndustries, Inc.",
               contactEmail: "estimating@tdindustries.com",
-              phone: "+1 (512) 310-5300",
-              licenseNumber: "TX-TACLA-11842E",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://www.tdindustries.com",
             },
             {
               companyName: "The Brandt Companies, LLC",
               contactEmail: "estimating@brandt.us",
-              phone: "+1 (512) 491-9100",
-              licenseNumber: "TX-TACLA-01048C",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://brandt.us",
             },
             {
               companyName: "Southland Industries",
               contactEmail: "estimating@southlandind.com",
-              phone: "+1 (512) 443-1566",
-              licenseNumber: "TX-TACLA-00192C",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://southlandind.com",
             },
             {
               companyName: "Dynamic Systems, Inc.",
               contactEmail: "commercial@dynamicsystemsusa.com",
-              phone: "+1 (512) 443-1566",
-              licenseNumber: "TX-TACLA-04982C",
-              licenseStatus: "Active / Verified (TDLR)",
               sourceUrl: "https://www.dynamicsystemsusa.com",
             }
           );
@@ -304,25 +306,16 @@ export const discoverSubcontractors = action({
             {
               companyName: "TDIndustries, Inc.",
               contactEmail: "estimating@tdindustries.com",
-              phone: `+1 (${stateCfg.areaCode}) 310-5300`,
-              licenseNumber: `${stateCfg.prefix}-TACLA-11842E`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://www.tdindustries.com",
             },
             {
               companyName: "The Brandt Companies, LLC",
               contactEmail: "estimating@brandt.us",
-              phone: `+1 (${stateCfg.areaCode}) 491-9100`,
-              licenseNumber: `${stateCfg.prefix}-TACLA-01048C`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://brandt.us",
             },
             {
               companyName: "Southland Industries",
               contactEmail: "estimating@southlandind.com",
-              phone: `+1 (${stateCfg.areaCode}) 443-1566`,
-              licenseNumber: `${stateCfg.prefix}-TACLA-00192C`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://southlandind.com",
             }
           );
@@ -333,25 +326,16 @@ export const discoverSubcontractors = action({
             {
               companyName: "Clarke Kent Plumbing",
               contactEmail: "dispatch@clarkekentplumbing.com",
-              phone: "+1 (512) 282-7000",
-              licenseNumber: "TX-RMP-39182",
-              licenseStatus: "Active / Verified (TSBPE)",
               sourceUrl: "https://clarkekentplumbing.com",
             },
             {
               companyName: "Limbach Facility Services LLC",
               contactEmail: "estimating@limbachinc.com",
-              phone: "+1 (512) 456-3570",
-              licenseNumber: "TX-RMP-41029",
-              licenseStatus: "Active / Verified (TSBPE)",
               sourceUrl: "https://limbachinc.com",
             },
             {
               companyName: "TDIndustries, Inc. (Plumbing)",
               contactEmail: "plumbing@tdindustries.com",
-              phone: "+1 (512) 310-5300",
-              licenseNumber: "TX-RMP-40912",
-              licenseStatus: "Active / Verified (TSBPE)",
               sourceUrl: "https://www.tdindustries.com",
             }
           );
@@ -360,17 +344,11 @@ export const discoverSubcontractors = action({
             {
               companyName: "TDIndustries, Inc. (Plumbing)",
               contactEmail: "plumbing@tdindustries.com",
-              phone: `+1 (${stateCfg.areaCode}) 310-5300`,
-              licenseNumber: `${stateCfg.prefix}-PLMB-40912`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://www.tdindustries.com",
             },
             {
               companyName: "Clarke Kent Plumbing LLC",
               contactEmail: "dispatch@clarkekentplumbing.com",
-              phone: `+1 (${stateCfg.areaCode}) 282-7000`,
-              licenseNumber: `${stateCfg.prefix}-PLMB-28419`,
-              licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
               sourceUrl: "https://clarkekentplumbing.com",
             }
           );
@@ -380,17 +358,11 @@ export const discoverSubcontractors = action({
           {
             companyName: "Century Fire Protection LLC",
             contactEmail: "contact@centuryfp.com",
-            phone: `+1 (${stateCfg.areaCode}) 506-2388`,
-            licenseNumber: `${stateCfg.prefix}-FIRE-55101`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.centuryfp.com/",
           },
           {
             companyName: "Viking Fire Protection Group",
             contactEmail: "info@vikinggroupinc.com",
-            phone: `+1 (${stateCfg.areaCode}) 792-0022`,
-            licenseNumber: `${stateCfg.prefix}-FIRE-55102`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.vikinggroupinc.com/",
           }
         );
@@ -399,17 +371,11 @@ export const discoverSubcontractors = action({
           {
             companyName: "Baker Concrete Construction",
             contactEmail: "bids@bakerconcrete.com",
-            phone: `+1 (${stateCfg.areaCode}) 539-4000`,
-            licenseNumber: `${stateCfg.prefix}-CONC-30111`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.bakerconcrete.com/",
           },
           {
             companyName: "Webcor Concrete",
             contactEmail: "estimating@webcor.com",
-            phone: `+1 (${stateCfg.areaCode}) 737-0177`,
-            licenseNumber: `${stateCfg.prefix}-CONC-30112`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.webcor.com/",
           }
         );
@@ -418,17 +384,11 @@ export const discoverSubcontractors = action({
           {
             companyName: "Commercial Metals Company (CMC)",
             contactEmail: "estimating@cmc.com",
-            phone: `+1 (${stateCfg.areaCode}) 252-7787`,
-            licenseNumber: `${stateCfg.prefix}-STEEL-50101`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.cmc.com/",
           },
           {
             companyName: "American Institute of Steel Construction",
             contactEmail: "info@aisc.org",
-            phone: `+1 (${stateCfg.areaCode}) 264-1627`,
-            licenseNumber: `${stateCfg.prefix}-STEEL-50102`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.aisc.org/",
           }
         );
@@ -437,17 +397,11 @@ export const discoverSubcontractors = action({
           {
             companyName: "CentiMark Corporation",
             contactEmail: "contactus@centimark.com",
-            phone: "+1 (800) 558-4100",
-            licenseNumber: `${stateCfg.prefix}-ROOF-70101`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.centimark.com/",
           },
           {
             companyName: "Chamberlin Roofing & Waterproofing",
             contactEmail: "info@chamberlinltd.com",
-            phone: `+1 (${stateCfg.areaCode}) 275-0013`,
-            licenseNumber: `${stateCfg.prefix}-ROOF-70102`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.chamberlinltd.com/",
           }
         );
@@ -456,17 +410,11 @@ export const discoverSubcontractors = action({
           {
             companyName: "Marek Brothers Systems Inc.",
             contactEmail: "bids@marekbros.com",
-            phone: `+1 (${stateCfg.areaCode}) 441-1188`,
-            licenseNumber: `${stateCfg.prefix}-FIN-90101`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.marekbros.com/",
           },
           {
             companyName: "Performance Contracting, Inc. (PCI)",
             contactEmail: "estimating@pcg.com",
-            phone: `+1 (${stateCfg.areaCode}) 888-8600`,
-            licenseNumber: `${stateCfg.prefix}-FIN-90102`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.performancecontracting.com/",
           }
         );
@@ -475,20 +423,25 @@ export const discoverSubcontractors = action({
           {
             companyName: "Associated General Contractors (AGC)",
             contactEmail: "bids@agc.org",
-            phone: "+1 (703) 548-3118",
-            licenseNumber: `${stateCfg.prefix}-${div}-40912`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.agc.org/",
           },
           {
             companyName: "Rosendin Commercial Services",
             contactEmail: "estimating@rosendin.com",
-            phone: `+1 (${stateCfg.areaCode}) 835-2400`,
-            licenseNumber: `${stateCfg.prefix}-${div}-28419`,
-            licenseStatus: `Active / Verified (${stateCfg.board.split(" ")[0]})`,
             sourceUrl: "https://www.rosendin.com/",
           }
         );
+      }
+    }
+
+    // The built-in directory is a sample dataset. Strip invented license data and label
+    // every record so it can never be mistaken for a registry verification.
+    if (usedSampleDirectory) {
+      for (const contractor of discoveredContractors) {
+        contractor.licenseNumber = "Not verified";
+        contractor.licenseStatus = "Unverified — sample directory record";
+        contractor.phone = undefined;
+        contractor.contactEmail = "not-published@verify-required.invalid";
       }
     }
 
@@ -496,15 +449,17 @@ export const discoverSubcontractors = action({
       internal.contractors.batchInsertContractors,
       {
         tradePackageId: args.tradePackageId,
-        contractors: discoveredContractors,
+        contractors: discoveredContractors.map((contractor) => ({
+          ...contractor,
+          licenseNumber: contractor.licenseNumber || "Not verified",
+          licenseStatus: contractor.licenseStatus || "Unverified",
+        })),
       }
     );
 
-    const source = firecrawlKey
-      ? "Firecrawl Live Web Discovery"
-      : state === "TX"
-      ? "Texas Verified Commercial Trade Directory"
-      : `${state} Verified Commercial Trade Directory`;
+    const source = usedSampleDirectory
+      ? "Built-in sample directory (licenses unverified)"
+      : "Firecrawl web search (license data only when published in the source)";
 
     // Record in reactive audit stream
     await ctx.runMutation(internal.auditLogs.recordLogInternal, {
@@ -512,8 +467,10 @@ export const discoverSubcontractors = action({
       tradePackageId: args.tradePackageId,
       eventType: "compliance_audit",
       title: `Contractors Discovered: Division ${tradePkg.csiDivision}`,
-      description: `Discovered and verified ${discoveredContractors.length} trade contractor licenses via ${source}.`,
-      actor: "Firecrawl Autonomous Discovery Engine",
+      description: usedSampleDirectory
+        ? `Loaded ${discoveredContractors.length} sample contractor record(s) from the built-in directory. License numbers are NOT verified; confirm licensing with the state registry before sourcing.`
+        : `Discovered ${discoveredContractors.length} contractor record(s) via Firecrawl web search. License numbers and contacts are recorded only when published in the source; verify before sourcing.`,
+      actor: "TradePulse Discovery Engine",
     });
 
     return {
@@ -556,9 +513,11 @@ export const scrapeContractorWebsite = action({
     return {
       success: true,
       url: args.url,
-      markdown: `# Verified Commercial Contractor Profile\n- URL: ${args.url}\n- License: Active Commercial Contractor verified under Texas TDLR / TSBPE\n- Bonding Capacity: $5,000,000 Single / $10,000,000 Aggregate\n- Safety Rating: 0.78 EMR (Zero lost-time incidents in 36 months)\n- Capabilities: Turnkey commercial MEP installations, high-voltage switchgear, and municipal public works.`,
-      title: "Texas Commercial Contractor Registry Profile",
-      source: "Verified Commercial Contractor Registry",
+      markdown: "",
+      title: "Contractor profile",
+      source: "Live scrape unavailable",
+      error:
+        "Live website scraping is unavailable because FIRECRAWL_API_KEY is not configured. No licensing or compliance data was retrieved.",
     };
   },
 });

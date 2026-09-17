@@ -2,6 +2,7 @@ import { mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { generateAiaA401AgreementText, getStateAbbreviation } from "./agreements";
+import { LIQUIDATED_DAMAGES_PER_DAY, RETAINAGE_PERCENT } from "./terms";
 
 /**
  * 60-Second Judge Simulation Engine:
@@ -723,8 +724,8 @@ export const runFullProcurementCycle = mutation({
       baseBidAmount: bid1Data.baseBidAmount,
       acceptedVeTotal,
       leveledTotalCost: bid1Data.leveledTotalCost,
-      retainagePercent: 10,
-      liquidatedDamagesDaily: 1200,
+      retainagePercent: RETAINAGE_PERCENT,
+      liquidatedDamagesDaily: LIQUIDATED_DAMAGES_PER_DAY,
       bidDeadline: tradePkg.bidDeadline || "2026-09-30",
     });
 
@@ -751,8 +752,8 @@ export const runFullProcurementCycle = mutation({
       csiDivision: tradePkg.csiDivision,
       tradeName: tradePkg.tradeName,
       contractSum: winningCost,
-      retainagePercent: 10,
-      liquidatedDamagesDaily: 1200,
+      retainagePercent: RETAINAGE_PERCENT,
+      liquidatedDamagesDaily: LIQUIDATED_DAMAGES_PER_DAY,
       scopeSummary: tradePkg.scopeSummary,
       mandatoryInclusions: tradePkg.mandatoryInclusions,
       status: "generated",

@@ -9,6 +9,7 @@ import {
   validateUploadFileName,
   validateUploadFileType,
 } from "./validation";
+import { LEAD_TIME_PENALTY_PER_WEEK, LIQUIDATED_DAMAGES_PER_DAY, RETAINAGE_PERCENT } from "./terms";
 
 export { extractTextFromPdfStream };
 
@@ -630,6 +631,7 @@ async function doGeneratePreBidAddendum(
   }
 ): Promise<any> {
   const addendumNum = args.addendumNumber || "ADDENDUM NO. 01";
+  const addendumFileBase = addendumNum.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
     const project: any = await ctx.runQuery(internal.projects.getProjectInternal, {
     projectId: args.projectId,
   });
@@ -654,7 +656,7 @@ async function doGeneratePreBidAddendum(
 **Project:** ${project?.title || "Commercial Construction Project"}  
 **Location:** ${project?.location || "Project Site"}  
 **Issuance Date:** ${nowStr}  
-**Prepared by:** TradePulse Pro Autonomous Pre-Bid Legal Clarification Engine  
+**Prepared by:** TradePulse Pro Pre-Bid Clarification Engine  
 **Distribution:** All Registered CSI MasterFormat Trade Subcontractors  
 
 ---
@@ -668,10 +670,13 @@ This Addendum forms a legally binding part of the Contract Documents and modifie
    - Temporary power distribution boards (400A) must be furnished and maintained by the electrical trade subcontractor from the primary utility tap.
 
 2. **Liquidated Delay Adjustments & Schedule**:
-   - Equipment lead times exceeding target project milestones without pre-approved expedited shipping riders shall incur liquidated schedule delay adjustments at $6,000 per week.
+   - Equipment lead times exceeding the target project milestone without a pre-approved expedited shipping rider incur ADR-0003 lead-time delay adjustments at $${LEAD_TIME_PENALTY_PER_WEEK.toLocaleString("en-US")} per week. These are distinct from the subcontract's liquidated damages of $${LIQUIDATED_DAMAGES_PER_DAY.toLocaleString("en-US")} per calendar day for completion delay.
 
 3. **Mandatory Insurance Standards (ACORD 25)**:
    - All trade subcontractors must maintain $2,000,000 General Aggregate, $1,000,000 Each Occurrence, and $5,000,000 Commercial Umbrella liability naming General Contractor as Additional Insured.
+
+4. **Retainage**:
+   - Progress payments are subject to ${RETAINAGE_PERCENT}% retainage per the subcontract terms.
 
 ### ARTICLE 2: PRE-BID QUESTIONS & AUTHORITATIVE CLARIFICATIONS
 ${
@@ -706,7 +711,7 @@ Each proposal submitted must include affirmative written acknowledgement of ${ad
     projectId: args.projectId,
     tradePackageId: args.tradePackageId,
     storageId,
-    fileName: `${addendumNum.replace(/\s+/g, "_")}_CLARIFICATIONS.md`,
+    fileName: `${addendumFileBase}_CLARIFICATIONS.md`,
     fileType: "addendum",
     fileSize: addendumText.length,
     textContent: addendumText,
@@ -720,7 +725,7 @@ Each proposal submitted must include affirmative written acknowledgement of ${ad
   return {
     success: true,
     addendumNumber: addendumNum,
-    fileName: `${addendumNum.replace(/\s+/g, "_")}_CLARIFICATIONS.md`,
+    fileName: `${addendumFileBase}_CLARIFICATIONS.md`,
     addendumText,
     fileId,
     storageId,
