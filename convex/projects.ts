@@ -1,6 +1,15 @@
 import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { generateAiaA401AgreementText } from "./agreements";
+import { getRealDocumentPdfBytes } from "./realDocuments";
+
+/**
+ * Seed metadata must equal the bytes actually served by the document endpoints,
+ * otherwise the file-size labels lie about what the download contains.
+ */
+function authoritativeDocSize(fileName: string, fallback: number): number {
+  return getRealDocumentPdfBytes(fileName)?.length ?? fallback;
+}
 import {
   DEFAULT_GENERAL_CONTRACTOR,
   validatePositiveAmount,
@@ -805,7 +814,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       storageId: "/specs/01_00_00_General_Requirements.pdf",
       fileName: "01_00_00_General_Requirements.pdf",
       fileType: "spec",
-      fileSize: 774760,
+      fileSize: authoritativeDocSize("01_00_00_General_Requirements.pdf", 774760),
       uploadedBy: "Chief Commercial Estimator",
       uploadedAt: Date.now() - 86400000 * 3,
     });
@@ -816,7 +825,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       storageId: "/specs/26_00_00_Electrical_Systems_Spec.pdf",
       fileName: "26_00_00_Electrical_Systems_Spec.pdf",
       fileType: "spec",
-      fileSize: 931307,
+      fileSize: authoritativeDocSize("26_00_00_Electrical_Systems_Spec.pdf", 931307),
       uploadedBy: "Lead Electrical Engineer (PE)",
       uploadedAt: Date.now() - 86400000 * 3,
     });
@@ -827,7 +836,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       storageId: "/specs/23_00_00_HVAC_Systems_Spec.pdf",
       fileName: "23_00_00_HVAC_Systems_Spec.pdf",
       fileType: "spec",
-      fileSize: 165362,
+      fileSize: authoritativeDocSize("23_00_00_HVAC_Systems_Spec.pdf", 165362),
       uploadedBy: "Lead Mechanical Engineer (PE)",
       uploadedAt: Date.now() - 86400000 * 3,
     });
@@ -838,7 +847,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       storageId: "/specs/22_00_00_Plumbing_Systems_Spec.pdf",
       fileName: "22_00_00_Plumbing_Systems_Spec.pdf",
       fileType: "spec",
-      fileSize: 4391422,
+      fileSize: authoritativeDocSize("22_00_00_Plumbing_Systems_Spec.pdf", 4391422),
       uploadedBy: "Project Plumbing Engineer (PE)",
       uploadedAt: Date.now() - 86400000 * 3,
     });

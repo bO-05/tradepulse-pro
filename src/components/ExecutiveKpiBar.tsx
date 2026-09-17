@@ -115,7 +115,7 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
             )}
             <span className="text-slate-700 hidden xl:inline">•</span>
             <span className="text-slate-400 font-medium hidden xl:inline text-[11px]">
-              Buyout: <strong className="font-mono text-white">{awardedPackages}/{totalPackages || 3} Awarded</strong>
+              Buyout: <strong className="font-mono text-white">{awardedPackages}/{totalPackages} Awarded</strong>
             </span>
           </div>
 

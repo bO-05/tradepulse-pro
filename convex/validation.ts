@@ -1,3 +1,5 @@
+﻿import { ConvexError } from "convex/values";
+
 export const DEFAULT_GENERAL_CONTRACTOR = "Austin Commercial, LP";
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
@@ -19,35 +21,41 @@ export function normalizeCsiDivision(value: string): string {
 export function validateCsiDivision(value: string): string {
   const normalized = normalizeCsiDivision(value);
   if (!CSI_DIVISION_PATTERN.test(normalized)) {
-    throw new Error("CSI division must use the format NN NN NN, for example 26 00 00.");
+    throw new ConvexError("CSI division must use the format NN NN NN, for example 26 00 00.");
+  }
+  const division = Number.parseInt(normalized.slice(0, 2), 10);
+  if (!Number.isFinite(division) || division < 0 || division > 49) {
+    throw new ConvexError(
+      "CSI MasterFormat divisions run 00–49. Enter a valid division such as 03 30 00 (Concrete), 23 00 00 (HVAC), or 26 00 00 (Electrical)."
+    );
   }
   return normalized;
 }
 
 export function validatePositiveAmount(value: number, label: string, maximum = 1_000_000_000): number {
   if (!Number.isFinite(value) || value <= 0 || value > maximum) {
-    throw new Error(`${label} must be greater than zero and no more than $${maximum.toLocaleString()}.`);
+    throw new ConvexError(`${label} must be greater than zero and no more than $${maximum.toLocaleString()}.`);
   }
   return value;
 }
 
 export function validateNonNegativeAmount(value: number, label: string, maximum = 1_000_000_000): number {
   if (!Number.isFinite(value) || value < 0 || value > maximum) {
-    throw new Error(`${label} must be zero or greater and no more than $${maximum.toLocaleString()}.`);
+    throw new ConvexError(`${label} must be zero or greater and no more than $${maximum.toLocaleString()}.`);
   }
   return value;
 }
 
 export function validatePositiveInteger(value: number, label: string, maximum: number): number {
   if (!Number.isInteger(value) || value <= 0 || value > maximum) {
-    throw new Error(`${label} must be a whole number between 1 and ${maximum}.`);
+    throw new ConvexError(`${label} must be a whole number between 1 and ${maximum}.`);
   }
   return value;
 }
 
 export function validateBidDeadline(value: string, now = Date.now()): string {
   if (!DATE_PATTERN.test(value)) {
-    throw new Error("Bid deadline must be a valid date in YYYY-MM-DD format.");
+    throw new ConvexError("Bid deadline must be a valid date in YYYY-MM-DD format.");
   }
 
   const deadlineDate = new Date(`${value}T23:59:59.999Z`);
@@ -58,17 +66,17 @@ export function validateBidDeadline(value: string, now = Date.now()): string {
     deadlineDate.getUTCMonth() + 1 !== month ||
     deadlineDate.getUTCDate() !== day
   ) {
-    throw new Error("Bid deadline must be a valid calendar date.");
+    throw new ConvexError("Bid deadline must be a valid calendar date.");
   }
   const deadline = deadlineDate.getTime();
   if (!Number.isFinite(deadline)) {
-    throw new Error("Bid deadline must be a valid calendar date.");
+    throw new ConvexError("Bid deadline must be a valid calendar date.");
   }
 
   const today = new Date(now);
   const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   if (deadline < todayUtc) {
-    throw new Error("Bid deadline cannot be in the past.");
+    throw new ConvexError("Bid deadline cannot be in the past.");
   }
 
   return value;
@@ -76,15 +84,15 @@ export function validateBidDeadline(value: string, now = Date.now()): string {
 
 export function validateProjectText(value: string, label: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`${label} is required.`);
-  if (normalized.length > 500) throw new Error(`${label} must be 500 characters or fewer.`);
+  if (!normalized) throw new ConvexError(`${label} is required.`);
+  if (normalized.length > 500) throw new ConvexError(`${label} must be 500 characters or fewer.`);
   return normalized;
 }
 
 export function validateEmail(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
-    throw new Error("A valid contact email is required.");
+    throw new ConvexError("A valid contact email is required.");
   }
   return normalized;
 }
@@ -92,21 +100,21 @@ export function validateEmail(value: string): string {
 export function validateUploadFileName(fileName: string, allowGeneratedMarkdown = false): string {
   const normalized = fileName.trim();
   if (!normalized || normalized.length > 255 || /[\\/\0-\x1F\x7F]/.test(normalized)) {
-    throw new Error("File name must be a safe file name of 255 characters or fewer.");
+    throw new ConvexError("File name must be a safe file name of 255 characters or fewer.");
   }
   const extension = normalized.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
   const allowedExtensions = allowGeneratedMarkdown
     ? [".pdf", ".dwg", ".dxf", ".txt", ".md"]
     : [".pdf", ".dwg", ".dxf", ".txt"];
   if (!normalized || !extension || !allowedExtensions.includes(extension)) {
-    throw new Error("Unsupported file type. Upload PDF, DWG, DXF, or TXT files only.");
+    throw new ConvexError("Unsupported file type. Upload PDF, DWG, DXF, or TXT files only.");
   }
   return normalized;
 }
 
 export function validateUploadFileType(fileType: string): string {
   if (!UPLOAD_FILE_TYPES.includes(fileType as (typeof UPLOAD_FILE_TYPES)[number])) {
-    throw new Error("Unsupported project file category.");
+    throw new ConvexError("Unsupported project file category.");
   }
   return fileType;
 }
@@ -122,6 +130,6 @@ export function validateUploadContentType(fileName: string, contentType?: string
     ".md": ["text/markdown", "text/plain"],
   };
   if (extension && allowedByExtension[extension] && !allowedByExtension[extension].includes(contentType)) {
-    throw new Error(`The uploaded content type ${contentType} does not match ${extension}.`);
+    throw new ConvexError(`The uploaded content type ${contentType} does not match ${extension}.`);
   }
 }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useEffect, useState } from "react";
 import { Zap, RefreshCw, X, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Play, RotateCcw } from "lucide-react";
 import { useMutation } from "convex/react";
@@ -50,7 +51,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
       await fn();
       setLastMessage(`Action '${actionKey}' executed successfully.`);
     } catch (err: any) {
-      setLastMessage(`Error: ${err?.message || "Execution failed"}`);
+      setLastMessage(`Error: ${getErrorMessage(err) || "Execution failed"}`);
     } finally {
       setLoadingAction(null);
     }
@@ -77,7 +78,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
         );
       }
     } catch (err: any) {
-      setLastMessage(`Lifecycle simulation failed: ${err?.message || "Unknown error"}`);
+      setLastMessage(`Lifecycle simulation failed: ${getErrorMessage(err) || "Unknown error"}`);
     } finally {
       setLoadingAction(null);
     }
@@ -118,7 +119,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
           <div className="bg-slate-850 p-2.5 rounded-lg border border-slate-700/60 text-xs flex items-center justify-between">
             <span className="text-slate-400">Target CSI Trade Package:</span>
             <span className="font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded font-mono">
-              {currentPkg ? `${currentPkg.csiDivision} - ${currentPkg.tradeName}` : "No package selected"}
+              {currentPkg ? `${currentPkg.csiDivision} - ${currentPkg.tradeName}` : "Auto-provisioned when the cycle runs"}
             </span>
           </div>
 

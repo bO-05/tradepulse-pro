@@ -133,6 +133,7 @@ def test_frontend_build_artifacts():
 
     html_content = index_html.read_text(encoding="utf-8")
     assert "TradePulse Pro" in html_content, "Missing TradePulse Pro title in dist/index.html"
+    assert 'href="/tradepulse.svg"' in html_content, "dist/index.html must serve the TradePulse favicon"
 
     assets_dir = dist_dir / "assets"
     assert assets_dir.exists(), "dist/assets missing"
@@ -923,6 +924,8 @@ def test_binding_addendum_requires_pm_certification():
     assert "PM certification is required before issuing a binding addendum" in files_src
     assert "does not belong to the selected project" in files_src
     assert "pendingCertificationCount" in prebid_src
+    assert "if (pendingCertificationCount > 0)" in prebid_src
+    assert 'projectId.startsWith("proj_") && pendingCertificationCount' not in prebid_src
     assert 'pmCertifiedAt: Date.now()' in Path("src/App.tsx").read_text(encoding="utf-8")
 
     print("PASS: test_binding_addendum_requires_pm_certification")
@@ -937,6 +940,10 @@ def test_eval_rollups_show_real_cross_trade_drift():
     assert "internalMutation" in evals_src
     assert "latestEvalData.run.clashRecallAvg" in diagnostics_src
     assert "Computed from cross-trade cases" in diagnostics_src
+    assert "const mapeAvg = results.reduce((sum, r) => sum + r.apePercent" in evals_src
+    assert "costMetrics" not in evals_src, "MAPE must include cross-trade cost cases"
+    assert 'const passed = t.status === "PASS"' in diagnostics_src
+    assert "t.metrics?.aiLeveledCost || t.parsedOutput?.leveledTotalCost" in diagnostics_src
 
     print("PASS: test_eval_rollups_show_real_cross_trade_drift")
 
@@ -966,7 +973,7 @@ if __name__ == "__main__":
     test_direct_file_to_ai_actions()
     test_pre_bid_escalated_rfi_review_queue()
     test_vertex_ai_rest_pipeline()
-    test_resilient_webhook_and_automation()
+    test_verified_webhook_and_automation()
     test_agentmail_spec_alignment_and_security_hardening()
     test_expert_ground_truth_dataset_schema()
     test_chief_estimator_evals_engine_and_drift_fixes()

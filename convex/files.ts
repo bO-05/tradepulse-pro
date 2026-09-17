@@ -2,6 +2,7 @@ import { mutation, query, action, internalMutation, internalAction, internalQuer
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { sanitizeBidLevelingOutput, extractTextFromPdfStream } from "./llmRouter";
+import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
   validateUploadContentType,
@@ -134,6 +135,32 @@ export const saveFileRecordInternal = internalMutation({
   },
 });
 
+/**
+ * One-time metadata repair: align seeded document file sizes with the bytes the
+ * document endpoints actually serve, so UI labels match the real downloads.
+ */
+export const repairSeededDocumentSizes = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const files = await ctx.db.query("projectFiles").collect();
+    let repaired = 0;
+    for (const file of files) {
+      const isServedDocument =
+        file.storageId.startsWith("/specs/") ||
+        file.storageId.startsWith("/drawings/") ||
+        file.storageId.startsWith("/quotes/") ||
+        file.storageId.startsWith("/insurance/");
+      if (!isServedDocument) continue;
+      const bytes = getRealDocumentPdfBytes(file.fileName);
+      if (bytes && bytes.length > 0 && bytes.length !== file.fileSize) {
+        await ctx.db.patch(file._id, { fileSize: bytes.length });
+        repaired += 1;
+      }
+    }
+    return { repaired };
+  },
+});
+
 export const listFilesByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -242,22 +269,25 @@ async function getAuthoritativeFileSize(ctx: any, storageId: string, requestedSi
   const isSyntheticTextRecord = storageId.startsWith("quote_") || storageId.startsWith("text_");
   if (isExternalReference || isSyntheticTextRecord) return requestedSize;
 
-  const blob = await ctx.storage.get(storageId as any);
-  if (!blob) throw new Error("The uploaded storage object could not be found.");
-  const extension = fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
-  if (extension === ".pdf") {
-    const header = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
-    if (new TextDecoder().decode(header) !== "%PDF-") {
-      throw new Error("The uploaded PDF does not contain a valid PDF header.");
-    }
+  // ctx.storage.get() (blob contents) is only available inside actions. Both saveFileRecord
+  // mutations run in the default runtime, so resolve the authoritative size from the _storage
+  // system table metadata instead. Blob-level content sniffing stays in action-only callers.
+  let metadata: { size?: number } | null = null;
+  try {
+    metadata = (await ctx.db.system.get("_storage", storageId as any)) as any;
+  } catch {
+    metadata = null;
   }
-  if (extension === ".txt" || extension === ".md") {
-    const sample = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
-    if (sample.some((byte) => byte === 0)) {
-      throw new Error("The uploaded text file contains binary data.");
-    }
+  if (!metadata) {
+    throw new Error(
+      "The uploaded storage object could not be found. Please re-upload the file and try again."
+    );
   }
-  return blob.size;
+  const authoritativeSize = typeof metadata.size === "number" ? metadata.size : 0;
+  if (authoritativeSize <= 0) {
+    throw new Error(`The uploaded file "${fileName}" is empty or its storage metadata is unavailable.`);
+  }
+  return authoritativeSize;
 }
 
 async function doExtractBid(

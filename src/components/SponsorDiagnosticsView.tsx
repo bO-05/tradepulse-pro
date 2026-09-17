@@ -378,10 +378,12 @@ export const SponsorDiagnosticsView: React.FC = () => {
                 <tbody className="divide-y divide-slate-850">
                   {latestEvalData.traces.map((t: any) => {
                     const isExpanded = expandedTraceCaseId === t.caseId;
-                    const gtCost = t.groundTruth?.leveledCost || t.groundTruth?.expectedRedundantAmount || t.groundTruth?.expectedVoidExposure || 0;
-                    const aiCost = t.parsedOutput?.leveledTotalCost || t.parsedOutput?.totalRedundantAmount || t.parsedOutput?.totalVoidExposure || t.metrics?.aiLeveledCost || 0;
+                    const gtCost = t.metrics?.groundTruthLeveledCost || t.groundTruth?.leveledCost || t.groundTruth?.expectedRedundantAmount || t.groundTruth?.expectedVoidExposure || 0;
+                    const aiCost = t.metrics?.aiLeveledCost || t.parsedOutput?.leveledTotalCost || t.parsedOutput?.totalRedundantAmount || t.parsedOutput?.totalVoidExposure || 0;
                     const delta = aiCost - gtCost;
-                     const recallPct = typeof t.metrics?.scopeRecall === "number" ? Math.round(t.metrics.scopeRecall * 100) : null;
+                    const apePercent = typeof t.metrics?.apePercent === "number" ? t.metrics.apePercent : null;
+                    const recallPct = typeof t.metrics?.scopeRecall === "number" ? Math.round(t.metrics.scopeRecall * 100) : null;
+                    const passed = t.status === "PASS";
 
                     return (
                       <React.Fragment key={t.caseId}>
@@ -401,16 +403,16 @@ export const SponsorDiagnosticsView: React.FC = () => {
                             {delta === 0 ? (
                               <span className="text-slate-400">$0 (0.00%)</span>
                             ) : delta > 0 ? (
-                              <span className="text-amber-400">+${delta.toLocaleString()}</span>
+                              <span className="text-amber-400">+${delta.toLocaleString()} ({apePercent === null ? "n/a" : `${apePercent.toFixed(2)}%`})</span>
                             ) : (
-                              <span className="text-sky-400">-${Math.abs(delta).toLocaleString()}</span>
+                              <span className="text-sky-400">-${Math.abs(delta).toLocaleString()} ({apePercent === null ? "n/a" : `${apePercent.toFixed(2)}%`})</span>
                             )}
                           </td>
                           <td className="p-2.5 text-center font-mono font-semibold text-emerald-400">
                              {recallPct === null ? "N/A" : `${recallPct}%`}
                           </td>
                           <td className="p-2.5 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${passed ? "bg-emerald-950 text-emerald-400 border border-emerald-800" : "bg-rose-950 text-rose-300 border border-rose-800"}`}>
                               {t.status}
                             </span>
                           </td>
@@ -437,6 +439,9 @@ export const SponsorDiagnosticsView: React.FC = () => {
                                 <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400">
                                   <span>Latency: <strong className="text-sky-300">{t.latencyMs} ms</strong></span>
                                   <span>Tokens: <strong className="text-slate-200">{t.inputTokens} in / {t.outputTokens} out</strong></span>
+                                  {typeof t.costUsd === "number" && (
+                                    <span>Cost: <strong className="text-emerald-300">${t.costUsd.toFixed(6)}</strong></span>
+                                  )}
                                 </div>
                               </div>
 
@@ -455,6 +460,27 @@ export const SponsorDiagnosticsView: React.FC = () => {
                                   </pre>
                                 </div>
                               </div>
+
+                              {(t.systemPrompt || t.rawResponse) && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                                  {t.systemPrompt && (
+                                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                                      <span className="text-[10px] uppercase font-bold text-slate-500 block">System Prompt</span>
+                                      <pre className="text-[11px] text-sky-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                                        {t.systemPrompt}
+                                      </pre>
+                                    </div>
+                                  )}
+                                  {t.rawResponse && (
+                                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                                      <span className="text-[10px] uppercase font-bold text-slate-500 block">Raw Model Response</span>
+                                      <pre className="text-[11px] text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                                        {t.rawResponse}
+                                      </pre>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
 
                               {t.groundTruth && (
                                 <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs">
@@ -502,11 +528,11 @@ export const SponsorDiagnosticsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-2">
             <select
               value={selectedPromptType}
               onChange={(e) => setSelectedPromptType(e.target.value)}
-              className="bg-slate-850 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
+              className="w-full sm:w-auto max-w-full bg-slate-850 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
             >
               <option value="spec_div26">Div 26 Switchgear Scope Gap Audit</option>
               <option value="hvac_bacnet">Div 23 BACnet & TAB Exclusion Check</option>

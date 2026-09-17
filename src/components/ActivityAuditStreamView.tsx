@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   Clock,
@@ -59,7 +60,7 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
       }
     } catch (err: any) {
       console.warn("Deadline cron fallback:", err);
-      setCronError(err?.message || "The deadline monitor could not be executed.");
+      setCronError(getErrorMessage(err) || "The deadline monitor could not be executed.");
     } finally {
       setRunningDeadline(false);
     }
@@ -79,7 +80,7 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
       }
     } catch (err: any) {
       console.warn("Compliance cron fallback:", err);
-      setCronError(err?.message || "The compliance audit could not be executed.");
+      setCronError(getErrorMessage(err) || "The compliance audit could not be executed.");
     } finally {
       setRunningCompliance(false);
     }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   FileText,
@@ -69,7 +70,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
       }
       setAgreementToExecute(null);
     } catch (err: any) {
-      setExecutionError(err?.message || "The agreement was not updated.");
+      setExecutionError(getErrorMessage(err) || "The agreement was not updated.");
     }
   };
 

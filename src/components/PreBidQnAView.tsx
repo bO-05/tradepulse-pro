@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   Sparkles,
@@ -41,6 +42,7 @@ interface PreBidQnAViewProps {
     note?: string
   ) => Promise<void>;
   onNavigateToLeveling?: () => void;
+  onNavigateToPackages?: () => void;
 }
 
 export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
@@ -56,6 +58,7 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   projectTitle,
   onReviewRfi,
   onNavigateToLeveling,
+  onNavigateToPackages,
 }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showWhyCare, setShowWhyCare] = useState(false);
@@ -107,8 +110,16 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
 
   if (!currentPackage) {
     return (
-      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl">
+      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl space-y-3">
         <p className="text-slate-400 text-sm">Please select a trade package to inspect pre-bid Q&A.</p>
+        {onNavigateToPackages && (
+          <button
+            onClick={onNavigateToPackages}
+            className="bg-slate-800 hover:bg-slate-750 text-emerald-300 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            Go to CSI Scoping
+          </button>
+        )}
       </div>
     );
   }
@@ -160,7 +171,7 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
     }
     setIsGeneratingAddendum(true);
     setAddendumError(null);
-    if (projectId.startsWith("proj_") && pendingCertificationCount > 0) {
+    if (pendingCertificationCount > 0) {
       setIsGeneratingAddendum(false);
       setAddendumError(`PM certification is required before issuing a binding addendum. Review ${pendingCertificationCount} pending RFI(s).`);
       return;
@@ -171,7 +182,7 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
     } catch (err: any) {
       if (!projectId.startsWith("proj_")) {
         setAddendumResult(null);
-        setAddendumError(err?.message || "The addendum could not be stored in Convex File Storage.");
+        setAddendumError(getErrorMessage(err) || "The addendum could not be stored in Convex File Storage.");
       } else {
       // Standalone mode can preview the addendum, but does not claim it was filed remotely.
       const mockFileName = `ADDENDUM_NO_01_CLARIFICATIONS.md`;
@@ -249,7 +260,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
       setEditingConvoId(null);
     } catch (err: any) {
       console.warn("Approve RFI fallback:", err);
-      setReviewError(err?.message || "The RFI approval could not be saved.");
+      setReviewError(getErrorMessage(err) || "The RFI approval could not be saved.");
     } finally {
       setReviewingId(null);
     }
@@ -270,7 +281,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
       }
     } catch (err: any) {
       console.warn("Reject RFI fallback:", err);
-      setReviewError(err?.message || "The RFI rejection could not be saved.");
+      setReviewError(getErrorMessage(err) || "The RFI rejection could not be saved.");
     } finally {
       setReviewingId(null);
     }
@@ -520,8 +531,16 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
                     <div className="flex items-center gap-2">
                        {isCertified && (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 className="w-3 h-3" /> Approved for Addendum
+                        <span
+                          className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full"
+                          title={
+                            conv.pmCertifiedBy
+                              ? `Certified by ${conv.pmCertifiedBy}${conv.pmCertifiedAt ? ` on ${new Date(conv.pmCertifiedAt).toLocaleString()}` : ""}`
+                              : undefined
+                          }
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          Approved for Addendum{conv.pmCertifiedBy ? ` · ${conv.pmCertifiedBy}` : ""}
                         </span>
                       )}
                       {isEscalated && (

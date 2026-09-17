@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState, useRef } from "react";
 import {
   AlertTriangle,
@@ -59,6 +60,7 @@ interface BidLevelingMatrixViewProps {
     newContractorName?: string;
   }) => Promise<void>;
   onNavigateToContracts?: () => void;
+  onNavigateToPackages?: () => void;
 }
 
 export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
@@ -77,6 +79,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   onExecuteAgreement,
   onIngestQuote,
   onNavigateToContracts,
+  onNavigateToPackages,
 }) => {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [expandedBidId, setExpandedBidId] = useState<string | null>(null);
@@ -238,8 +241,16 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
 
   if (!currentPackage) {
     return (
-      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl">
+      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl space-y-3">
         <p className="text-slate-400 text-sm">Please select a trade package to inspect the bid leveling matrix.</p>
+        {onNavigateToPackages && (
+          <button
+            onClick={onNavigateToPackages}
+            className="bg-slate-800 hover:bg-slate-750 text-emerald-300 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            Go to CSI Scoping
+          </button>
+        )}
       </div>
     );
   }
@@ -311,8 +322,18 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
     }
   };
 
+// Executed agreements are immutable server-side (convex/agreements.ts); lock the
+  // leveling controls in the UI so users never hit a generic server error.
+  const getBidAgreement = (bidId: string) =>
+    agreements.find((a) => a.bidId === bidId && a.status !== "superseded");
+  const isBidAgreementExecuted = (bidId: string) =>
+    getBidAgreement(bidId)?.status === "executed";
+
   // Open adjustment modal
   const openAdjustmentModal = (bid: Bid) => {
+    if (isBidAgreementExecuted(bid._id)) {
+      return;
+    }
     setAdjustingBid(bid);
     setAdjustmentError(null);
     setTempExclusions([...(bid.identifiedExclusions || [])]);
@@ -413,7 +434,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
       setAdjustingBid(null);
       setAdjustmentError(null);
     } catch (err: any) {
-      const message = err?.message || "The adjustments could not be saved.";
+      const message = getErrorMessage(err) || "The adjustments could not be saved.";
       console.warn("Save adjustments failed:", err);
       setAdjustmentError(message);
     } finally {
@@ -453,7 +474,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
       setIngestFileName("");
       setNewContractorName("");
     } catch (err: any) {
-      setIngestError(err?.message || "The proposal could not be ingested.");
+      setIngestError(getErrorMessage(err) || "The proposal could not be ingested.");
     } finally {
       setIsIngesting(false);
     }
@@ -1123,8 +1144,13 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => openAdjustmentModal(bid)}
-                          className="bg-slate-800 hover:bg-slate-750 text-slate-300 text-[10px] font-semibold px-2 py-1 rounded flex items-center gap-1 border border-slate-700 transition"
-                          title="Adjust Scope Exclusions, VE Alternates, and Penalties"
+                          disabled={isBidAgreementExecuted(bid._id)}
+                          className="bg-slate-800 hover:bg-slate-750 text-slate-300 text-[10px] font-semibold px-2 py-1 rounded flex items-center gap-1 border border-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={
+                            isBidAgreementExecuted(bid._id)
+                              ? "Leveling locked: the subcontract agreement is executed and immutable."
+                              : "Adjust Scope Exclusions, VE Alternates, and Penalties"
+                          }
                         >
                           <SlidersHorizontal className="w-3 h-3 text-sky-400" />
                           Adjust
@@ -1232,8 +1258,24 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   </div>
 
                   {/* Subcontractor Name */}
-                  <h3 className="text-sm sm:text-base font-bold text-white mb-1.5">
-                    {bid.subcontractorName}
+                  <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 flex items-center gap-2 flex-wrap">
+                    <span>{bid.subcontractorName?.trim() || "Subcontractor (pending name)"}</span>
+                    {typeof bid.revisionNumber === "number" && bid.revisionNumber > 1 && (
+                      <span
+                        className="text-[9px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-800/60 px-1.5 py-0.5 rounded"
+                        title={bid.lastRevisedAt ? `Revised ${new Date(bid.lastRevisedAt).toLocaleString()}` : "Revised proposal"}
+                      >
+                        Rev {bid.revisionNumber}
+                      </span>
+                    )}
+                    {bid.sourceFileId && (
+                      <span
+                        className="text-[9px] font-mono bg-sky-950/70 text-sky-300 border border-sky-800/60 px-1.5 py-0.5 rounded"
+                        title={`Normalized from project file ${bid.sourceFileId}`}
+                      >
+                        source file
+                      </span>
+                    )}
                   </h3>
 
                   {/* Cost Comparison Summary */}
@@ -1263,10 +1305,16 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       </span>
                       <button
                         onClick={() => openAdjustmentModal(bid)}
-                        className="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 transition"
+                        disabled={isBidAgreementExecuted(bid._id)}
+                        className="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 transition disabled:text-slate-500 disabled:cursor-not-allowed"
+                        title={
+                          isBidAgreementExecuted(bid._id)
+                            ? "Leveling locked: the subcontract agreement is executed and immutable."
+                            : "Adjust Scope Exclusions, VE Alternates, and Penalties"
+                        }
                       >
                         <SlidersHorizontal className="w-3 h-3" />
-                        Adjust Leveling
+                        {isBidAgreementExecuted(bid._id) ? "Leveling Locked" : "Adjust Leveling"}
                       </button>
                     </div>
 

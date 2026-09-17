@@ -619,8 +619,9 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     // 6. Aggregate KPIs across all 10 cases
     const totalDurationMs = Date.now() - startTime;
     const passedCount = results.filter((r) => r.status === "PASS").length;
-    const costMetrics = results.filter((r) => r.csiDivision !== "MEP Cross-Trade");
-    const mapeAvg = costMetrics.reduce((sum, r) => sum + r.apePercent, 0) / Math.max(1, costMetrics.length);
+    // Include cross-trade exposure cases so a cost mismatch cannot be hidden by
+    // averaging only the eight proposal-parsing cases.
+    const mapeAvg = results.reduce((sum, r) => sum + r.apePercent, 0) / Math.max(1, results.length);
     const recallAvg = results.reduce((sum, r) => sum + r.scopeRecall, 0) / results.length;
     const precisionAvg = results.reduce((sum, r) => sum + r.scopePrecision, 0) / results.length;
     const clashMetrics = results.filter((r) => r.csiDivision === "MEP Cross-Trade");

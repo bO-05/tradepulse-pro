@@ -101,11 +101,26 @@ export default defineSchema({
     leveledTotalCost: v.number(), // True normalized cost = base + un-waived scope gaps + penalties - accepted alternates
     isAwarded: v.boolean(),
     sourceFileId: v.optional(v.id("projectFiles")),
+    revisionNumber: v.optional(v.number()), // 1 = first submission; increments on re-ingest
+    lastRevisedAt: v.optional(v.number()),
     receivedAt: v.number(),
   })
     .index("by_package", ["tradePackageId"])
     .index("by_contractor", ["contractorId"])
     .index("by_source_file", ["sourceFileId"]),
+
+  // Persisted cross-trade clash resolution state (deduct credits / assigned voids)
+  clashResolutions: defineTable({
+    projectId: v.id("projects"),
+    clashId: v.string(),
+    kind: v.union(v.literal("double_buy"), v.literal("scope_void")),
+    status: v.union(v.literal("deducted"), v.literal("assigned")),
+    amount: v.number(),
+    note: v.optional(v.string()),
+    resolvedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_clash", ["projectId", "clashId"]),
 
   // AIA Document A401 Subcontract Agreements
   agreements: defineTable({

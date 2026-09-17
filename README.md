@@ -4,9 +4,9 @@
 
 [![Convex All Gas Hackathon](https://img.shields.io/badge/Convex-All%20Gas%20Hackathon-f59e0b?style=for-the-badge&logo=convex)](https://vibeapps.dev/judging/convex-all-gas-hackathon-openai)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-brainy--skunk--440.convex.site-10b981?style=for-the-badge)](https://brainy-skunk-440.convex.site)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19.0-61dafb?style=for-the-badge&logo=react)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.3.1-61dafb?style=for-the-badge&logo=react)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.19-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 
 ---
 
@@ -113,7 +113,7 @@ $$\text{Leveled Total Cost} = \text{Base Bid} + \sum(\text{Active Exclusions}) +
 Want to experience the complete platform in 60 seconds?
 1. Open the live deployment: **[https://brainy-skunk-440.convex.site](https://brainy-skunk-440.convex.site)**.
 2. In the top navigation bar, click the glowing **⚡ 60s Judge Dock** button.
-3. Click **"Run Full Autonomous Procurement Cycle"**:
+3. Click **"⚡ 1-Click Run Full Autonomous Procurement Lifecycle"**:
    * Watch the live Activity Audit Stream log every step in real-time.
    * Scopes Division 26 Electrical, 23 HVAC, and 22 Plumbing.
    * Discovers contractors and provisions AgentMail inboxes.
@@ -149,7 +149,7 @@ npx convex dev
 
 ### Verification & Testing
 ```bash
-# Run 27 domain, sponsor, and architecture deliverable tests
+# Run 36 domain, sponsor, and architecture deliverable tests
 python tests/test_tradepulse.py
 
 # Run hackathon setup and log verification tests

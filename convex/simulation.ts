@@ -1,5 +1,5 @@
 import { mutation, internalMutation, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { generateAiaA401AgreementText, getStateAbbreviation } from "./agreements";
 
@@ -264,22 +264,62 @@ export const createSimulatedContractor = internalMutation({
 export const submitCustomRfi = mutation({
   args: {
     tradePackageId: v.id("tradePackages"),
-    contractorId: v.id("contractors"),
+    contractorId: v.optional(v.id("contractors")),
     subject: v.string(),
     question: v.string(),
   },
   handler: async (ctx, args) => {
     const tradePkg = await ctx.db.get(args.tradePackageId);
-    if (!tradePkg) throw new Error("Trade package not found");
+    if (!tradePkg) throw new ConvexError("The selected trade package could not be found.");
 
-    const contractor = await ctx.db.get(args.contractorId);
-    const fromEmail = contractor?.contactEmail ?? "estimating@rosendin.com";
+    const subject = args.subject.trim();
+    const question = args.question.trim();
+    if (!question) {
+      throw new ConvexError("Enter a question before submitting the RFI.");
+    }
+    if (question.length > 4000) {
+      throw new ConvexError("RFI questions are limited to 4,000 characters. Please shorten the inquiry.");
+    }
+    if (subject.length > 200) {
+      throw new ConvexError("RFI subject lines are limited to 200 characters.");
+    }
+
+    let fromEmail = "guest.inquiry@tradepulse-pro.test";
+    if (args.contractorId) {
+      const contractor = await ctx.db.get(args.contractorId);
+      if (!contractor || contractor.tradePackageId !== args.tradePackageId) {
+        throw new ConvexError("The selected contractor does not belong to this trade package.");
+      }
+      fromEmail = contractor.contactEmail;
+    } else {
+      // Guest submitters (no registered contractor) get a durable guest record so the
+      // RFI thread, attribution, and audit trail remain consistent.
+      const existingGuest = await ctx.db
+        .query("contractors")
+        .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+        .filter((q) => q.eq(q.field("companyName"), "Guest / Inquiring Subcontractor"))
+        .first();
+      if (existingGuest) {
+        fromEmail = existingGuest.contactEmail;
+      } else {
+        await ctx.db.insert("contractors", {
+          tradePackageId: args.tradePackageId,
+          companyName: "Guest / Inquiring Subcontractor",
+          contactEmail: fromEmail,
+          phone: "+1 (512) 555-0100",
+          licenseNumber: "GUEST-INQUIRY",
+          licenseStatus: "Unverified / Guest Inquiry",
+          sourceUrl: "https://tradepulse-pro.test/guest",
+          rfqStatus: "discovered",
+        });
+      }
+    }
 
     await ctx.scheduler.runAfter(0, internal.emailActions.processSimulatedInbound, {
       tradePackageId: args.tradePackageId,
       fromEmail,
-      subject: args.subject,
-      bodyText: args.question,
+      subject: subject || "Guest Pre-Bid Inquiry",
+      bodyText: question,
       isBid: false,
     });
 

@@ -104,6 +104,10 @@ Desktop.ini
 **/.agents_cache/
 agent-cache/
 agents-cache/
+.codebase-memory/
+**/.codebase-memory/
+.opencode/
+**/.opencode/
 .gemini/
 **/.gemini/
 .antigravity/

@@ -1,4 +1,4 @@
-import { internalAction, action } from "./_generated/server";
+﻿import { internalAction, action } from "./_generated/server";
 import { v } from "convex/values";
 import { inflate } from "pako";
 import { internal } from "./_generated/api";
@@ -205,7 +205,7 @@ export function extractTextFromPdfStream(rawInput: string | Uint8Array): string 
 
   // 3. Fallback token extraction: Strip binary stream contents first
   const textWithoutBinary = rawStr.replace(/stream[\r\n][\s\S]*?endstream/gi, "");
-  const segments = textWithoutBinary.match(/[A-Za-z0-9\s.,;:$%/\\()\-–—@&+=#'"_[\]*!?]{4,}/g) || [];
+  const segments = textWithoutBinary.match(/[A-Za-z0-9\s.,;:$%/\\()\-â€“â€”@&+=#'"_[\]*!?]{4,}/g) || [];
   const cleanTokens = segments
     .filter((s: string) => {
       const trimmed = s.trim();
@@ -259,7 +259,7 @@ export function cleanNumber(val: any, fallback = 0): number {
 
   // 2. Check for range e.g. '$1,200,000 - $1,350,000' or '$1.2M to $1.4M' or 'between $1.2M and $1.4M'
   const withoutBetween = str.replace(/^between\s+/i, "");
-  const rangeMatch = withoutBetween.match(/^(.+?)\s*(?:(?<=\S)\s*[-–—]\s*(?=\S)|\bto\b|\band\b)\s*(.+)$/i);
+  const rangeMatch = withoutBetween.match(/^(.+?)\s*(?:(?<=\S)\s*[-â€“â€”]\s*(?=\S)|\bto\b|\band\b)\s*(.+)$/i);
   if (rangeMatch) {
     let p1 = rangeMatch[1].trim();
     let p2 = rangeMatch[2].trim();
@@ -288,15 +288,15 @@ export function cleanNumber(val: any, fallback = 0): number {
     (str.startsWith("(") && str.endsWith(")")) ||
     str.startsWith("-") ||
     str.endsWith("-") ||
-    /[-]\s*[$€£¥₹]/.test(str) ||
-    /[$€£¥₹]\s*[-]/.test(str) ||
+    /[-]\s*[$â‚¬Â£Â¥â‚¹]/.test(str) ||
+    /[$â‚¬Â£Â¥â‚¹]\s*[-]/.test(str) ||
     /[-]\s*(?:USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD)\b/i.test(str) ||
     /\b(?:USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD)\s*[-]/i.test(str) ||
     /[-]\s*(?:USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD)$/i.test(str);
 
   // 4. Strip common conversational / construction estimation prefixes
   str = str
-    .replace(/^(?:[~≈*]|approx\.?|est\.?|estimated|budget:?|total:?|sum:?|quote:?|price:?|cost:?|amount:?)\s*/i, "")
+    .replace(/^(?:[~â‰ˆ*]|approx\.?|est\.?|estimated|budget:?|total:?|sum:?|quote:?|price:?|cost:?|amount:?)\s*/i, "")
     .replace(/^(?:addendum|alternate|option|item|ve|phase)?\s*#?\d*[:\s-]*(?:deduct(?:ion)?|credit|discount|savings|rebate|less):?\s*/i, "")
     .replace(/^(?:deduct(?:ion)?|credit|discount|savings|rebate|less)\s*(?:alternate|option|item|ve|phase)?\s*#?\d*[:\s-]*/i, "")
     .replace(/^(?:addendum|alternate|option|item|ve|phase)\s*#?\d*[:\s-]*/i, "")
@@ -322,10 +322,10 @@ export function cleanNumber(val: any, fallback = 0): number {
   // 6. Remove wrapping parens, brackets, and signs
   str = str.replace(/^[(\[]+|[)\]]+$/g, "").replace(/^[-+]|[-+]$/g, "").trim();
 
-  // 7. Strip currency symbols and ISO codes: $, €, £, ¥, ₹, USD, CAD, EUR, GBP, AUD, CHF, MXN, NZD, SGD
+  // 7. Strip currency symbols and ISO codes: $, â‚¬, Â£, Â¥, â‚¹, USD, CAD, EUR, GBP, AUD, CHF, MXN, NZD, SGD
   str = str
-    .replace(/^(?:[$€£¥₹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+/gi, "")
-    .replace(/(?:[$€£¥₹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+$/gi, "")
+    .replace(/^(?:[$â‚¬Â£Â¥â‚¹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+/gi, "")
+    .replace(/(?:[$â‚¬Â£Â¥â‚¹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+$/gi, "")
     .trim();
 
   // Re-check minus after currency strip (e.g. '$-25,000' -> '-25,000' or '25,000- USD' -> '25,000-')
@@ -810,12 +810,17 @@ Ensure all cost numbers are pure numeric primitives.`
     const hasGoogleKey = !!(vertexApiKey || geminiKey);
     const hasGeminiCreds = hasVertexOAuth || hasGoogleKey;
 
+    // Hard per-request ceiling so a hanging provider fails fast into the next route
+    // (and ultimately the deterministic engine) instead of stalling the action for minutes.
+    const fetchWithTimeout = (url: string, init: RequestInit) =>
+      fetch(url, { ...init, signal: AbortSignal.timeout(45_000) });
+
     for (const provider of providerOrder) {
       // OpenAI Pipeline
       if (provider === "openai" && openaiKey) {
         try {
           const openaiModel = process.env.OPENAI_MODEL || "gpt-4o";
-          const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${openaiKey}`,
@@ -904,7 +909,7 @@ Ensure all cost numbers are pure numeric primitives.`
               vertexBody.generationConfig.responseMimeType = "application/json";
             }
 
-            const response = await fetch(vertexUrl, {
+            const response = await fetchWithTimeout(vertexUrl, {
               method: "POST",
               headers: vertexHeaders,
               body: JSON.stringify(vertexBody),
@@ -963,7 +968,7 @@ Ensure all cost numbers are pure numeric primitives.`
                 reqBody.generationConfig = { responseMimeType: "application/json" };
               }
 
-              let response = await fetch(url, {
+              let response = await fetchWithTimeout(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(reqBody),
@@ -971,7 +976,7 @@ Ensure all cost numbers are pure numeric primitives.`
 
               if (!response.ok && (response.status === 503 || response.status === 429)) {
                 await new Promise((r) => setTimeout(r, 600));
-                response = await fetch(url, {
+                response = await fetchWithTimeout(url, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(reqBody),
@@ -1012,7 +1017,7 @@ Ensure all cost numbers are pure numeric primitives.`
       if (provider === "claude" && anthropicKey) {
         try {
           const anthropicModel = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
-          const response = await fetch("https://api.anthropic.com/v1/messages", {
+          const response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: {
               "x-api-key": anthropicKey,
@@ -1146,7 +1151,7 @@ Ensure all cost numbers are pure numeric primitives.`
       } else {
         const nameMatch =
           promptText.match(/(?:(?:PROPOSAL|Proposal|Quote|Bid|FROM|From|Subcontractor|Contractor|Company|PREPARED\s*BY|Prepared\s*By|SUBMITTED\s*BY|Submitted\s*By|BIDDER|Bidder|VENDOR|Vendor):\s*(?:Division\s*\d+\s*[A-Za-z\s]+-\s*)?([A-Za-z0-9\s&.,'-]+?)(?:\r?\n|$))/i) ||
-          promptText.match(/^([A-Z0-9\s&.,'-]{4,60})\s*(?:-|–|—|PROPOSAL|QUOTATION|BID|\r?\n)/);
+          promptText.match(/^([A-Z0-9\s&.,'-]{4,60})\s*(?:-|â€“|â€”|PROPOSAL|QUOTATION|BID|\r?\n)/);
         if (nameMatch && nameMatch[1]?.trim()) {
           const candidate = nameMatch[1].trim();
           if (!candidate.toLowerCase().includes("parse") && !candidate.toLowerCase().includes("normalize") && !candidate.toLowerCase().includes("commercial subcontractor proposal")) {
@@ -1158,8 +1163,8 @@ Ensure all cost numbers are pure numeric primitives.`
       // Detect base bid amount
       let baseBid = 0;
       const headerPatterns = [
-        /(?:Base\s*(?:Bid|Proposal|Offer|Price)?(?:\s*(?:Lump\s*Sum|Price|Amount|Total|Fee))?|Lump\s*Sum(?:\s*(?:Base\s*(?:Bid|Proposal)|Quotation|Price|Amount|Proposal|Fee))?|Contract\s*(?:Sum|Amount|Price)|Subcontract\s*(?:Sum|Amount|Price)|Grand\s*Total|Bid\s*Total|Proposed\s*(?:Total|Price|Amount)|Total\s*(?:Proposed\s*(?:Price|Amount)|Lump\s*Sum|Base\s*Bid|Contract\s*Amount|Amount|Price|Quote|Cost|Fee)|Proposal\s*(?:Amount|Price)|Price|Amount)[:\s\-=]*(?:of\s*)?([$€£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
-        /(?:we\s+propose\s+to\s+furnish|we\s+agree\s+to\s+perform)[^.\n\r]*?(?:for\s+(?:the\s+sum\s+of\b\s*)?)[:\s\-=]*([$€£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
+        /(?:Base\s*(?:Bid|Proposal|Offer|Price)?(?:\s*(?:Lump\s*Sum|Price|Amount|Total|Fee))?|Lump\s*Sum(?:\s*(?:Base\s*(?:Bid|Proposal)|Quotation|Price|Amount|Proposal|Fee))?|Contract\s*(?:Sum|Amount|Price)|Subcontract\s*(?:Sum|Amount|Price)|Grand\s*Total|Bid\s*Total|Proposed\s*(?:Total|Price|Amount)|Total\s*(?:Proposed\s*(?:Price|Amount)|Lump\s*Sum|Base\s*Bid|Contract\s*Amount|Amount|Price|Quote|Cost|Fee)|Proposal\s*(?:Amount|Price)|Price|Amount)[:\s\-=]*(?:of\s*)?([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
+        /(?:we\s+propose\s+to\s+furnish|we\s+agree\s+to\s+perform)[^.\n\r]*?(?:for\s+(?:the\s+sum\s+of\b\s*)?)[:\s\-=]*([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
       ];
       for (const rx of headerPatterns) {
         const m = promptText.match(rx);
@@ -1188,14 +1193,14 @@ Ensure all cost numbers are pure numeric primitives.`
         }
         const isPotentialLineItem =
           inLineItemSection &&
-          (/^[-*•\d.]+\s*/.test(line) ||
+          (/^[-*â€¢\d.]+\s*/.test(line) ||
             /^(?:item|scope|tag|line|section)?\s*[A-Za-z0-9]/i.test(line));
         if (isPotentialLineItem) {
-          const itemText = line.replace(/^[-*•\d.]+\s*/, "").trim();
-          const costMatch = itemText.match(/[:\-–—]?\s*([$€£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)\s*$/i);
+          const itemText = line.replace(/^[-*â€¢\d.]+\s*/, "").trim();
+          const costMatch = itemText.match(/[:\-â€“â€”]?\s*([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)\s*$/i);
           if (costMatch) {
             const cost = cleanNumber(costMatch[1], 0);
-            const desc = itemText.replace(costMatch[0], "").replace(/[:\-–—\s]+$/, "").trim();
+            const desc = itemText.replace(costMatch[0], "").replace(/[:\-â€“â€”\s]+$/, "").trim();
             if (cost > 0 && desc.length > 2) {
               customLineItems.push({
                 item: desc,
@@ -1216,7 +1221,7 @@ Ensure all cost numbers are pure numeric primitives.`
 
       // Fallback: first significant monetary amount in document >= $10,000
       if (baseBid === 0) {
-        const dollarMatches = Array.from(promptText.matchAll(/[$€£]\s*([0-9][0-9.,\s]{3,})/g));
+        const dollarMatches = Array.from(promptText.matchAll(/[$â‚¬Â£]\s*([0-9][0-9.,\s]{3,})/g));
         for (const dm of dollarMatches) {
           const cand = cleanNumber(dm[1], 0);
           if (cand >= 10000) {
@@ -1405,10 +1410,10 @@ Ensure all cost numbers are pure numeric primitives.`
           }
 
           const hasExclusionWord = /\b(?:excluded|exclude|by others|by gc|not included|carve-out)\b/i.test(line);
-          const isBulleted = /^[-*•\d.]+\s*/.test(line);
+          const isBulleted = /^[-*â€¢\d.]+\s*/.test(line);
 
           if ((inExclusionSection && isBulleted) || hasExclusionWord) {
-            const cleanDesc = line.replace(/^[-*•\d.]+\s*/, "").trim();
+            const cleanDesc = line.replace(/^[-*â€¢\d.]+\s*/, "").trim();
             const descLower = cleanDesc.toLowerCase();
             const isNonExclusion =
               /\b(?:none|n\/?a|not\s+applicable|no\s+exclusions?|zero\s+exclusions?|none\s+noted|none\s+taken|all\s+(?:work|scope)\s+(?:is\s+)?included|100%\s+turnkey)\b/i.test(cleanDesc) ||
@@ -1548,7 +1553,7 @@ Ensure all cost numbers are pure numeric primitives.`
           inVeSection = true;
         }
         const isAlternateLine =
-          /^(?:[-*•]\s*)?(?:VE[-\w]*|Alternate[-\w]*):?/i.test(lineTrim) ||
+          /^(?:[-*â€¢]\s*)?(?:VE[-\w]*|Alternate[-\w]*):?/i.test(lineTrim) ||
           (inVeSection && /\$(?:[0-9,]+)/.test(lineTrim));
         if (isAlternateLine) {
           const isAdd = /\badd\b|\baddition\b|\+\$/i.test(lineTrim) && !/\bdeduct\b|\bcredit\b|\bsavings\b/i.test(lineTrim);
@@ -1558,9 +1563,9 @@ Ensure all cost numbers are pure numeric primitives.`
               const deductVal = parseFloat(deductMatch[1].replace(/,/g, ""));
               if (deductVal > 0) {
                 const desc = lineTrim
-                  .replace(/^[-*•]\s*/, "")
+                  .replace(/^[-*â€¢]\s*/, "")
                   .replace(/^(?:VE[-\w]*|Alternate[-\w]*):\s*/i, "")
-                  .replace(/[-–—:]?\s*(?:deduct\s*)?\$[0-9,]+(?:\.[0-9]{2})?.*$/i, "")
+                  .replace(/[-â€“â€”:]?\s*(?:deduct\s*)?\$[0-9,]+(?:\.[0-9]{2})?.*$/i, "")
                   .trim();
                 veAlternates.push({
                   description: desc || "Value Engineering Alternate",

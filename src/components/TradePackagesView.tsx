@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   Layers,
@@ -37,6 +38,7 @@ interface TradePackagesViewProps {
   onGenerateTradePackagesFromSpec?: (specText: string) => Promise<{ packagesCount: number }>;
   onDeletePackage?: (packageId: string) => Promise<void>;
   onNavigateToDiscovery?: () => void;
+  isLoading?: boolean;
 }
 
 export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
@@ -49,6 +51,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   onGenerateTradePackagesFromSpec,
   onDeletePackage,
   onNavigateToDiscovery,
+  isLoading = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
@@ -98,7 +101,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
       setTradeName("");
       setScopeSummary("");
     } catch (err: any) {
-      setCreationError(err?.message || "The trade package could not be created.");
+      setCreationError(getErrorMessage(err) || "The trade package could not be created.");
     }
   };
 
@@ -129,7 +132,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
         setSpecInputText("");
       }, 2000);
     } catch (err: any) {
-      setGenerationErrorMessage(err?.message || "Specification breakdown failed.");
+      setGenerationErrorMessage(getErrorMessage(err) || "Specification breakdown failed.");
     } finally {
       setIsGeneratingPackages(false);
     }
@@ -243,7 +246,13 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
       </div>
 
       {/* Package Grid */}
-      {tradePackages.length === 0 ? (
+      {isLoading && tradePackages.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" aria-busy="true" aria-label="Loading trade packages">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-44 rounded-2xl bg-slate-900/60 border border-slate-800 animate-pulse" />
+          ))}
+        </div>
+      ) : tradePackages.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/60 border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
             <Layers className="w-6 h-6" />

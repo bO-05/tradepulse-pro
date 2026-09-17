@@ -1,3 +1,4 @@
+import { getErrorMessage } from "./lib/errors.ts";
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api.js";
@@ -49,6 +50,30 @@ function getDynamicMailbox(location?: string, csiDivision?: string): string {
   const city = (parsed.city || "metro").toLowerCase().replace(/[^a-z0-9]/g, "") || "trade";
   const div = (csiDivision || "01").replace(/\s+/g, "").slice(0, 2) || "01";
   return `${city}-${div}-rfq@agentmail.to`;
+}
+
+const VALID_TABS = [
+  "packages",
+  "discovery",
+  "qna",
+  "leveling",
+  "coordination",
+  "contracts",
+  "audit",
+  "diagnostics",
+] as const;
+
+function readUrlState(key: "project" | "tab"): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const value = new URLSearchParams(window.location.search).get(key) || "";
+    if (key === "tab") {
+      return (VALID_TABS as readonly string[]).includes(value) ? value : "";
+    }
+    return value;
+  } catch {
+    return "";
+  }
 }
 
 function readStoredSelection(key: string): string {
@@ -132,12 +157,20 @@ function syncStandaloneAgreement(
 }
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("packages");
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => readStoredSelection("tradepulse.selectedProjectId"));
+  const [activeTab, setActiveTab] = useState<string>(() => readUrlState("tab") || "packages");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(
+    () => readUrlState("project") || readStoredSelection("tradepulse.selectedProjectId")
+  );
   const [selectedPackageId, setSelectedPackageId] = useState<string>(() => readStoredSelection("tradepulse.selectedPackageId"));
   const [isSimulationOpen, setIsSimulationOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isTourOpen, setIsTourOpen] = useState<boolean>(true);
+  const [isTourOpen, setIsTourOpen] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem("tradepulse.tourDismissed") !== "1";
+    } catch {
+      return true;
+    }
+  });
 
   // Local Standalone State for Zero-Cloud Localhost Resilience
   const [standaloneState, setStandaloneState] = useState<StandaloneData>(() => loadStandaloneData());
@@ -146,9 +179,23 @@ export const App: React.FC = () => {
   const projectsData = useQuery(api.projects.listProjects);
   const isConvexConnected = projectsData !== undefined;
 
-  // Effective projects list: Convex cloud if connected and non-empty, else Standalone resilient store
-  const projects: Project[] = isConvexConnected && projectsData && projectsData.length > 0
-    ? (projectsData as any)
+  // Never render standalone demo data while a connected Convex query is still resolving.
+  // `undefined` from useQuery means "loading" once Convex has produced any data.
+  const cvs = <T,>(convexValue: T | undefined, standaloneValue: T): T =>
+    isConvexConnected ? (convexValue === undefined ? ([] as unknown as T) : convexValue) : standaloneValue;
+
+  // Boot gate: show a loading surface until the first project payload arrives from Convex.
+  // Only after 8 seconds without a connection do we fall back to the resilient standalone store.
+  const [bootTimedOut, setBootTimedOut] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBootTimedOut(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const isBootLoading = !isConvexConnected && !bootTimedOut;
+
+  // Effective projects list: Convex cloud when connected, else Standalone resilient store
+  const projects: Project[] = isConvexConnected
+    ? ((projectsData as any) ?? [])
     : standaloneState.projects;
 
   const currentProject: Project | null =
@@ -161,11 +208,13 @@ export const App: React.FC = () => {
     Boolean(projectsData && projectsData.some((p: any) => p._id === currentProject!._id));
 
   useEffect(() => {
+    if (isBootLoading) return;
     if (projects.length === 0) return;
     if (!projects.some((project) => project._id === selectedProjectId)) {
-      setSelectedProjectId(projects[0]._id);
+      const preferred = projects.find((project) => (project as any).isDemoProject) ?? projects[0];
+      setSelectedProjectId(preferred._id);
     }
-  }, [projects, selectedProjectId]);
+  }, [projects, selectedProjectId, isBootLoading]);
 
   useEffect(() => {
     try {
@@ -177,14 +226,44 @@ export const App: React.FC = () => {
     }
   }, [selectedProjectId, selectedPackageId]);
 
+  // Deep-link/history sync: project + tab live in the URL so selections are shareable
+  // and the browser Back/Forward buttons navigate between them.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (selectedProjectId) params.set("project", selectedProjectId);
+      if (activeTab) params.set("tab", activeTab);
+      const next = `${window.location.pathname}?${params.toString()}`;
+      if (`${window.location.pathname}${window.location.search}` !== next) {
+        window.history.pushState(null, "", next);
+      }
+    } catch {
+      // URL sync is best-effort in restricted browser contexts.
+    }
+  }, [selectedProjectId, activeTab]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlProject = readUrlState("project");
+      const urlTab = readUrlState("tab");
+      setSelectedProjectId((prev) => urlProject || prev);
+      if (urlTab) setActiveTab(urlTab);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   // Trade packages
   const tradePackagesData = useQuery(
     api.tradePackages.listByProject,
     isRealConvexProject && currentProject ? { projectId: currentProject._id as any } : "skip"
   );
-  const tradePackages: TradePackage[] = isConvexConnected && tradePackagesData
-    ? (tradePackagesData as any)
-    : standaloneState.tradePackages.filter((p) => !currentProject || p.projectId === currentProject._id);
+  const tradePackages: TradePackage[] = cvs(
+    tradePackagesData as TradePackage[] | undefined,
+    standaloneState.tradePackages.filter((p) => !currentProject || p.projectId === currentProject._id)
+  );
+  const tradePackagesLoading =
+    isConvexConnected && isRealConvexProject && tradePackagesData === undefined && tradePackages.length === 0;
 
   // Determine active package
   const activePackage: TradePackage | null =
@@ -196,6 +275,7 @@ export const App: React.FC = () => {
     Boolean(tradePackagesData && Array.isArray(tradePackagesData) && tradePackagesData.some((p: any) => p._id === activePackage!._id));
 
   useEffect(() => {
+    if (isBootLoading) return;
     if (tradePackages.length === 0) {
       if (selectedPackageId !== "") {
         setSelectedPackageId("");
@@ -203,25 +283,27 @@ export const App: React.FC = () => {
     } else if (!selectedPackageId || !tradePackages.some((p) => p._id === selectedPackageId)) {
       setSelectedPackageId(tradePackages[0]._id);
     }
-  }, [tradePackages, selectedPackageId]);
+  }, [tradePackages, selectedPackageId, isBootLoading]);
 
   // Contractors for active package
   const contractorsData = useQuery(
     api.contractors.listByPackage,
     isRealConvexPackage && activePackage ? { tradePackageId: activePackage._id as any } : "skip"
   );
-  const contractors: Contractor[] = isConvexConnected && contractorsData
-    ? (contractorsData as any)
-    : standaloneState.contractors.filter((c) => !activePackage || c.tradePackageId === activePackage._id);
+  const contractors: Contractor[] = cvs(
+    contractorsData as Contractor[] | undefined,
+    standaloneState.contractors.filter((c) => !activePackage || c.tradePackageId === activePackage._id)
+  );
 
   // Conversations (Pre-Bid RFIs) for active package
   const conversationsData = useQuery(
     api.rfq.listConversations,
     isRealConvexPackage && activePackage ? { tradePackageId: activePackage._id as any } : "skip"
   );
-  const conversations: Conversation[] = isConvexConnected && conversationsData
-    ? (conversationsData as any)
-    : standaloneState.conversations.filter((c) => !activePackage || c.tradePackageId === activePackage._id);
+  const conversations: Conversation[] = cvs(
+    conversationsData as Conversation[] | undefined,
+    standaloneState.conversations.filter((c) => !activePackage || c.tradePackageId === activePackage._id)
+  );
   const standaloneProjectConversations = currentProject
     ? standaloneState.conversations.filter((c) =>
         tradePackages.some((pkg) => pkg.projectId === currentProject._id && pkg._id === c.tradePackageId)
@@ -233,22 +315,24 @@ export const App: React.FC = () => {
     api.bids.listByPackage,
     isRealConvexPackage && activePackage ? { tradePackageId: activePackage._id as any } : "skip"
   );
-  const bids: Bid[] = isConvexConnected && bidsData
-    ? (bidsData as any)
-    : standaloneState.bids.filter((b) => !activePackage || b.tradePackageId === activePackage._id);
+  const bids: Bid[] = cvs(
+    bidsData as Bid[] | undefined,
+    standaloneState.bids.filter((b) => !activePackage || b.tradePackageId === activePackage._id)
+  );
 
   // Project-wide bids for Executive Financial Procurement KPI Bar
   const allProjectBidsData = useQuery(
     api.bids.listAllProjectBids,
     isRealConvexProject && currentProject ? { projectId: currentProject._id as any } : "skip"
   );
-  const allProjectBids: Bid[] = isConvexConnected && allProjectBidsData
-    ? (allProjectBidsData as any)
-    : standaloneState.bids.filter((b) => {
-        if (!currentProject) return true;
-        const pkg = standaloneState.tradePackages.find((p) => p._id === b.tradePackageId);
-        return pkg ? pkg.projectId === currentProject._id : true;
-      });
+  const allProjectBids: Bid[] = cvs(
+    allProjectBidsData as Bid[] | undefined,
+    standaloneState.bids.filter((b) => {
+      if (!currentProject) return true;
+      const pkg = standaloneState.tradePackages.find((p) => p._id === b.tradePackageId);
+      return pkg ? pkg.projectId === currentProject._id : true;
+    })
+  );
 
   // Cross-Trade Scope Clash Data
   const clashesData = useQuery(
@@ -256,13 +340,15 @@ export const App: React.FC = () => {
     isRealConvexProject && currentProject ? { projectId: currentProject._id as any } : "skip"
   );
 
-  const doubleBuys: DoubleBuyClash[] = isConvexConnected && (clashesData as any)?.doubleBuys
-    ? (clashesData as any).doubleBuys
-    : standaloneState.doubleBuys.filter((d) => !d.projectId || !currentProject || d.projectId === currentProject._id);
+  const doubleBuys: DoubleBuyClash[] = cvs(
+    (clashesData as any)?.doubleBuys as DoubleBuyClash[] | undefined,
+    standaloneState.doubleBuys.filter((d) => !d.projectId || !currentProject || d.projectId === currentProject._id)
+  );
 
-  const scopeVoids: ScopeVoidClash[] = isConvexConnected && (clashesData as any)?.scopeVoids
-    ? (clashesData as any).scopeVoids
-    : standaloneState.scopeVoids.filter((v) => !v.projectId || !currentProject || v.projectId === currentProject._id);
+  const scopeVoids: ScopeVoidClash[] = cvs(
+    (clashesData as any)?.scopeVoids as ScopeVoidClash[] | undefined,
+    standaloneState.scopeVoids.filter((v) => !v.projectId || !currentProject || v.projectId === currentProject._id)
+  );
 
   const activeClashesCount =
     doubleBuys.filter((d) => d.status === "detected").length +
@@ -273,27 +359,30 @@ export const App: React.FC = () => {
     api.files.listFilesByProject,
     isRealConvexProject && currentProject ? { projectId: currentProject._id as any } : "skip"
   );
-  const projectFiles: ProjectFile[] = isConvexConnected && filesData
-    ? (filesData as any)
-    : standaloneState.projectFiles.filter((f) => !currentProject || f.projectId === currentProject._id);
+  const projectFiles: ProjectFile[] = cvs(
+    filesData as ProjectFile[] | undefined,
+    standaloneState.projectFiles.filter((f) => !currentProject || f.projectId === currentProject._id)
+  );
 
   // Subcontract Agreements for Contracts Register View & Matrix
   const agreementsData = useQuery(
     api.agreements.listAgreements,
     isRealConvexProject && currentProject ? { projectId: currentProject._id as any } : "skip"
   );
-  const agreements: Agreement[] = isConvexConnected && agreementsData
-    ? (agreementsData as any)
-    : standaloneState.agreements.filter((a) => !currentProject || a.projectId === currentProject._id);
+  const agreements: Agreement[] = cvs(
+    agreementsData as Agreement[] | undefined,
+    standaloneState.agreements.filter((a) => !currentProject || a.projectId === currentProject._id)
+  );
 
   // Audit logs for Activity Audit Stream View
   const auditLogsData = useQuery(
     api.auditLogs.listRecentLogs,
     isRealConvexProject && currentProject ? { projectId: currentProject._id as any, limit: 100 } : "skip"
   );
-  const auditLogs: AuditLog[] = isConvexConnected && auditLogsData
-    ? (auditLogsData as any)
-    : standaloneState.auditLogs.filter((l) => !currentProject || l.projectId === currentProject._id);
+  const auditLogs: AuditLog[] = cvs(
+    auditLogsData as AuditLog[] | undefined,
+    standaloneState.auditLogs.filter((l) => !currentProject || l.projectId === currentProject._id)
+  );
 
   // Convex Mutations & Actions
   const seedDataMutation = useMutation(api.projects.seedInitialData);
@@ -402,7 +491,7 @@ export const App: React.FC = () => {
         );
       }
     } catch (err: any) {
-      showToast(`RFQ dispatch failed: ${err?.message || "No invitations were confirmed."}`);
+      showToast(`RFQ dispatch failed: ${getErrorMessage(err) || "No invitations were confirmed."}`);
       throw err;
     }
   };
@@ -447,7 +536,7 @@ export const App: React.FC = () => {
         showToast(`Project '${proj.title}' created successfully!`);
       }
     } catch (err: any) {
-      showToast(`Error creating project: ${err?.message}`);
+      showToast(`Error creating project: ${getErrorMessage(err)}`);
       throw err;
     }
   };
@@ -482,7 +571,7 @@ export const App: React.FC = () => {
       setSelectedProjectId(remaining[0]?._id || "");
       showToast("Project deleted successfully.");
     } catch (err: any) {
-      showToast(`Delete project: ${err?.message || "Error"}`);
+      showToast(`Delete project: ${getErrorMessage(err) || "Error"}`);
       throw err;
     }
   };
@@ -539,7 +628,7 @@ export const App: React.FC = () => {
       }
       showToast(`CSI Division ${pkg.csiDivision} (${pkg.tradeName}) created successfully.`);
     } catch (err: any) {
-      showToast(`Error creating package: ${err?.message}`);
+      showToast(`Error creating package: ${getErrorMessage(err)}`);
       throw err;
     }
   };
@@ -580,7 +669,7 @@ export const App: React.FC = () => {
       }
       showToast(`Deleted trade package ${targetPkg.tradeName}`);
     } catch (err: any) {
-      showToast(`Error deleting trade package: ${err?.message || err}`);
+      showToast(`Error deleting trade package: ${getErrorMessage(err) || err}`);
       throw err;
     }
   };
@@ -589,10 +678,23 @@ export const App: React.FC = () => {
     if (!currentProject) return { packagesCount: 0 };
     try {
       if (isRealConvexProject && !currentProject._id.startsWith("proj_")) {
-        const res = await generateTradePackagesAction({
-          projectId: currentProject._id as any,
-          specDocumentTextOverride: specText,
-        });
+        const res = await Promise.race([
+          generateTradePackagesAction({
+            projectId: currentProject._id as any,
+            specDocumentTextOverride: specText,
+          }),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "The autonomous CSI breakdown is taking longer than expected (AI pipeline timeout after 150s). Try again, or create the trade packages manually."
+                  )
+                ),
+              150000
+            )
+          ),
+        ]);
         return { packagesCount: res.packagesCount };
       }
 
@@ -910,7 +1012,7 @@ export const App: React.FC = () => {
         showToast(`Discovered 3 verified ${loc} commercial ${trade} subcontractors!`);
       }
     } catch (err: any) {
-      showToast(`Discovery failed: ${err?.message || "No contractors were added."}`);
+      showToast(`Discovery failed: ${getErrorMessage(err) || "No contractors were added."}`);
       throw err;
     }
   };
@@ -946,7 +1048,7 @@ export const App: React.FC = () => {
       }
       showToast("Invitation to bid dispatched via AgentMail.");
     } catch (err: any) {
-      showToast(`RFQ invitation failed: ${err?.message || "The invitation was not sent."}`);
+      showToast(`RFQ invitation failed: ${getErrorMessage(err) || "The invitation was not sent."}`);
       throw err;
     }
   };
@@ -992,7 +1094,7 @@ export const App: React.FC = () => {
       }
       showToast(`Contractor '${contractor.companyName}' added to bidding roster.`);
     } catch (err: any) {
-      showToast(`Contractor add failed: ${err?.message || "The contractor was not saved."}`);
+      showToast(`Contractor add failed: ${getErrorMessage(err) || "The contractor was not saved."}`);
       throw err;
     }
   };
@@ -1025,7 +1127,7 @@ export const App: React.FC = () => {
       }
       showToast(`Contractor '${updates.companyName}' details updated.`);
     } catch (err: any) {
-      showToast(`Contractor update failed: ${err?.message || "The contractor was not updated."}`);
+      showToast(`Contractor update failed: ${getErrorMessage(err) || "The contractor was not updated."}`);
       throw err;
     }
   };
@@ -1061,7 +1163,7 @@ export const App: React.FC = () => {
       }
       showToast("Contractor removed from bidding roster.");
     } catch (err: any) {
-      showToast(`Contractor removal failed: ${err?.message || "The contractor was not removed."}`);
+      showToast(`Contractor removal failed: ${getErrorMessage(err) || "The contractor was not removed."}`);
       throw err;
     }
   };
@@ -1073,6 +1175,7 @@ export const App: React.FC = () => {
   }) => {
     if (!activePackage || !data.question?.trim()) return;
     try {
+      const isGuestSubmitter = data.contractorId === "guest_contractor";
       const canSubmitConvex =
         isRealConvexProject &&
         isRealConvexPackage &&
@@ -1081,7 +1184,7 @@ export const App: React.FC = () => {
       if (canSubmitConvex) {
         await submitCustomRfiMutation({
           tradePackageId: activePackage._id as any,
-          contractorId: data.contractorId as any,
+          contractorId: isGuestSubmitter ? undefined : (data.contractorId as any),
           subject: data.subject,
           question: data.question,
         });
@@ -1136,7 +1239,7 @@ export const App: React.FC = () => {
       }
       showToast("RFI submitted to TradePulse autonomous AI clarification engine.");
     } catch (err: any) {
-      showToast(`RFI clarification failed: ${err?.message || "The clarification was not saved."}`);
+      showToast(`RFI clarification failed: ${getErrorMessage(err) || "The clarification was not saved."}`);
       throw err;
     }
   };
@@ -1194,7 +1297,7 @@ export const App: React.FC = () => {
           : `RFI status updated to ${status}.`
       );
     } catch (err: any) {
-      showToast(`RFI review failed: ${err?.message || "The review was not saved."}`);
+      showToast(`RFI review failed: ${getErrorMessage(err) || "The review was not saved."}`);
       throw err;
     }
   };
@@ -1316,7 +1419,7 @@ export const App: React.FC = () => {
       }
        showToast("Subcontract award and AIA Document A401 generated successfully.");
       } catch (err: any) {
-       showToast(`Award failed: ${err?.message || "The agreement was not generated."}`);
+       showToast(`Award failed: ${getErrorMessage(err) || "The agreement was not generated."}`);
        throw err;
     }
   };
@@ -1426,7 +1529,7 @@ export const App: React.FC = () => {
         `1-Click Deduct Credit applied (-$${amount.toLocaleString()})! Redundant double-buy eliminated from buyout.`
       );
     } catch (err: any) {
-      showToast(`Deduct credit failed: ${err?.message || "The credit was not applied."}`);
+      showToast(`Deduct credit failed: ${getErrorMessage(err) || "The credit was not applied."}`);
       throw err;
     }
   };
@@ -1553,7 +1656,7 @@ export const App: React.FC = () => {
         `Scope void '${description}' assigned to Division ${pkg?.csiDivision || "Trade"}! Closed gap between contractors.`
       );
     } catch (err: any) {
-      showToast(`Scope assignment failed: ${err?.message || "The scope void was not assigned."}`);
+      showToast(`Scope assignment failed: ${getErrorMessage(err) || "The scope void was not assigned."}`);
       throw err;
     }
   };
@@ -1586,8 +1689,8 @@ export const App: React.FC = () => {
       showToast("Forensic cross-trade clash scan completed!");
       return summary;
     } catch (err: any) {
-      showToast(`Clash scan failed: ${err?.message || "No analysis was saved."}`);
-      return `Cross-trade analysis failed: ${err?.message || "No analysis was saved."}`;
+      showToast(`Clash scan failed: ${getErrorMessage(err) || "No analysis was saved."}`);
+      return `Cross-trade analysis failed: ${getErrorMessage(err) || "No analysis was saved."}`;
     }
   };
 
@@ -1659,7 +1762,7 @@ export const App: React.FC = () => {
       }
       showToast("Bid adjustments saved and leveled cost recalculated per ADR-0003.");
     } catch (err: any) {
-      showToast(`Adjustments failed: ${err?.message || "The changes were not saved."}`);
+      showToast(`Adjustments failed: ${getErrorMessage(err) || "The changes were not saved."}`);
       throw err;
     }
   };
@@ -1711,7 +1814,7 @@ export const App: React.FC = () => {
       }
       showToast("Contract unawarded. Trade package returned to leveling matrix.");
     } catch (err: any) {
-      showToast(`Unaward failed: ${err?.message || "The award was not changed."}`);
+      showToast(`Unaward failed: ${getErrorMessage(err) || "The award was not changed."}`);
       throw err;
     }
   };
@@ -1744,7 +1847,7 @@ export const App: React.FC = () => {
       }
       showToast("Proposal deleted from leveling matrix.");
     } catch (err: any) {
-      showToast(`Delete failed: ${err?.message || "The proposal was not deleted."}`);
+      showToast(`Delete failed: ${getErrorMessage(err) || "The proposal was not deleted."}`);
       throw err;
     }
   };
@@ -1784,7 +1887,7 @@ export const App: React.FC = () => {
       }
       showToast("AIA Document A401 execution status recorded; external signature verification remains required.");
     } catch (err: any) {
-      showToast(`Agreement execution failed: ${err?.message || "The agreement was not updated."}`);
+      showToast(`Agreement execution failed: ${getErrorMessage(err) || "The agreement was not updated."}`);
       throw err;
     }
   };
@@ -2267,7 +2370,7 @@ export const App: React.FC = () => {
       }
       showToast("Quote ingested, forensically parsed, and normalized into Bid Leveling Matrix!");
     } catch (err: any) {
-      showToast(`Ingestion failed: ${err?.message || "No bid was created."}`);
+      showToast(`Ingestion failed: ${getErrorMessage(err) || "No bid was created."}`);
       throw err;
     }
   };
@@ -2568,7 +2671,7 @@ export const App: React.FC = () => {
       }
       showToast(`Auto-scoped CSI Trade Packages from ${file.fileName} via Gemini 3.8 Flash! Inboxes provisioned.`);
     } catch (err: any) {
-      showToast(`Spec parsing failed: ${err?.message || "No trade packages were created."}`);
+      showToast(`Spec parsing failed: ${getErrorMessage(err) || "No trade packages were created."}`);
     }
   };
 
@@ -3038,7 +3141,7 @@ export const App: React.FC = () => {
       showToast(`Forensically extracted and leveled quote proposal from '${file.fileName}' via Claude Sonnet 5!`);
       setActiveTab("leveling");
     } catch (err: any) {
-      showToast(`Quote extracted: ${err?.message || "Bid normalized into matrix."}`);
+      showToast(`Quote extracted: ${getErrorMessage(err) || "Bid normalized into matrix."}`);
       setActiveTab("leveling");
     }
   };
@@ -3049,8 +3152,7 @@ export const App: React.FC = () => {
       isRealConvexProject &&
       currentProject &&
       !currentProject._id.startsWith("proj_") &&
-      Boolean(targetPkgId) &&
-      !targetPkgId.startsWith("pkg_");
+      (!targetPkgId || !targetPkgId.startsWith("pkg_"));
 
     if (canRunConvex) {
       const res = await runFullCycleMutation({
@@ -3186,7 +3288,7 @@ export const App: React.FC = () => {
       }
       showToast("Bid Deadline Monitor cron executed successfully!");
     } catch (err: any) {
-      showToast(`Deadline monitor failed: ${err?.message || "No deadline audit was saved."}`);
+      showToast(`Deadline monitor failed: ${getErrorMessage(err) || "No deadline audit was saved."}`);
     }
   };
 
@@ -3210,7 +3312,7 @@ export const App: React.FC = () => {
       }
       showToast("Compliance & Insurance Audit cron executed successfully!");
     } catch (err: any) {
-      showToast(`Compliance audit failed: ${err?.message || "No compliance audit was saved."}`);
+      showToast(`Compliance audit failed: ${getErrorMessage(err) || "No compliance audit was saved."}`);
     }
   };
 
@@ -3269,7 +3371,7 @@ export const App: React.FC = () => {
         setActiveTab("qna");
       }
     } catch (err: any) {
-      showToast(`Simulation triggered: ${err?.message || "Event processed"}`);
+      showToast(`Simulation triggered: ${getErrorMessage(err) || "Event processed"}`);
     }
   };
 
@@ -3283,7 +3385,7 @@ export const App: React.FC = () => {
       setStandaloneState(initial);
       showToast("Commercial MEP dataset re-seeded successfully across Divisions 26, 23, and 22!");
     } catch (err: any) {
-      showToast(`Dataset reloaded: ${err?.message || "Commercial baseline restored."}`);
+      showToast(`Dataset reloaded: ${getErrorMessage(err) || "Commercial baseline restored."}`);
     }
   };
 
@@ -3336,6 +3438,18 @@ export const App: React.FC = () => {
     }
   };
 
+  if (isBootLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4" role="status" aria-live="polite">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 border border-emerald-400/30 animate-pulse" />
+          <p className="text-sm text-slate-300 font-semibold">Connecting to Convex reactive backend…</p>
+          <p className="text-xs text-slate-500">Loading live procurement data for the active project</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       {/* Toast Notification */}
@@ -3360,7 +3474,17 @@ export const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onOpenSimulation={() => setIsSimulationOpen(true)}
         isTourOpen={isTourOpen}
-        onToggleTour={() => setIsTourOpen(!isTourOpen)}
+        onToggleTour={() => {
+          setIsTourOpen((prev) => {
+            const next = !prev;
+            try {
+              window.localStorage.setItem("tradepulse.tourDismissed", next ? "0" : "1");
+            } catch {
+              // best-effort persistence
+            }
+            return next;
+          });
+        }}
         packagesCount={tradePackages.length}
         contractorsCount={contractors.length}
         conversationsCount={conversations.length}
@@ -3374,7 +3498,14 @@ export const App: React.FC = () => {
         <InvestorDemoTourBar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          onClose={() => setIsTourOpen(false)}
+          onClose={() => {
+            setIsTourOpen(false);
+            try {
+              window.localStorage.setItem("tradepulse.tourDismissed", "1");
+            } catch {
+              // best-effort persistence
+            }
+          }}
           onExecuteSceneAction={handleExecuteSceneAction}
           onOpenSimulationModal={() => setIsSimulationOpen(true)}
         />
@@ -3402,6 +3533,7 @@ export const App: React.FC = () => {
               onGenerateTradePackagesFromSpec={handleGeneratePackagesFromSpec}
               onDeletePackage={handleDeletePackage}
               onNavigateToDiscovery={() => setActiveTab("discovery")}
+              isLoading={tradePackagesLoading}
             />
 
             {/* Convex File Storage Section embedded under packages */}
@@ -3444,6 +3576,7 @@ export const App: React.FC = () => {
             onDeleteContractor={handleDeleteContractor}
             onNavigateToQnA={() => setActiveTab("qna")}
             onNavigateToLeveling={() => setActiveTab("leveling")}
+            onNavigateToPackages={() => setActiveTab("packages")}
           />
         )}
 
@@ -3462,6 +3595,7 @@ export const App: React.FC = () => {
             onOpenSimulation={() => setIsSimulationOpen(true)}
             onReviewRfi={handleReviewRfi}
             onNavigateToLeveling={() => setActiveTab("leveling")}
+            onNavigateToPackages={() => setActiveTab("packages")}
           />
         )}
 
@@ -3483,6 +3617,7 @@ export const App: React.FC = () => {
             onExecuteAgreement={handleExecuteAgreement}
             onIngestQuote={handleIngestQuote}
             onNavigateToContracts={() => setActiveTab("contracts")}
+            onNavigateToPackages={() => setActiveTab("packages")}
           />
         )}
 

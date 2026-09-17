@@ -182,55 +182,128 @@ export const generateTradePackagesFromSpec = action({
       specText = project?.specDocumentText || "Commercial MEP specifications";
     }
 
-    const reasoningResult: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
-      taskType: "spec_generation",
-      prompt: specText,
-      systemPrompt:
-        "You are TradePulse Pro, an expert construction cost engineer and CSI MasterFormat specialist. Analyze the building specifications and deconstruct them into discrete commercial trade packages with CSI division numbers, trade titles, budget estimates, and mandatory inclusions.",
-    });
+    // The LLM route is best-effort: if every provider fails or returns unusable JSON,
+    // fall back to the deterministic multi-trade package set so the workflow always completes.
+    let pkgs: any[] = [];
+    try {
+      const reasoningResult: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
+        taskType: "spec_generation",
+        prompt: specText,
+        systemPrompt:
+          "You are TradePulse Pro, an expert construction cost engineer and CSI MasterFormat specialist. Analyze the building specifications and deconstruct them into discrete commercial trade packages with CSI division numbers, trade titles, budget estimates, and mandatory inclusions.",
+      });
+      const parsed = reasoningResult?.parsedJson;
+      pkgs = (Array.isArray(parsed?.packages) && parsed.packages.length > 0)
+        ? parsed.packages
+        : (Array.isArray(parsed) && parsed.length > 0)
+        ? parsed
+        : [];
+    } catch (reasoningErr) {
+      console.warn("CSI spec reasoning failed; using deterministic package generation:", reasoningErr);
+    }
 
-    const parsed = reasoningResult.parsedJson;
-    const pkgs = (Array.isArray(parsed?.packages) && parsed.packages.length > 0)
-      ? parsed.packages
-      : (Array.isArray(parsed) && parsed.length > 0)
-      ? parsed
-      : [
-          {
-            csiDivision: "26 00 00",
-            tradeName: "Electrical & Lighting Systems",
-            budgetEstimate: 1250000,
-            scopeSummary: "Main switchgear, emergency lighting, and seismic bracing.",
-            mandatoryInclusions: ["Crane hoisting", "Seismic bracing", "UL 1479 firestopping"],
-            bidDeadline: "2026-10-01",
-          },
-        ];
+    if (pkgs.length === 0) {
+      pkgs = [
+        {
+          csiDivision: "01 00 00",
+          tradeName: "General Requirements & Site Logistics",
+          budgetEstimate: 450000,
+          scopeSummary: "Site logistics, crane hoisting coordination, daily cleanup, and temporary utilities.",
+          mandatoryInclusions: ["Continuous jobsite cleanup", "Crane staging coordination", "OSHA 30 safety compliance"],
+          bidDeadline: "2026-10-31",
+        },
+        {
+          csiDivision: "26 00 00",
+          tradeName: "Electrical & Lighting Systems",
+          budgetEstimate: 1250000,
+          scopeSummary: "Main switchgear, emergency lighting, seismic bracing, and temporary power.",
+          mandatoryInclusions: ["Crane hoisting", "Seismic bracing", "UL 1479 firestopping"],
+          bidDeadline: "2026-10-31",
+        },
+        {
+          csiDivision: "23 00 00",
+          tradeName: "HVAC Mechanical Systems",
+          budgetEstimate: 1650000,
+          scopeSummary: "Rooftop air handling units, VAV terminal boxes, hydronic chiller loops, and BACnet controls.",
+          mandatoryInclusions: ["Certified TAB report", "BACnet MS/TP gateway", "Spring vibration isolation"],
+          bidDeadline: "2026-10-31",
+        },
+        {
+          csiDivision: "22 00 00",
+          tradeName: "Plumbing Systems",
+          budgetEstimate: 920000,
+          scopeSummary: "Domestic water piping, sanitary waste and venting, and triplex booster pump system.",
+          mandatoryInclusions: ["Factory certified pump startup", "Backflow certification", "Seismic snubbers"],
+          bidDeadline: "2026-10-31",
+        },
+      ];
+    }
 
     const createdIds: string[] = [];
     for (const pkg of pkgs) {
-      const pkgId: any = await ctx.runMutation(
-        internal.tradePackages.createTradePackageInternal,
-        {
-          projectId: args.projectId,
-          csiDivision: pkg.csiDivision,
-          tradeName: pkg.tradeName,
-          budgetEstimate: pkg.budgetEstimate,
-          scopeSummary: pkg.scopeSummary,
-          mandatoryInclusions: pkg.mandatoryInclusions,
-          bidDeadline: pkg.bidDeadline,
-        }
-      );
-      createdIds.push(pkgId);
-
-      // Provision dynamic AgentMail mailbox for this auto-scoped package
       try {
-        const prefix = `trade-${pkg.csiDivision.replace(/\s+/g, "").toLowerCase()}`;
-        await ctx.runAction(api.rfqActions.provisionPackageInbox, {
-          tradePackageId: pkgId,
-          usernamePrefix: prefix,
-        });
-      } catch (inboxErr) {
-        console.warn("Dynamic inbox provisioning note:", inboxErr);
+        const csiDivision =
+          typeof pkg?.csiDivision === "string" && pkg.csiDivision.trim().length > 0
+            ? pkg.csiDivision
+            : "26 00 00";
+        const tradeName =
+          typeof pkg?.tradeName === "string" && pkg.tradeName.trim().length > 0
+            ? pkg.tradeName
+            : `CSI Division ${csiDivision} Trade`;
+        const budgetEstimate =
+          Number.isFinite(Number(pkg?.budgetEstimate)) && Number(pkg.budgetEstimate) > 0
+            ? Number(pkg.budgetEstimate)
+            : 500000;
+        const scopeSummary =
+          typeof pkg?.scopeSummary === "string" && pkg.scopeSummary.trim().length > 0
+            ? pkg.scopeSummary
+            : `Commercial scope of work for CSI MasterFormat Division ${csiDivision}.`;
+        const mandatoryInclusions =
+          Array.isArray(pkg?.mandatoryInclusions) && pkg.mandatoryInclusions.some((i: any) => typeof i === "string" && i.trim())
+            ? pkg.mandatoryInclusions.filter((i: any) => typeof i === "string" && i.trim())
+            : ["Code compliance and permits", "Coordination with General Contractor"];
+        let bidDeadline =
+          typeof pkg?.bidDeadline === "string" && pkg.bidDeadline.trim().length > 0
+            ? pkg.bidDeadline
+            : "2026-10-31";
+        const parsedDeadline = Date.parse(bidDeadline);
+        if (!Number.isFinite(parsedDeadline) || parsedDeadline < Date.now() + 7 * 24 * 60 * 60 * 1000) {
+          bidDeadline = "2026-10-31";
+        }
+
+        const pkgId: any = await ctx.runMutation(
+          internal.tradePackages.createTradePackageInternal,
+          {
+            projectId: args.projectId,
+            csiDivision,
+            tradeName,
+            budgetEstimate,
+            scopeSummary,
+            mandatoryInclusions,
+            bidDeadline,
+          }
+        );
+        createdIds.push(pkgId);
+
+        // Provision dynamic AgentMail mailbox for this auto-scoped package
+        try {
+          const prefix = `trade-${csiDivision.replace(/\s+/g, "").toLowerCase()}`;
+          await ctx.runAction(api.rfqActions.provisionPackageInbox, {
+            tradePackageId: pkgId,
+            usernamePrefix: prefix,
+          });
+        } catch (inboxErr) {
+          console.warn("Dynamic inbox provisioning note:", inboxErr);
+        }
+      } catch (pkgErr) {
+        console.warn("Skipping invalid generated trade package:", pkgErr);
       }
+    }
+
+    if (createdIds.length === 0) {
+      throw new Error(
+        "The autonomous spec breakdown could not create any valid trade packages. Review the specification text or create the trade packages manually."
+      );
     }
 
     return {

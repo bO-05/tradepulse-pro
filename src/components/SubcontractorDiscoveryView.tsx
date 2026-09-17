@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   Building2,
@@ -54,6 +55,7 @@ interface SubcontractorDiscoveryViewProps {
   onDeleteContractor?: (contractorId: string) => Promise<void>;
   onNavigateToQnA?: () => void;
   onNavigateToLeveling?: () => void;
+  onNavigateToPackages?: () => void;
 }
 
 export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProps> = ({
@@ -68,6 +70,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
   onDeleteContractor,
   onNavigateToQnA,
   onNavigateToLeveling,
+  onNavigateToPackages,
 }) => {
   const [discovering, setDiscovering] = useState(false);
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
@@ -138,10 +141,18 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
   if (!currentPackage) {
     return (
-      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl">
+      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl space-y-3">
         <p className="text-slate-400 text-sm">
           Please select a trade package to manage subcontractor discovery.
         </p>
+        {onNavigateToPackages && (
+          <button
+            onClick={onNavigateToPackages}
+            className="bg-slate-800 hover:bg-slate-750 text-emerald-300 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            Go to CSI Scoping
+          </button>
+        )}
       </div>
     );
   }
@@ -202,7 +213,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
         sourceUrl: "",
       });
     } catch (err: any) {
-      setContractorActionError(err?.message || "The contractor could not be saved.");
+      setContractorActionError(getErrorMessage(err) || "The contractor could not be saved.");
     } finally {
       setIsSubmittingAdd(false);
     }
@@ -248,7 +259,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
       }
       setEditingContractor(null);
     } catch (err: any) {
-      setContractorActionError(err?.message || "The contractor could not be updated.");
+      setContractorActionError(getErrorMessage(err) || "The contractor could not be updated.");
     } finally {
       setIsSubmittingEdit(false);
     }
@@ -279,7 +290,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
       }
       setContractorToDelete(null);
     } catch (err: any) {
-      setContractorActionError(err?.message || "The contractor could not be removed.");
+      setContractorActionError(getErrorMessage(err) || "The contractor could not be removed.");
     }
   };
 

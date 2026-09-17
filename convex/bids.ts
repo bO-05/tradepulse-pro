@@ -1,7 +1,26 @@
 import { query, mutation, internalMutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { syncAgreementForBid } from "./agreements";
 import { validateNonNegativeAmount, validatePositiveAmount, validateProjectText } from "./validation";
+
+/**
+ * Plausibility guard for every bid ingestion path. Blocks six/seven-figure data-entry
+ * mistakes and $1 "joke" bids before they can be ranked or awarded.
+ */
+function assertBidAmountPlausible(tradePkg: any, baseBidAmount: number): void {
+  if (baseBidAmount < 1000) {
+    throw new ConvexError(
+      `The proposal amount $${baseBidAmount.toLocaleString()} is implausibly low for a commercial trade package (minimum $1,000). Verify the proposal before ingesting.`
+    );
+  }
+  const budget = Number(tradePkg?.budgetEstimate) || 0;
+  const ceiling = Math.max(budget * 5, 5_000_000);
+  if (budget > 0 && baseBidAmount > ceiling) {
+    throw new ConvexError(
+      `The proposal amount $${baseBidAmount.toLocaleString()} is more than 5x the $${budget.toLocaleString()} package budget. This looks like a data-entry error — verify the proposal before ingesting.`
+    );
+  }
+}
 
 export const listByPackage = query({
   args: { tradePackageId: v.id("tradePackages") },
@@ -406,6 +425,7 @@ export const submitDirectBid = mutation({
       throw new Error("The contractor is not assigned to this trade package.");
     }
     const baseBidAmount = validatePositiveAmount(args.baseBidAmount, "Base bid amount");
+    assertBidAmountPlausible(tradePkg, baseBidAmount);
     const subcontractorName = validateProjectText(args.subcontractorName, "Subcontractor name");
     // 1. Mark contractor as bid_received
     await ctx.db.patch(args.contractorId, { rfqStatus: "bid_received" });
@@ -478,6 +498,8 @@ export const submitDirectBid = mutation({
         coiComplianceStatus: coiStatus,
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
+        revisionNumber: (existing.revisionNumber ?? 1) + 1,
+        lastRevisedAt: Date.now(),
         receivedAt: Date.now(),
       });
     } else {
@@ -495,6 +517,7 @@ export const submitDirectBid = mutation({
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
         isAwarded: false,
+        revisionNumber: 1,
         receivedAt: Date.now(),
       });
     }
@@ -575,6 +598,7 @@ export const insertParsedBid = internalMutation({
       }
     }
     const baseBidAmount = validatePositiveAmount(args.baseBidAmount, "Base bid amount");
+    assertBidAmountPlausible(tradePkg, baseBidAmount);
     const leadTimePenalty = validateNonNegativeAmount(args.leadTimePenalty, "Lead time penalty");
     const coiPenalty = validateNonNegativeAmount(args.coiPenalty, "COI penalty");
     if (!Number.isInteger(args.longLeadEquipmentWeeks) || args.longLeadEquipmentWeeks < 0 || args.longLeadEquipmentWeeks > 520) {
@@ -632,6 +656,8 @@ export const insertParsedBid = internalMutation({
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
         ...(args.sourceFileId ? { sourceFileId: args.sourceFileId } : {}),
+        revisionNumber: ((existing as any).revisionNumber ?? 1) + 1,
+        lastRevisedAt: Date.now(),
         receivedAt: Date.now(),
       });
       if (existing.isAwarded) {
@@ -652,6 +678,7 @@ export const insertParsedBid = internalMutation({
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
         isAwarded: false,
+        revisionNumber: 1,
         ...(args.sourceFileId ? { sourceFileId: args.sourceFileId } : {}),
         receivedAt: Date.now(),
       });

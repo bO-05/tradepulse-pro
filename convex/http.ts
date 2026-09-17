@@ -234,6 +234,45 @@ http.route({
   }),
 });
 
+// Explicit JSON 404 responses for unknown API / webhook paths.
+// These are registered BEFORE the static hosting fallback so machine clients never receive
+// the SPA HTML shell with HTTP 200 for a bad API path (keep SPA fallback only for real routes).
+function jsonNotFound(req: Request, prefix: string): Response {
+  return new Response(
+    JSON.stringify({
+      error: "Not found",
+      path: new URL(req.url).pathname,
+      apiPrefix: prefix,
+      hint: "Check the API path or see /llms.txt for available endpoints.",
+    }),
+    { status: 404, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+http.route({
+  pathPrefix: "/api/",
+  method: "GET",
+  handler: httpAction(async (_ctx, req) => jsonNotFound(req, "/api/")),
+});
+
+http.route({
+  pathPrefix: "/api/",
+  method: "POST",
+  handler: httpAction(async (_ctx, req) => jsonNotFound(req, "/api/")),
+});
+
+http.route({
+  pathPrefix: "/agentmail/",
+  method: "GET",
+  handler: httpAction(async (_ctx, req) => jsonNotFound(req, "/agentmail/")),
+});
+
+http.route({
+  pathPrefix: "/agentmail/",
+  method: "POST",
+  handler: httpAction(async (_ctx, req) => jsonNotFound(req, "/agentmail/")),
+});
+
 // CRITICAL: Register static routes at the end of app-owned HTTP router!
 registerStaticRoutes(http, components.staticHosting);
 

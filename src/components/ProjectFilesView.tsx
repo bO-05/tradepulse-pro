@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState, useRef } from "react";
 import {
   FileText,
@@ -201,7 +202,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setTimeout(() => setStatusMsg(null), 4000);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      setStatusMsg(`Upload failed: ${err?.message || "The file was not saved."}`);
+      setStatusMsg(`Upload failed: ${getErrorMessage(err) || "The file was not saved."}`);
       setTimeout(() => setStatusMsg(null), 4000);
     } finally {
       setUploading(false);
@@ -228,7 +229,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setStatusMsg(`Successfully uploaded ${droppedFiles.length} file(s) to Convex Storage!`);
       setTimeout(() => setStatusMsg(null), 4500);
     } catch (err: any) {
-      setStatusMsg(`Drop upload failed: ${err?.message || "The files were not saved."}`);
+      setStatusMsg(`Drop upload failed: ${getErrorMessage(err) || "The files were not saved."}`);
       setTimeout(() => setStatusMsg(null), 4500);
     } finally {
       setUploading(false);
@@ -294,7 +295,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setStatusMsg("File deleted from storage.");
       setTimeout(() => setStatusMsg(null), 3000);
     } catch (err: any) {
-      setStatusMsg(`Delete failed: ${err?.message || "The file was not removed."}`);
+      setStatusMsg(`Delete failed: ${getErrorMessage(err) || "The file was not removed."}`);
     }
   };
 
@@ -314,7 +315,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setStatusMsg(`Successfully auto-scoped trade packages from ${file.fileName}! Inboxes provisioned.`);
       setTimeout(() => setStatusMsg(null), 4500);
     } catch (err: any) {
-      setStatusMsg(`Auto-scoping failed: ${err?.message || "No packages were generated."}`);
+      setStatusMsg(`Auto-scoping failed: ${getErrorMessage(err) || "No packages were generated."}`);
       setTimeout(() => setStatusMsg(null), 4500);
     } finally {
       setProcessingFileId(null);
@@ -346,7 +347,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
       setStatusMsg(`Bid extracted and normalized into Bid Leveling Matrix from '${file.fileName}'!`);
       setTimeout(() => setStatusMsg(null), 4500);
     } catch (err: any) {
-      setStatusMsg(`Bid extraction failed: ${err?.message || "No bid was created."}`);
+      setStatusMsg(`Bid extraction failed: ${getErrorMessage(err) || "No bid was created."}`);
       setTimeout(() => setStatusMsg(null), 4500);
     } finally {
       setProcessingFileId(null);

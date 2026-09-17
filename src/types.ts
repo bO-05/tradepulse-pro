@@ -93,6 +93,8 @@ export interface Bid {
   leveledTotalCost: number;
   isAwarded: boolean;
   sourceFileId?: string;
+  revisionNumber?: number;
+  lastRevisedAt?: number;
   receivedAt: number;
 }
 

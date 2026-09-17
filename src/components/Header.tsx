@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState, useEffect } from "react";
 import {
   Building2,
@@ -176,7 +177,20 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!onCreateProject || !newTitle.trim()) return;
+    const parsedBudget = Number(newBudget);
+    const parsedWeeks = Number(newWeeks);
+    if (!Number.isFinite(parsedBudget) || parsedBudget <= 0) {
+      setCreateError("Estimated budget must be a positive number greater than $0.");
+      return;
+    }
+    if (!Number.isFinite(parsedWeeks) || parsedWeeks <= 0 || parsedWeeks > 520) {
+      setCreateError("Duration must be between 1 and 520 weeks.");
+      return;
+    }
+    if (!onCreateProject || !newTitle.trim()) {
+      setCreateError("Project title is required.");
+      return;
+    }
     setCreating(true);
     setCreateError(null);
     try {
@@ -184,8 +198,8 @@ export const Header: React.FC<HeaderProps> = ({
         title: newTitle.trim(),
         location: newLocation.trim() || "Austin, TX",
         projectType: newType,
-        estBudget: Number(newBudget) > 0 ? Number(newBudget) : 1000000,
-        targetCompletionWeeks: Number(newWeeks) > 0 ? Number(newWeeks) : 52,
+        estBudget: parsedBudget,
+        targetCompletionWeeks: Math.round(parsedWeeks),
         specDocumentText: newSpec.trim() || `Project Scope for ${newTitle.trim()}. Standard CSI MasterFormat commercial obligations.`,
         isDemoProject: false,
         generalContractorName: newGeneralContractor.trim() || "Austin Commercial, LP",
@@ -195,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
       setNewSpec("");
       setNewGeneralContractor("Austin Commercial, LP");
     } catch (err: any) {
-      setCreateError(err?.message || "The project could not be created.");
+      setCreateError(getErrorMessage(err) || "The project could not be created.");
     } finally {
       setCreating(false);
     }
@@ -280,7 +294,7 @@ export const Header: React.FC<HeaderProps> = ({
                 value={currentProject?._id ?? ""}
                 onChange={(e) => onSelectProject(e.target.value)}
                 aria-label="Select Commercial Construction Project"
-                className="bg-slate-850 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-emerald-500 font-medium appearance-none cursor-pointer max-w-[240px] sm:max-w-xs truncate"
+                className="bg-slate-850 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-emerald-500 font-medium appearance-none cursor-pointer max-w-[130px] sm:max-w-xs truncate"
               >
                 {projects.map((p) => (
                   <option key={p._id} value={p._id} className="bg-slate-900 text-white">
@@ -293,7 +307,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           <button
-            onClick={() => setIsNewProjectModalOpen(true)}
+            onClick={() => {
+              setCreateError(null);
+              setIsNewProjectModalOpen(true);
+            }}
             className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
           >
             <Plus className="w-3.5 h-3.5 text-emerald-400" />
@@ -328,7 +345,7 @@ export const Header: React.FC<HeaderProps> = ({
       />
 
       {/* Procurement Pipeline Stepper & Navigation */}
-      <div className="px-4 lg:px-8 flex items-center justify-between border-t border-slate-800/80 bg-slate-950/50 gap-2">
+      <div className="px-4 lg:px-8 flex flex-wrap items-center justify-between border-t border-slate-800/80 bg-slate-950/50 gap-2">
         <label className="sm:hidden flex items-center gap-2 py-2 text-[11px] font-semibold text-slate-400 shrink-0">
           Stage
           <select

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   AlertTriangle,
@@ -72,7 +73,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
       }
       setTimeout(() => setScanMessage(null), 8000);
     } catch (err: any) {
-      setScanMessage(`Scan completed: ${err?.message || "Analysis complete."}`);
+      setScanMessage(`Scan completed: ${getErrorMessage(err) || "Analysis complete."}`);
       setTimeout(() => setScanMessage(null), 8000);
     } finally {
       setScanning(false);

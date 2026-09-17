@@ -41,6 +41,38 @@ export interface ScopeVoidClash {
  * Analyzes CSI Division 26 (Electrical) and Division 23 (HVAC) trade packages and proposals
  * to identify duplicate equipment buyouts (Double-Buys) and unassigned gaps (Scope Voids).
  */
+/**
+ * Persisted clash resolution state. Written by the deduct/assign mutations and read by
+ * detectCrossTradeClashes so resolved cards do not reappear as active after a reload.
+ */
+async function recordClashResolution(
+  ctx: any,
+  projectId: any,
+  clashId: string,
+  kind: "double_buy" | "scope_void",
+  amount: number,
+  note?: string
+): Promise<void> {
+  const existing = await ctx.db
+    .query("clashResolutions")
+    .withIndex("by_project_and_clash", (q: any) => q.eq("projectId", projectId).eq("clashId", clashId))
+    .first();
+  const payload = {
+    projectId,
+    clashId,
+    kind,
+    status: kind === "double_buy" ? ("deducted" as const) : ("assigned" as const),
+    amount,
+    ...(note ? { note } : {}),
+    resolvedAt: Date.now(),
+  };
+  if (existing) {
+    await ctx.db.patch(existing._id, payload);
+  } else {
+    await ctx.db.insert("clashResolutions", payload);
+  }
+}
+
 export const detectCrossTradeClashes = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -51,6 +83,29 @@ export const detectCrossTradeClashes = query({
 
     const elecPkg = packages.find((p) => p.csiDivision.startsWith("26"));
     const hvacPkg = packages.find((p) => p.csiDivision.startsWith("23"));
+
+    // Cross-trade clashes are only meaningful when both the electrical and mechanical
+    // packages actually exist for this project. Never surface demo-baseline clashes
+    // for projects that have no packages (or only one side of the trade pair).
+    if (!elecPkg || !hvacPkg) {
+      return {
+        success: true,
+        projectId: args.projectId,
+        doubleBuys: [] as DoubleBuyClash[],
+        scopeVoids: [] as ScopeVoidClash[],
+        totalRedundantAmount: 0,
+        totalVoidExposure: 0,
+        summary: {
+          totalDoubleBuyExposure: 0,
+          totalScopeVoidExposure: 0,
+          netBuyoutExposure: 0,
+          activeClashesCount: 0,
+        },
+        reasoningAnalysis: "",
+        provider: "Project-Scope-Guard",
+        model: "deterministic-empty-state",
+      };
+    }
 
     // Fetch bids for both packages to inspect line items, VE alternates, and exclusions
     const elecBids = elecPkg
@@ -66,6 +121,29 @@ export const detectCrossTradeClashes = query({
           .withIndex("by_package", (q) => q.eq("tradePackageId", hvacPkg._id))
           .collect()
       : [];
+
+    // The baseline clash set describes duplicate scope already priced by both trades.
+    // With zero proposals on both sides there is no priced evidence yet, so return an
+    // honest empty result instead of asserting double-buys that nobody has bid.
+    if (elecBids.length === 0 && hvacBids.length === 0) {
+      return {
+        success: true,
+        projectId: args.projectId,
+        doubleBuys: [] as DoubleBuyClash[],
+        scopeVoids: [] as ScopeVoidClash[],
+        totalRedundantAmount: 0,
+        totalVoidExposure: 0,
+        summary: {
+          totalDoubleBuyExposure: 0,
+          totalScopeVoidExposure: 0,
+          netBuyoutExposure: 0,
+          activeClashesCount: 0,
+        },
+        reasoningAnalysis: "",
+        provider: "Proposal-Evidence-Guard",
+        model: "deterministic-empty-state",
+      };
+    }
 
     // Check if any VE alternate or line item has already resolved the double buys
     const allElecVe = elecBids.flatMap((b) => b.valueEngineeringAlternates || []);
@@ -177,6 +255,22 @@ export const detectCrossTradeClashes = query({
       },
     ];
 
+    // Overlay persisted resolutions (deduct credit / assign void) so cards stay
+    // resolved across reloads even when the underlying package data is unchanged.
+    const resolutions = await ctx.db
+      .query("clashResolutions")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    for (const resolution of resolutions) {
+      if (resolution.kind === "double_buy") {
+        const match = doubleBuys.find((d) => d.id === resolution.clashId);
+        if (match) match.status = "deducted";
+      } else {
+        const match = scopeVoids.find((v) => v.id === resolution.clashId);
+        if (match) match.status = "assigned";
+      }
+    }
+
     const totalDoubleBuyExposure = doubleBuys
       .filter((d) => d.status === "detected")
       .reduce((sum, d) => sum + d.redundantAmount, 0);
@@ -262,6 +356,14 @@ export const deductDoubleBuyCredit = mutation({
         actor: "Cross-Trade Clash Coordination Engine",
         timestamp: Date.now(),
       });
+      await recordClashResolution(
+        ctx,
+        args.projectId,
+        args.clashId,
+        "double_buy",
+        deductAmount,
+        "Credit logged before proposals were received; will apply to incoming bids."
+      );
       return {
         success: true,
         clashId: args.clashId,
@@ -318,6 +420,7 @@ export const deductDoubleBuyCredit = mutation({
       timestamp: Date.now(),
     });
 
+    await recordClashResolution(ctx, args.projectId, args.clashId, "double_buy", deductAmount, description);
     return {
       success: true,
       clashId: args.clashId,
@@ -437,6 +540,7 @@ export const assignScopeVoidToTrade = mutation({
       timestamp: Date.now(),
     });
 
+    await recordClashResolution(ctx, args.projectId, args.voidId, "scope_void", additionalCost, description);
     return {
       success: true,
       voidId: args.voidId,
