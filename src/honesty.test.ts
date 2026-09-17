@@ -37,7 +37,9 @@ test("Discovery never claims registry verification for unverified records", () =
   expect(discovery).not.toContain("835-24");
   expect(discovery).not.toContain("20000 + i * 142");
   expect(discovery).not.toContain("Firecrawl Live Web Discovery");
-  expect(discovery).toContain("Unverified — sample directory record");
+  expect(discovery).not.toContain("Built-in sample directory");
+  expect(discovery).toContain("Unverified — from web search result");
+  expect(discovery).toContain("no usable results");
 
   const view = find("SubcontractorDiscoveryView.tsx", componentSources);
   expect(view).not.toContain("Verified Trades");

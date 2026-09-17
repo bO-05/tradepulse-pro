@@ -19,6 +19,7 @@ export interface TradePackage {
   budgetEstimate: number;
   agentMailbox: string;
   agentMailboxId: string;
+  agentMailboxShared?: boolean;
   scopeSummary: string;
   mandatoryInclusions: string[];
   bidDeadline: string;

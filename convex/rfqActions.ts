@@ -1,30 +1,45 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { AgentMail } from "@agentmail/convex";
-import { components, internal } from "./_generated/api";
-
-const agentmail = new AgentMail(components.agentmail);
+import { internal } from "./_generated/api";
+import { createAgentmailInbox, isAgentmailConfigured, listAgentmailInboxes, sendAgentmailMessage } from "./agentmailApi";
 
 export const provisionPackageInbox = action({
   args: {
     tradePackageId: v.id("tradePackages"),
     usernamePrefix: v.string(),
   },
-  handler: async (ctx, args): Promise<{ email: string; id: string }> => {
-    const apiKey = process.env.AGENTMAIL_API_KEY;
+  handler: async (ctx, args): Promise<{ email: string; id: string; live: boolean; shared: boolean }> => {
     let mailboxEmail = `${args.usernamePrefix}-${Date.now().toString().slice(-4)}@agentmail.to`;
-    let mailboxId = `inbox_${Date.now().toString().slice(-6)}`;
+    let mailboxId = `local_inbox_${Date.now().toString().slice(-6)}`;
+    let live = false;
+    let shared = false;
 
-    if (apiKey) {
+    if (isAgentmailConfigured()) {
       try {
-        const inbox = await agentmail.createInbox(ctx as any, {
+        const inbox = await createAgentmailInbox({
           username: `${args.usernamePrefix}-${Date.now().toString().slice(-4)}`,
           displayName: "TradePulse RFQ Portal",
         });
         mailboxEmail = inbox.email;
-        mailboxId = (inbox as any).inbox_id || (inbox as any).id || mailboxId;
+        mailboxId = inbox.id;
+        live = true;
       } catch (err) {
-        console.warn("AgentMail live inbox creation failed (offline or test key), using provisioned address:", err);
+        // Typical cause: the AgentMail plan's inbox limit is reached. Reuse an
+        // existing inbox from the account so the workflow keeps working, and mark
+        // it as shared so the UI can say so instead of pretending it is dedicated.
+        console.warn("AgentMail inbox creation failed; attempting to reuse an existing inbox:", err);
+        try {
+          const existing = await listAgentmailInboxes(20);
+          if (existing.length > 0) {
+            const chosen = existing[Math.floor(Math.random() * existing.length)];
+            mailboxEmail = chosen.email;
+            mailboxId = chosen.id;
+            live = true;
+            shared = true;
+          }
+        } catch (listErr) {
+          console.warn("AgentMail inbox reuse failed too; keeping a local placeholder:", listErr);
+        }
       }
     }
 
@@ -32,9 +47,10 @@ export const provisionPackageInbox = action({
       tradePackageId: args.tradePackageId,
       agentMailbox: mailboxEmail,
       agentMailboxId: mailboxId,
+      agentMailboxShared: shared,
     });
 
-    return { email: mailboxEmail, id: mailboxId };
+    return { email: mailboxEmail, id: mailboxId, live, shared };
   },
 });
 
@@ -64,29 +80,44 @@ export const dispatchRfqsWithNotification = action({
       tradePackageId: args.tradePackageId,
     });
 
-    const apiKey = process.env.AGENTMAIL_API_KEY;
+    const deliveryConfigured = isAgentmailConfigured();
     let emailsSent = 0;
+    const deliveryFailures: string[] = [];
 
-    if (apiKey && tradePkg.agentMailboxId) {
+    if (deliveryConfigured && tradePkg.agentMailboxId && !String(tradePkg.agentMailboxId).startsWith("local_")) {
       for (const contractor of contractors) {
-        if (contractor.contactEmail && contractor.contactEmail.includes("@")) {
-          try {
-            await agentmail.sendMessage(ctx as any, tradePkg.agentMailboxId, {
-              to: contractor.contactEmail,
-              subject: `INVITATION TO BID: ${tradePkg.tradeName} (CSI ${tradePkg.csiDivision}) - ${project?.title || "Commercial Development"}`,
-              text: `Dear ${contractor.companyName} Estimating Team,\n\nYou are invited to submit a proposal for ${tradePkg.tradeName} for ${project?.title || "our commercial development"} located in ${project?.location || "the area"}.\n\nMandatory Inclusions:\n${tradePkg.mandatoryInclusions.map((inc: string) => `- ${inc}`).join("\n")}\n\nBid Deadline: ${tradePkg.bidDeadline}\n\nPlease submit all pre-bid RFIs and final proposals directly to this project email address: ${tradePkg.agentMailbox}.\n\nTradePulse Pro Procurement Team`,
-            });
-            emailsSent++;
-          } catch (err) {
-            console.warn(`Failed to dispatch email to ${contractor.contactEmail}:`, err);
-          }
+        if (!contractor.contactEmail || !contractor.contactEmail.includes("@")) {
+          deliveryFailures.push(`${contractor.companyName}: no published email on file`);
+          continue;
+        }
+        if (/\.invalid$/i.test(contractor.contactEmail)) {
+          deliveryFailures.push(`${contractor.companyName}: contact email is not published (${contractor.contactEmail})`);
+          continue;
+        }
+        try {
+          await sendAgentmailMessage({
+            inboxId: tradePkg.agentMailboxId,
+            to: contractor.contactEmail,
+            subject: `INVITATION TO BID: ${tradePkg.tradeName} (CSI ${tradePkg.csiDivision}) - ${project?.title || "Commercial Development"}`,
+            text: `Dear ${contractor.companyName} Estimating Team,\n\nYou are invited to submit a proposal for ${tradePkg.tradeName} for ${project?.title || "our commercial development"} located in ${project?.location || "the area"}.\n\nMandatory Inclusions:\n${tradePkg.mandatoryInclusions.map((inc: string) => `- ${inc}`).join("\n")}\n\nBid Deadline: ${tradePkg.bidDeadline}\n\nPlease submit all pre-bid RFIs and final proposals directly to this project email address: ${tradePkg.agentMailbox}.\n\nTradePulse Pro Procurement Team`,
+          });
+          emailsSent++;
+        } catch (err: any) {
+          deliveryFailures.push(`${contractor.companyName}: ${String(err?.message || err).slice(0, 160)}`);
+          console.warn(`Failed to dispatch email to ${contractor.contactEmail}:`, err);
         }
       }
+    } else if (!deliveryConfigured) {
+      deliveryFailures.push("AGENTMAIL_API_KEY is not configured on this deployment");
+    } else if (String(tradePkg.agentMailboxId).startsWith("local_")) {
+      deliveryFailures.push("The trade package has no live AgentMail inbox (provisioning failed)");
     }
 
     return {
       ...result,
       emailsSent,
+      deliveryConfigured,
+      deliveryFailures,
     };
   },
 });
@@ -120,11 +151,19 @@ export const dispatchSingleRfqWithNotification = action({
     });
 
     // 5. Dispatch email via AgentMail if available
-    const apiKey = process.env.AGENTMAIL_API_KEY;
+    const deliveryConfigured = isAgentmailConfigured();
     let emailSent = false;
-    if (apiKey && tradePkg.agentMailboxId && contractor.contactEmail && contractor.contactEmail.includes("@")) {
+    const localMailbox = String(tradePkg.agentMailboxId).startsWith("local_");
+    if (
+      deliveryConfigured &&
+      !localMailbox &&
+      contractor.contactEmail &&
+      contractor.contactEmail.includes("@") &&
+      !/\.invalid$/i.test(contractor.contactEmail)
+    ) {
       try {
-        await agentmail.sendMessage(ctx as any, tradePkg.agentMailboxId, {
+        await sendAgentmailMessage({
+          inboxId: tradePkg.agentMailboxId,
           to: contractor.contactEmail,
           subject: `INVITATION TO BID: ${tradePkg.tradeName} (CSI ${tradePkg.csiDivision}) - ${project?.title || "Commercial Development"}`,
           text: `Dear ${contractor.companyName} Estimating Team,\n\nYou are invited to submit a proposal for ${tradePkg.tradeName} on ${project?.title || "our commercial development"} located in ${project?.location || "the area"}.\n\nMandatory Inclusions:\n${tradePkg.mandatoryInclusions.map((inc: string) => `- ${inc}`).join("\n")}\n\nBid Deadline: ${tradePkg.bidDeadline}\n\nPlease submit all pre-bid RFIs and final proposals directly to this project email address: ${tradePkg.agentMailbox}.\n\nTradePulse Pro Procurement Team`,
@@ -139,6 +178,7 @@ export const dispatchSingleRfqWithNotification = action({
       success: true,
       contractorId: args.contractorId,
       emailSent,
+      deliveryConfigured,
     };
   },
 });

@@ -1,10 +1,8 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, components } from "./_generated/api";
-import { AgentMail } from "@agentmail/convex";
+import { internal } from "./_generated/api";
 import { cleanNumber, sanitizeBidLevelingOutput } from "./llmRouter";
-
-const agentmail = new AgentMail(components.agentmail);
+import { sendAgentmailMessage } from "./agentmailApi";
 
 export const processInboundEmail = internalAction({
   args: {
@@ -237,8 +235,9 @@ export const handleRfiProcessing = internalAction({
     const agentMailKey = process.env.AGENTMAIL_API_KEY;
     if (agentMailKey && args.fromEmail.includes("@") && rfiStatus !== "escalated_to_pm") {
       try {
-        if (tradePkg?.agentMailboxId) {
-          await agentmail.sendMessage(ctx as any, tradePkg.agentMailboxId, {
+        if (tradePkg?.agentMailboxId && !String(tradePkg.agentMailboxId).startsWith("local_")) {
+          await sendAgentmailMessage({
+            inboxId: tradePkg.agentMailboxId,
             to: args.fromEmail,
             subject: `RE: ${args.subject}`,
             text: llmResult.content,

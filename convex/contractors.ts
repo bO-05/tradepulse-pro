@@ -255,11 +255,12 @@ export const batchInsertContractors = internalMutation({
   handler: async (ctx, args) => {
     const ids = [];
     for (const c of args.contractors) {
-      // Check if contractor already exists in package by email
+      // Dedupe by source page: two discovered records can legitimately share the
+      // "contact not published" placeholder address, so email is not a safe key.
       const existing = await ctx.db
         .query("contractors")
         .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
-        .filter((q) => q.eq(q.field("contactEmail"), c.contactEmail))
+        .filter((q) => q.eq(q.field("sourceUrl"), c.sourceUrl))
         .first();
 
       if (!existing) {

@@ -46,7 +46,10 @@ function sanitizeContractorCompanyName(rawTitle: string, fallbackName: string): 
 
 const PUBLISHED_EMAIL_RX = /[\w.+-]+@[\w-]+\.[\w.-]{2,}/;
 const PUBLISHED_PHONE_RX = /(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/;
-const PUBLISHED_LICENSE_RX = /\b(?:TX[-\s]?)?(TECL|TACLA|TACLB|TSBPE|RMP|PLMB|FIRE|CONC|STEEL|ROOF|FIN|ELEC)[-\s]?([A-Z0-9]{3,10})\b/i;
+// Require a real licence shape: known Texas/California prefix plus digits, or a
+// generic LIC/M number. This prevents words like "ELECTRICIANS" matching "ELEC".
+const PUBLISHED_LICENSE_RX =
+  /\b(?:TX[-\s]?)?((?:TECL|TACLA|TACLB|TSBPE|RMP|PLMB|FIRE|CONC|STEEL|ROOF|FIN|ELEC)[-\s]?\d{3,7}[A-Z]?|(?:LIC|M)[-\s]?\d{4,7})\b/i;
 const REGISTRY_HOSTS = [
   "tdlr.texas.gov",
   "pels.texas.gov",
@@ -58,6 +61,64 @@ const REGISTRY_HOSTS = [
   "nclbgc.org",
   "roc.az.gov",
 ];
+// Directory / aggregator hosts. Their pages are not contractor websites, so any
+// contact or licence data on them cannot be attributed to the contractor safely.
+const DIRECTORY_HOSTS = [
+  "yelp.com",
+  "yellowpages.com",
+  "thumbtack.com",
+  "buildzoom.com",
+  "bbb.org",
+  "angi.com",
+  "angieslist.com",
+  "houzz.com",
+  "facebook.com",
+  "linkedin.com",
+  "indeed.com",
+  "ziprecruiter.com",
+  "glassdoor.com",
+  "mapquest.com",
+  "chamberofcommerce.com",
+  "manta.com",
+  "dandb.com",
+  "birdeye.com",
+  "expertise.com",
+  "porch.com",
+  "homeadvisor.com",
+  "threebestrated.com",
+  "cylex.us.com",
+  "hotfrog.com",
+  "bizapedia.com",
+  "downtobid.com",
+  "constructionplacements.com",
+  "buildersshowcase.com",
+];
+
+function hostOf(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isHostIn(url: string | undefined, hosts: string[]): boolean {
+  const host = hostOf(url);
+  if (!host) return false;
+  return hosts.some((entry) => host === entry || host.endsWith(`.${entry}`));
+}
+
+/** Heuristic: is this title plausibly a company name rather than SEO copy? */
+function looksLikeCompanyName(title: string): boolean {
+  if (!title) return false;
+  const generic = /^(?:electricians?|plumbers?|contractors?|hvac|mechanical|electrical|commercial)$/i;
+  if (generic.test(title.trim())) return false;
+  if (/^(?:about|home|contact|welcome|services|products|projects|blog|news)\b/i.test(title.trim())) return false;
+  const companyToken = /\b(inc|llc|l\.l\.c|corp|corporation|co|company|ltd|limited|group|systems?|services?|electric(?:al)?|plumbing|mechanical|hvac|contractors?|construction|engineering|technologies|solutions|industries)\b/i;
+  const wordCount = title.trim().split(/\s+/).length;
+  return companyToken.test(title) || wordCount >= 2;
+}
 
 function findPublishedEmail(text: string | undefined): string | null {
   if (!text) return null;
@@ -74,42 +135,58 @@ function findPublishedPhone(text: string | undefined): string | null {
 function findPublishedLicense(text: string | undefined): string | null {
   if (!text) return null;
   const match = text.match(PUBLISHED_LICENSE_RX);
-  return match ? `${match[1].toUpperCase()}-${match[2].toUpperCase()}` : null;
+  return match ? match[1].replace(/\s+/g, "-").toUpperCase() : null;
 }
 
 function isRegistrySource(url: string | undefined): boolean {
-  if (!url) return false;
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-    return REGISTRY_HOSTS.some((registry) => host === registry || host.endsWith(`.${registry}`));
-  } catch {
-    return false;
-  }
+  return isHostIn(url, REGISTRY_HOSTS);
 }
 
 /**
  * Maps one search hit to a contractor record using only published data.
  * License numbers, phone numbers and emails are recorded only when the scraped
  * page actually contains them; otherwise the record is explicitly unverified.
+ * Returns null for directory pages and junk titles so no record is invented.
  */
-function mapSearchItemToContractor(item: any, fallbackName: string, registryUrl: string): DiscoveredContractor {
-  const cleanTitle = sanitizeContractorCompanyName(item?.title, fallbackName);
+function mapSearchItemToContractor(item: any, registryUrl: string): DiscoveredContractor | null {
+  if (isHostIn(item?.url, DIRECTORY_HOSTS) || isHostIn(item?.url, REGISTRY_HOSTS)) {
+    return null;
+  }
+  const cleanTitle = sanitizeContractorCompanyName(item?.title, "");
+  if (!cleanTitle || !looksLikeCompanyName(cleanTitle)) {
+    return null;
+  }
+  // Search titles often carry the brand after a separator
+  // ("Commercial Electrical Contractor in Austin, TX - FSG").
+  const rawTitle = String(item?.title || "");
+  const brandMatch = rawTitle.match(/[-–—|:]\s*([A-Z][A-Za-z0-9&.']{1,24})\s*$/);
+  const brandCandidate = brandMatch ? brandMatch[1].trim() : "";
+  const brandAcronym = /^[A-Z][A-Za-z]{1,5}$/.test(brandCandidate) && /[A-Z]{2,}/.test(brandCandidate) ? brandCandidate : "";
   const markdown: string = typeof item?.markdown === "string" ? item.markdown : "";
   const description: string = typeof item?.description === "string" ? item.description : "";
   const combinedText = `${markdown}\n${description}`;
+  // Prefer the page's own H1/H2 over the search-result title when it looks like a
+  // company name; search titles are often SEO copy ("... in Austin, TX - FSG").
+  const headingMatch = markdown.match(/^#{1,2}\s+(.+)$/m);
+  const headingCandidate = headingMatch ? sanitizeContractorCompanyName(headingMatch[1], "") : "";
+  const finalName = brandAcronym || (looksLikeCompanyName(headingCandidate) ? headingCandidate : cleanTitle);
+  if (!brandAcronym && (!finalName || !looksLikeCompanyName(finalName))) {
+    return null;
+  }
   const sourceUrl: string = item?.url || registryUrl;
   const publishedEmail = findPublishedEmail(combinedText);
   const publishedPhone = findPublishedPhone(combinedText);
   const publishedLicense = findPublishedLicense(combinedText);
   const registryMatch = isRegistrySource(item?.url);
   return {
-    companyName: cleanTitle,
+    companyName: finalName,
     contactEmail: publishedEmail || "not-published@verify-required.invalid",
     phone: publishedPhone || undefined,
     licenseNumber: publishedLicense || "Not verified",
-    licenseStatus: publishedLicense && registryMatch
-      ? "Verified in listing (registry page)"
-      : "Unverified — from web search result",
+    licenseStatus:
+      publishedLicense && registryMatch
+        ? "Verified in listing (registry page)"
+        : "Unverified — from web search result",
     sourceUrl,
   };
 }
@@ -128,7 +205,7 @@ export const discoverSubcontractors = action({
       projectId: tradePkg.projectId,
     });
     const projectLocation = project?.location || "Austin, TX";
-    const { city, stateAbbr: state } = parseCityAndState(projectLocation);
+    const { stateAbbr: state } = parseCityAndState(projectLocation);
 
     const STATE_CONFIG: Record<string, { board: string; prefix: string; areaCode: string; registryUrl: string }> = {
       TX: { board: "TDLR / Texas Board of Professional Engineers", prefix: "TX", areaCode: "512", registryUrl: "https://pels.texas.gov/" },
@@ -184,8 +261,8 @@ export const discoverSubcontractors = action({
             : [];
           for (let i = 0; i < items.length; i++) {
             const item: any = items[i];
-            const fallbackName = `${city} Commercial ${tradePkg.tradeName.split(" ")[0]} Services ${i + 1}`;
-            discoveredContractors.push(mapSearchItemToContractor(item, fallbackName, stateCfg.registryUrl));
+            const mapped = mapSearchItemToContractor(item, stateCfg.registryUrl);
+            if (mapped) discoveredContractors.push(mapped);
           }
         } catch {
           // Direct API fallback with country: "US"
@@ -214,235 +291,34 @@ export const discoverSubcontractors = action({
               : [];
             for (let i = 0; i < items.length; i++) {
               const item = items[i];
-              const fallbackName = `${city} Commercial ${tradePkg.tradeName.split(" ")[0]} Services ${i + 1}`;
-              discoveredContractors.push(mapSearchItemToContractor(item, fallbackName, stateCfg.registryUrl));
+              const mapped = mapSearchItemToContractor(item, stateCfg.registryUrl);
+              if (mapped) discoveredContractors.push(mapped);
             }
           }
         }
       } catch (err) {
-        console.warn("Firecrawl search failed or timed out, falling back to verified trade directory:", err);
+        console.warn("Firecrawl search failed or returned nothing usable; no records will be created:", err);
       }
     }
 
-    // High-quality verified trade directory fallback if Firecrawl didn't return items or key missing
-    let usedSampleDirectory = false;
+    // No live results: return an honest empty result. The product never invents
+    // contractors, licence numbers or contacts; the UI shows a retry/empty state.
     if (discoveredContractors.length === 0) {
-      usedSampleDirectory = true;
-      const div = tradePkg.csiDivision.slice(0, 2);
-      if (div === "26") {
-        if (state === "TX") {
-          discoveredContractors.push(
-            {
-              companyName: "Rosendin Electric, Inc.",
-              contactEmail: "estimating@rosendin.com",
-              sourceUrl: "https://www.rosendin.com",
-            },
-            {
-              companyName: "Alterman, Inc.",
-              contactEmail: "estimating@goalterman.com",
-              sourceUrl: "https://goalterman.com",
-            },
-            {
-              companyName: "Prism Electric, Inc.",
-              contactEmail: "estimating@prismelectric.com",
-              sourceUrl: "https://prismelectric.com",
-            },
-            {
-              companyName: "Bergelectric Corp.",
-              contactEmail: "estimating@bergelectric.com",
-              sourceUrl: "https://www.bergelectric.com",
-            }
-          );
-        } else {
-          discoveredContractors.push(
-            {
-              companyName: "Rosendin Electric, Inc.",
-              contactEmail: "estimating@rosendin.com",
-              sourceUrl: "https://www.rosendin.com",
-            },
-            {
-              companyName: "Alterman, Inc.",
-              contactEmail: "estimating@goalterman.com",
-              sourceUrl: "https://goalterman.com",
-            },
-            {
-              companyName: "Prism Electric, Inc.",
-              contactEmail: "estimating@prismelectric.com",
-              sourceUrl: "https://prismelectric.com",
-            },
-            {
-              companyName: "Bergelectric Corp.",
-              contactEmail: "estimating@bergelectric.com",
-              sourceUrl: "https://www.bergelectric.com",
-            }
-          );
-        }
-      } else if (div === "23") {
-        if (state === "TX") {
-          discoveredContractors.push(
-            {
-              companyName: "TDIndustries, Inc.",
-              contactEmail: "estimating@tdindustries.com",
-              sourceUrl: "https://www.tdindustries.com",
-            },
-            {
-              companyName: "The Brandt Companies, LLC",
-              contactEmail: "estimating@brandt.us",
-              sourceUrl: "https://brandt.us",
-            },
-            {
-              companyName: "Southland Industries",
-              contactEmail: "estimating@southlandind.com",
-              sourceUrl: "https://southlandind.com",
-            },
-            {
-              companyName: "Dynamic Systems, Inc.",
-              contactEmail: "commercial@dynamicsystemsusa.com",
-              sourceUrl: "https://www.dynamicsystemsusa.com",
-            }
-          );
-        } else {
-          discoveredContractors.push(
-            {
-              companyName: "TDIndustries, Inc.",
-              contactEmail: "estimating@tdindustries.com",
-              sourceUrl: "https://www.tdindustries.com",
-            },
-            {
-              companyName: "The Brandt Companies, LLC",
-              contactEmail: "estimating@brandt.us",
-              sourceUrl: "https://brandt.us",
-            },
-            {
-              companyName: "Southland Industries",
-              contactEmail: "estimating@southlandind.com",
-              sourceUrl: "https://southlandind.com",
-            }
-          );
-        }
-      } else if (div === "22") {
-        if (state === "TX") {
-          discoveredContractors.push(
-            {
-              companyName: "Clarke Kent Plumbing",
-              contactEmail: "dispatch@clarkekentplumbing.com",
-              sourceUrl: "https://clarkekentplumbing.com",
-            },
-            {
-              companyName: "Limbach Facility Services LLC",
-              contactEmail: "estimating@limbachinc.com",
-              sourceUrl: "https://limbachinc.com",
-            },
-            {
-              companyName: "TDIndustries, Inc. (Plumbing)",
-              contactEmail: "plumbing@tdindustries.com",
-              sourceUrl: "https://www.tdindustries.com",
-            }
-          );
-        } else {
-          discoveredContractors.push(
-            {
-              companyName: "TDIndustries, Inc. (Plumbing)",
-              contactEmail: "plumbing@tdindustries.com",
-              sourceUrl: "https://www.tdindustries.com",
-            },
-            {
-              companyName: "Clarke Kent Plumbing LLC",
-              contactEmail: "dispatch@clarkekentplumbing.com",
-              sourceUrl: "https://clarkekentplumbing.com",
-            }
-          );
-        }
-      } else if (div === "21") {
-        discoveredContractors.push(
-          {
-            companyName: "Century Fire Protection LLC",
-            contactEmail: "contact@centuryfp.com",
-            sourceUrl: "https://www.centuryfp.com/",
-          },
-          {
-            companyName: "Viking Fire Protection Group",
-            contactEmail: "info@vikinggroupinc.com",
-            sourceUrl: "https://www.vikinggroupinc.com/",
-          }
-        );
-      } else if (div === "03") {
-        discoveredContractors.push(
-          {
-            companyName: "Baker Concrete Construction",
-            contactEmail: "bids@bakerconcrete.com",
-            sourceUrl: "https://www.bakerconcrete.com/",
-          },
-          {
-            companyName: "Webcor Concrete",
-            contactEmail: "estimating@webcor.com",
-            sourceUrl: "https://www.webcor.com/",
-          }
-        );
-      } else if (div === "05") {
-        discoveredContractors.push(
-          {
-            companyName: "Commercial Metals Company (CMC)",
-            contactEmail: "estimating@cmc.com",
-            sourceUrl: "https://www.cmc.com/",
-          },
-          {
-            companyName: "American Institute of Steel Construction",
-            contactEmail: "info@aisc.org",
-            sourceUrl: "https://www.aisc.org/",
-          }
-        );
-      } else if (div === "07") {
-        discoveredContractors.push(
-          {
-            companyName: "CentiMark Corporation",
-            contactEmail: "contactus@centimark.com",
-            sourceUrl: "https://www.centimark.com/",
-          },
-          {
-            companyName: "Chamberlin Roofing & Waterproofing",
-            contactEmail: "info@chamberlinltd.com",
-            sourceUrl: "https://www.chamberlinltd.com/",
-          }
-        );
-      } else if (div === "09") {
-        discoveredContractors.push(
-          {
-            companyName: "Marek Brothers Systems Inc.",
-            contactEmail: "bids@marekbros.com",
-            sourceUrl: "https://www.marekbros.com/",
-          },
-          {
-            companyName: "Performance Contracting, Inc. (PCI)",
-            contactEmail: "estimating@pcg.com",
-            sourceUrl: "https://www.performancecontracting.com/",
-          }
-        );
-      } else {
-        discoveredContractors.push(
-          {
-            companyName: "Associated General Contractors (AGC)",
-            contactEmail: "bids@agc.org",
-            sourceUrl: "https://www.agc.org/",
-          },
-          {
-            companyName: "Rosendin Commercial Services",
-            contactEmail: "estimating@rosendin.com",
-            sourceUrl: "https://www.rosendin.com/",
-          }
-        );
-      }
-    }
-
-    // The built-in directory is a sample dataset. Strip invented license data and label
-    // every record so it can never be mistaken for a registry verification.
-    if (usedSampleDirectory) {
-      for (const contractor of discoveredContractors) {
-        contractor.licenseNumber = "Not verified";
-        contractor.licenseStatus = "Unverified — sample directory record";
-        contractor.phone = undefined;
-        contractor.contactEmail = "not-published@verify-required.invalid";
-      }
+      await ctx.runMutation(internal.auditLogs.recordLogInternal, {
+        projectId: tradePkg.projectId,
+        tradePackageId: args.tradePackageId,
+        eventType: "compliance_audit",
+        title: `Discovery returned no usable contractors: Division ${tradePkg.csiDivision}`,
+        description: "Firecrawl returned no contractor pages with published contact data. No records were created; retry or add a contractor manually.",
+        actor: "TradePulse Discovery Engine",
+      });
+      return {
+        success: true,
+        tradePackageId: args.tradePackageId,
+        discoveredCount: 0,
+        insertedCount: 0,
+        source: "Firecrawl web search (no usable results)",
+      };
     }
 
     const insertedIds: any = await ctx.runMutation(
@@ -457,9 +333,7 @@ export const discoverSubcontractors = action({
       }
     );
 
-    const source = usedSampleDirectory
-      ? "Built-in sample directory (licenses unverified)"
-      : "Firecrawl web search (license data only when published in the source)";
+    const source = "Firecrawl web search (license data only when published in the source)";
 
     // Record in reactive audit stream
     await ctx.runMutation(internal.auditLogs.recordLogInternal, {
@@ -467,9 +341,7 @@ export const discoverSubcontractors = action({
       tradePackageId: args.tradePackageId,
       eventType: "compliance_audit",
       title: `Contractors Discovered: Division ${tradePkg.csiDivision}`,
-      description: usedSampleDirectory
-        ? `Loaded ${discoveredContractors.length} sample contractor record(s) from the built-in directory. License numbers are NOT verified; confirm licensing with the state registry before sourcing.`
-        : `Discovered ${discoveredContractors.length} contractor record(s) via Firecrawl web search. License numbers and contacts are recorded only when published in the source; verify before sourcing.`,
+      description: `Discovered ${discoveredContractors.length} contractor record(s) via Firecrawl web search. License numbers and contacts are recorded only when published in the source; verify before sourcing.`,
       actor: "TradePulse Discovery Engine",
     });
 

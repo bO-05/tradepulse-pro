@@ -344,6 +344,18 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                         {pkg.agentMailbox}
                       </span>
                     </div>
+                    {pkg.agentMailboxShared && (
+                      <div className="text-[10px] text-amber-300 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Shared inbox — AgentMail plan inbox limit reached
+                      </div>
+                    )}
+                    {String(pkg.agentMailboxId || "").startsWith("local_") && (
+                      <div className="text-[10px] text-amber-300 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Inbox not provisioned — AgentMail unavailable
+                      </div>
+                    )}
                   </div>
 
                   {/* Mandatory Inclusions */}

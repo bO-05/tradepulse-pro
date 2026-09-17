@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as agentmailApi from "../agentmailApi.js";
 import type * as agreements from "../agreements.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as bids from "../bids.js";
@@ -37,6 +38,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agentmailApi: typeof agentmailApi;
   agreements: typeof agreements;
   auditLogs: typeof auditLogs;
   bids: typeof bids;

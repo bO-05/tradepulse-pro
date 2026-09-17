@@ -23,6 +23,9 @@ export default defineSchema({
     budgetEstimate: v.number(),
     agentMailbox: v.string(), // e.g. "austin-elec-rfq@agentmail.to"
     agentMailboxId: v.string(),
+    // True when the AgentMail plan's inbox limit forced reuse of an existing
+    // inbox; the UI discloses it instead of claiming a dedicated inbox.
+    agentMailboxShared: v.optional(v.boolean()),
     scopeSummary: v.string(),
     mandatoryInclusions: v.array(v.string()), // ["Crane hoisting", "Seismic bracing", "Temporary power"]
     bidDeadline: v.string(),

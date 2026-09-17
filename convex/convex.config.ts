@@ -36,7 +36,12 @@ app.use(firecrawl, {
   },
 });
 
-// 3. AgentMail programmatic inbox component
+// 3. AgentMail programmatic inbox component.
+// NOTE: the published component reads AGENTMAIL_API_KEY from process.env inside
+// its own sandbox, which does not inherit the host deployment's environment and
+// cannot be passed via `app.use` (the component declares no env schema). Outbound
+// inbox/send calls therefore go through `convex/agentmailApi.ts` with the host
+// deployment key; this component stays mounted for Svix-verified inbound webhooks.
 app.use(agentmail);
 
 export default app;

@@ -496,12 +496,15 @@ export const App: React.FC = () => {
         if (!res || res.dispatchedCount === 0) {
           showToast("No RFQ invitations were sent: no contractors require dispatch for this package.", "error");
         } else if (res.emailsSent > 0) {
-          showToast(`RFQs sent to ${res.emailsSent} contractors via AgentMail (${res.dispatchedCount} records updated).`, "success");
-        } else {
+          showToast(`RFQs delivered to ${res.emailsSent} contractor(s) via AgentMail.`, "success");
+        } else if (res.deliveryConfigured === false) {
           showToast(
-            `RFQs queued for ${res.dispatchedCount} contractor(s). Live email delivery is not confirmed (AgentMail not configured).`,
+            `RFQs recorded for ${res.dispatchedCount} contractor(s), but AgentMail is not configured on this deployment, so no email left the system.`,
             "info"
           );
+        } else {
+          const firstFailure = Array.isArray(res.deliveryFailures) && res.deliveryFailures.length > 0 ? ` First issue: ${res.deliveryFailures[0]}` : "";
+          showToast(`RFQs recorded for ${res.dispatchedCount} contractor(s), but no email was delivered.${firstFailure}`, "error");
         }
       } else {
         updateStandaloneAndPersist((prev) => {
@@ -938,7 +941,14 @@ export const App: React.FC = () => {
       const isRealPkg = isRealConvexProject && Boolean(packageId) && !packageId.startsWith("pkg_");
       if (isRealPkg) {
         const res = await discoverAction({ tradePackageId: packageId as any });
-        showToast(`Discovered ${res.discoveredCount} commercial contractors via ${res.source}!`);
+        if (res.discoveredCount === 0) {
+          showToast(
+            "No usable contractor pages were found by live web discovery. Try a different project location or add a contractor manually.",
+            "info"
+          );
+        } else {
+          showToast(`Discovered ${res.discoveredCount} contractor record(s) via live web search. Review provenance before inviting.`, "success");
+        }
       } else {
         const pkg = tradePackages.find((p) => p._id === packageId) || activePackage;
         const loc = currentProject?.location || "Austin, TX";
@@ -1066,9 +1076,16 @@ export const App: React.FC = () => {
     try {
       const isRealCtr = isRealConvexProject && Boolean(contractorId) && !contractorId.startsWith("ctr_");
       if (isRealCtr) {
-        await dispatchSingleRfqAction({
+        const res = await dispatchSingleRfqAction({
           contractorId: contractorId as any,
         });
+        if (res && res.emailSent) {
+          showToast("Invitation to bid delivered via AgentMail.", "success");
+        } else if (res && res.deliveryConfigured === false) {
+          showToast("Contractor marked invited, but AgentMail is not configured so no email was sent.", "info");
+        } else {
+          showToast("Contractor marked invited, but the AgentMail delivery did not succeed (check the contact email).", "error");
+        }
       } else {
         updateStandaloneAndPersist((prev) => {
           const target = prev.contractors.find((c) => c._id === contractorId);

@@ -521,7 +521,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
                       <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      {c.contactEmail}
+                      {/\.invalid$/i.test(c.contactEmail) ? <span className="text-amber-300">Contact not published</span> : c.contactEmail}
                     </span>
                     {c.phone && (
                       <span className="flex items-center gap-1">

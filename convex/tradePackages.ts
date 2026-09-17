@@ -91,11 +91,13 @@ export const updateMailbox = internalMutation({
     tradePackageId: v.id("tradePackages"),
     agentMailbox: v.string(),
     agentMailboxId: v.string(),
+    agentMailboxShared: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.tradePackageId, {
       agentMailbox: args.agentMailbox,
       agentMailboxId: args.agentMailboxId,
+      ...(args.agentMailboxShared !== undefined ? { agentMailboxShared: args.agentMailboxShared } : {}),
     });
   },
 });
