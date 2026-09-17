@@ -552,7 +552,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
       "Scope Gaps / Exclusions Count",
       "Total Scope Gap Cost ($)",
       "Value Engineering Alternates Count",
-      "Total VE Deduct ($)",
+      "Accepted VE Deduct ($)",
       "Lead Time (Weeks)",
       "Lead Time Penalty ($)",
       "ACORD 25 COI Status",
@@ -666,7 +666,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   onClick={() => onSelectPackage(pkg._id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition shrink-0 ${
                     isSelected
-                      ? "bg-emerald-600 text-white font-bold shadow-sm ring-1 ring-emerald-400"
+                      ? "bg-emerald-700 text-white font-bold shadow-sm ring-1 ring-emerald-400"
                       : "bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 hover:border-slate-600"
                   }`}
                 >
@@ -720,7 +720,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 onClick={() => setViewMode("cards")}
                 className={`px-2.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition ${
                   viewMode === "cards"
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-emerald-700 text-white shadow-sm"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -731,7 +731,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 onClick={() => setViewMode("table")}
                 className={`px-2.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition ${
                   viewMode === "table"
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-emerald-700 text-white shadow-sm"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -775,13 +775,14 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
               Export Leveling CSV
             </button>
 
-            {/* Simulate Quote */}
+            {/* Open simulation scenarios */}
             <button
               onClick={onOpenSimulation}
               className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              title="Opens the simulation dock; Scenario B/C ingest a simulated inbound proposal for the active package"
             >
               <Zap className="w-3.5 h-3.5 fill-slate-950" />
-              Simulate Inbound Quote
+              Simulate Inbound Bid…
             </button>
           </div>
         </div>
@@ -790,7 +791,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
         {showWhyCare && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 leading-relaxed bg-slate-950/60 rounded-lg p-3 border animate-in fade-in">
             <span className="font-semibold text-emerald-400">The $186,000 Scope Exclusion Trap: </span>
-            Subcontractors submit deceptively low base prices on paper, but bury exclusions for crane hoisting, UL firestopping, and seismic bracing in proposal fine print. TradePulse Pro's ADR-0003 engine parses proposal exclusions, applies lead time liquidated penalties ($6,000/wk), adds COI insurance penalties, and subtracts accepted Value Engineering (VE) alternates—guaranteeing true apples-to-apples procurement.
+            Subcontractors submit deceptively low base prices on paper, but bury exclusions for crane hoisting, UL firestopping, and seismic bracing in proposal fine print. TradePulse Pro's ADR-0003 engine parses proposal exclusions, applies lead-time delay penalties ($6,000/wk schedule-impact rate, distinct from the contract's $1,200/day liquidated damages), adds COI insurance penalties, and subtracts accepted Value Engineering (VE) alternates—guaranteeing true apples-to-apples procurement.
           </div>
         )}
       </div>
@@ -928,18 +929,16 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   }
                   setIsIngestModalOpen(true);
                 }}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
               >
                 <FileUp className="w-4 h-4" />
                 Ingest Direct Quote / PDF
               </button>
-              <button
-                onClick={onOpenSimulation}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-1.5 transition"
-              >
-                ⚡ Simulate Proposal Inflow
-              </button>
             </div>
+            <p className="text-[11px] text-slate-400 text-center">
+              Bids are also ingested by the AI from uploaded quote files on the CSI Scoping tab, or simulated from the
+              «Simulate Inbound Bid…» control in the toolbar above.
+            </p>
           </div>
         </div>
       ) : viewMode === "table" ? (
@@ -1005,7 +1004,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 <tr className="hover:bg-slate-850/40 transition">
                   <td className="px-3 py-2 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 text-[11px]">
                     <div>Scope Gaps & Exclusions</div>
-                    <span className="text-[9px] text-slate-500 font-normal block">Cost impacts added to normalize scope</span>
+                    <span className="text-[9px] text-slate-400 font-normal block">Cost impacts added to normalize scope</span>
                   </td>
                   {sortedBids.map((bid) => {
                     const exclusions = bid.identifiedExclusions || [];
@@ -1044,7 +1043,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 <tr className="hover:bg-slate-850/40 transition">
                   <td className="px-3 py-2 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 text-[11px]">
                     <div>Value Engineering (VE) Alternates</div>
-                    <span className="text-[9px] text-slate-500 font-normal block">Accepted deducts reduce leveled total</span>
+                    <span className="text-[9px] text-slate-400 font-normal block">Accepted deducts reduce leveled total</span>
                   </td>
                   {sortedBids.map((bid) => {
                     const alternates = bid.valueEngineeringAlternates || [];
@@ -1052,7 +1051,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                     return (
                       <td key={bid._id} className="px-3 py-2 border-l border-slate-800 space-y-1 align-top">
                         {alternates.length === 0 ? (
-                          <span className="text-slate-500 text-[10px]">No alternates offered</span>
+                          <span className="text-slate-400 text-[10px]">No alternates offered</span>
                         ) : (
                           <>
                             <div className="font-mono text-emerald-400 font-semibold text-xs">
@@ -1081,7 +1080,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 <tr className="hover:bg-slate-850/40 transition">
                   <td className="px-3 py-2 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 text-[11px]">
                     <div>Equipment Lead Time</div>
-                    <span className="text-[9px] text-slate-500 font-normal block">Schedule impact / liquidated damages</span>
+                    <span className="text-[9px] text-slate-400 font-normal block">Schedule impact / liquidated damages</span>
                   </td>
                   {sortedBids.map((bid) => (
                     <td key={bid._id} className="px-3 py-2 border-l border-slate-800 align-top">
@@ -1097,7 +1096,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 <tr className="hover:bg-slate-850/40 transition">
                   <td className="px-3 py-2 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 text-[11px]">
                     <div>ACORD 25 COI Insurance</div>
-                    <span className="text-[9px] text-slate-500 font-normal block">Broker endorsement / deficiency buffer</span>
+                    <span className="text-[9px] text-slate-400 font-normal block">Broker endorsement / deficiency buffer</span>
                   </td>
                   {sortedBids.map((bid) => (
                     <td key={bid._id} className="px-3 py-2 border-l border-slate-800 align-top">
@@ -1249,7 +1248,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       )}
                       <button
                         onClick={() => handleDeleteBid(bid._id)}
-                        className="p-1 text-slate-500 hover:text-rose-400 transition"
+                        className="p-1 text-slate-400 hover:text-rose-400 transition"
                         title="Delete proposal"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1306,7 +1305,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       <button
                         onClick={() => openAdjustmentModal(bid)}
                         disabled={isBidAgreementExecuted(bid._id)}
-                        className="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 transition disabled:text-slate-500 disabled:cursor-not-allowed"
+                        className="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 transition disabled:text-slate-400 disabled:cursor-not-allowed"
                         title={
                           isBidAgreementExecuted(bid._id)
                             ? "Leveling locked: the subcontract agreement is executed and immutable."
@@ -1373,10 +1372,10 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       </span>
                       {exclusions.map((exc, i) => (
                         <div key={i} className="flex items-start justify-between gap-2 text-slate-300 text-[11px]">
-                          <span className={`line-clamp-1 ${exc.isWaived ? "line-through text-slate-500" : "text-slate-400"}`}>
+                          <span className={`line-clamp-1 ${exc.isWaived ? "line-through text-slate-400" : "text-slate-400"}`}>
                             • {exc.description} {exc.isWaived && <span className="text-emerald-400 ml-1 font-semibold">[Waived by GC]</span>}
                           </span>
-                          <span className={`font-mono shrink-0 font-semibold ${exc.isWaived ? "text-slate-500 line-through" : "text-amber-400"}`}>
+                          <span className={`font-mono shrink-0 font-semibold ${exc.isWaived ? "text-slate-400 line-through" : "text-amber-400"}`}>
                             {exc.isWaived ? "$0" : `+$${(exc.costImpact || 0).toLocaleString()}`}
                           </span>
                         </div>
@@ -1392,10 +1391,10 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       </span>
                       {alternates.map((alt, i) => (
                         <div key={i} className="flex items-start justify-between gap-2 text-slate-300 text-[11px]">
-                          <span className={`line-clamp-1 ${!alt.isAccepted ? "line-through text-slate-500" : "text-slate-400"}`}>
+                          <span className={`line-clamp-1 ${!alt.isAccepted ? "line-through text-slate-400" : "text-slate-400"}`}>
                             • {alt.description}
                           </span>
-                          <span className={`font-mono shrink-0 font-semibold ${alt.isAccepted ? "text-emerald-400" : "text-slate-500"}`}>
+                          <span className={`font-mono shrink-0 font-semibold ${alt.isAccepted ? "text-emerald-400" : "text-slate-400"}`}>
                             {alt.isAccepted ? `-$${(alt.costDeduct || 0).toLocaleString()} (Accepted)` : `$${(alt.costDeduct || 0).toLocaleString()} (Declined)`}
                           </span>
                         </div>
@@ -1503,9 +1502,10 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
             <button
               onClick={onNavigateToContracts}
               className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              title="Skip the Scope Clash stage and go straight to the subcontract register"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-400" />
-              Proceed to Contracts Register ➔
+              Skip ahead: Contracts Register →
             </button>
           )}
         </div>
@@ -1704,7 +1704,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
               <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
                 <div className="text-[11px]">
                   {!ingestQuoteText.trim() ? (
-                    <span className="text-slate-500">Paste quote text or drop a proposal file above</span>
+                    <span className="text-slate-400">Paste quote text or drop a proposal file above</span>
                   ) : (contractors.length > 0 && !ingestContractorId) ||
                     ((contractors.length === 0 || ingestContractorId === "new_contractor") && !newContractorName.trim()) ? (
                     <span className="text-amber-400 font-medium flex items-center gap-1">
@@ -1810,7 +1810,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   Waiving an exclusion removes its cost penalty from the leveled total (e.g. if covered under another subcontract).
                 </p>
                 {tempExclusions.length === 0 ? (
-                  <p className="text-slate-500 italic">No exclusions identified for this proposal.</p>
+                  <p className="text-slate-400 italic">No exclusions identified for this proposal.</p>
                 ) : (
                   <div className="space-y-2">
                     {tempExclusions.map((exc, idx) => (
@@ -1818,12 +1818,12 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                         key={idx}
                         className={`p-3 rounded-lg border flex items-center justify-between gap-3 transition ${
                           exc.isWaived
-                            ? "bg-slate-950/60 border-slate-800 text-slate-500"
+                            ? "bg-slate-950/60 border-slate-800 text-slate-400"
                             : "bg-slate-850 border-slate-700 text-slate-200"
                         }`}
                       >
                         <div className="flex-1">
-                          <div className={`font-semibold ${exc.isWaived ? "line-through text-slate-500" : "text-white"}`}>
+                          <div className={`font-semibold ${exc.isWaived ? "line-through text-slate-400" : "text-white"}`}>
                             {exc.description}
                           </div>
                           <div className="font-mono text-[11px] text-amber-400 mt-0.5">
@@ -1895,7 +1895,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       }`}
                     >
                       <div className="flex-1">
-                        <div className={`font-semibold ${alt.isAccepted ? "text-white" : "line-through text-slate-500"}`}>
+                        <div className={`font-semibold ${alt.isAccepted ? "text-white" : "line-through text-slate-400"}`}>
                           {alt.description}
                         </div>
                         <div className="font-mono text-[11px] text-emerald-400 mt-0.5">
@@ -1907,7 +1907,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                         onClick={() => toggleAcceptAlternate(idx)}
                         className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1 ${
                           alt.isAccepted
-                            ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                            ? "bg-emerald-700 text-white hover:bg-emerald-600"
                             : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
                         }`}
                       >
@@ -1939,7 +1939,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   <button
                     type="button"
                     onClick={handleAddAlternate}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 transition"
+                    className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Alternate
@@ -1959,7 +1959,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                     onChange={(e) => setTempLeadPenalty(Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
                     Liquidated damages buffer for schedule slippage
                   </span>
                 </div>
@@ -1974,7 +1974,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                     onChange={(e) => setTempCoiPenalty(Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
                     Cost buffer to purchase broker umbrella/endorsements
                   </span>
                 </div>
@@ -2090,21 +2090,21 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                 <div className="max-w-3xl mx-auto space-y-4">
                   <div className="border border-slate-800 bg-slate-900/80 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs not-italic print:hidden">
                     <div>
-                      <span className="text-slate-500 block text-[10px] uppercase">Awarded Subcontractor</span>
+                      <span className="text-slate-400 block text-[10px] uppercase">Awarded Subcontractor</span>
                       <span className="font-bold text-white text-sm">{activeAgreement.subcontractorName}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[10px] uppercase">Subcontract Sum</span>
+                      <span className="text-slate-400 block text-[10px] uppercase">Subcontract Sum</span>
                       <span className="font-bold text-emerald-400 text-sm font-mono">
                         ${activeAgreement.contractSum.toLocaleString()}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[10px] uppercase">Retainage</span>
+                      <span className="text-slate-400 block text-[10px] uppercase">Retainage</span>
                       <span className="font-bold text-slate-300">{activeAgreement.retainagePercent}%</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[10px] uppercase">Liquidated Damages</span>
+                      <span className="text-slate-400 block text-[10px] uppercase">Liquidated Damages</span>
                       <span className="font-bold text-slate-300">${activeAgreement.liquidatedDamagesDaily}/day</span>
                     </div>
                   </div>
@@ -2154,7 +2154,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                   {activeAgreement.status !== "executed" && (
                     <button
                       onClick={() => handleExecuteAgreement(activeAgreement._id)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                      className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                        Record External Execution

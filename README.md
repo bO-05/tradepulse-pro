@@ -38,9 +38,9 @@ When GCs award purely based on base price, they suffer **six-figure change order
 
 TradePulse Pro automates the entire MEP subcontractor buyout lifecycle end-to-end:
 1. **CSI MasterFormat Scoping**: Auto-parses architectural specifications into Division 26 (Electrical), Division 23 (HVAC), and Division 22 (Plumbing) packages with dedicated `@agentmail.to` inboxes.
-2. **Autonomous Subcontractor Discovery (Firecrawl)**: Crawls Texas licensing registries (TDLR) and regional contractor sites, extracting active master licenses and safety ratings into Convex.
+2. **Autonomous Subcontractor Discovery (Firecrawl)**: Searches regional contractor sites for candidate bidders and records the provenance of every data point. License numbers, phone numbers and emails are only stored when the source actually publishes them; records are labeled "Unverified" unless the source itself is a state registry page.
 3. **Dynamic Pre-Bid Q&A (AgentMail & OpenAI)**: Ingests subcontractor email RFIs via AgentMail with cryptographic Svix verification, answers technical questions against the spec, and compiles binding **CSI Addendum No. 01** documents stored in Convex File Storage (`_storage`).
-4. **Forensic Bid Leveling Engine (ADR-0003)**: Automatically parses proposals, normalizes hidden exclusions, calculates liquidated damages and COI penalties, and accounts for Value Engineering (VE) alternates.
+4. **Forensic Bid Leveling Engine (ADR-0003)**: Automatically parses proposals, normalizes hidden exclusions, applies lead-time delay adjustments and COI penalties, and accounts for Value Engineering (VE) alternates.
 5. **Cross-Trade Scope Clash Engine**: Detects Double-Buys and Scope Voids between electrical and mechanical trades with 1-click buyout deductions.
 6. **AIA Document A401 Contract Generator**: Instantly produces standard 10-article AIA subcontracts with financial attestations, retainage terms, and liquidated damages.
 
@@ -77,7 +77,7 @@ graph TD
 
 ### 3. Firecrawl (`@firecrawl/firecrawl-convex`, `convex/contractorDiscovery.ts`)
 * **Subcontractor Web Discovery**: Autonomous discovery of MEP specialty contractors by location and trade division.
-* **Website Scraping & Licensing Verification**: Scrapes Texas TDLR licensing registries and contractor domains to verify active master licenses, OSHA ratings, and union status.
+* **Provenance-First Records**: Scrapes contractor domains for published contacts and license numbers and labels each record with its source. Nothing is presented as state-verified unless a registry page was actually the source.
 
 ### 4. AgentMail (`@agentmail/convex`, `convex/emailActions.ts`, `convex/http.ts`)
 * **Dedicated Stateful Inboxes**: Auto-provisions `@agentmail.to` inboxes per CSI trade package (Div 26 Electrical, Div 23 HVAC, Div 22 Plumbing).

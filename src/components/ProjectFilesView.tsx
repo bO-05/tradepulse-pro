@@ -1,5 +1,5 @@
 import { getErrorMessage } from "../lib/errors.ts";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   FileText,
   Upload,
@@ -18,16 +18,33 @@ import {
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import {
-  getRealDocumentPdfBytes,
-  getRealDocumentText,
   REAL_DOCUMENTS,
 } from "../../convex/realDocuments.ts";
 import { extractTextFromPdfStream } from "../standaloneStore.ts";
 import { Project, TradePackage, ProjectFile, Contractor } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useDialogFocus } from "../lib/useDialogFocus.ts";
+import { formatDateOnly } from "../lib/datetime.ts";
+import { isServedArchiveRecord, resolveStoredFileText, resolveStoredFileUrl } from "../lib/storedFile.ts";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const SUPPORTED_UPLOAD_EXTENSIONS = [".pdf", ".dwg", ".dxf", ".txt"];
+
+const ALLOWED_EXTENSIONS_BY_TYPE: Record<string, string[]> = {
+  blueprint: [".pdf", ".dwg", ".dxf"],
+  spec: [".pdf", ".txt"],
+  quote_pdf: [".pdf", ".txt"],
+  coi_certificate: [".pdf"],
+  addendum: [".pdf", ".txt"],
+};
+
+const FILE_TYPE_LABELS: Record<string, string> = {
+  blueprint: "MEP blueprint drawing",
+  spec: "CSI specification",
+  quote_pdf: "Subcontractor quote",
+  coi_certificate: "ACORD 25 COI certificate",
+  addendum: "Project addendum",
+};
 
 interface ProjectFilesViewProps {
   currentProject: Project | null;
@@ -59,6 +76,19 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
   const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
   const [fileToDelete, setFileToDelete] = useState<ProjectFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewDialogRef = useDialogFocus<HTMLDivElement>(Boolean(previewFile));
+
+  const allowedAcceptForType = (type: string) =>
+    (ALLOWED_EXTENSIONS_BY_TYPE[type] || SUPPORTED_UPLOAD_EXTENSIONS).join(",");
+
+  useEffect(() => {
+    if (!previewFile) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewFile(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewFile]);
 
   const generateUploadUrlMutation = useMutation(api.files.generateUploadUrl);
   const saveFileRecordMutation = useMutation(api.files.saveFileRecord);
@@ -236,46 +266,45 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
     }
   };
 
-  const handleDownloadFile = (file: ProjectFile) => {
-    // 1. If it has a remote/static URL, download the authentic real-world PDF from storage/public
-    if (file.url) {
-      const link = document.createElement("a");
-      link.href = file.url;
-      link.download = file.fileName;
-      link.target = "_blank";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
-    }
-
-    // 2. If it's one of our registered documents, generate genuine binary PDF fallback
-    const realBytes = getRealDocumentPdfBytes(file.fileName);
-    if (realBytes) {
-      const blob = new Blob([realBytes as any], { type: "application/pdf" });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = file.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-      return;
-    }
-
-    // 3. Fallback to authentic document text
-    const realText = getRealDocumentText(file.fileName);
-    const content = file.textContent || realText || `TradePulse Pro Official Construction Document: ${file.fileName}`;
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
+  const triggerBlobDownload = (blob: Blob, fileName: string) => {
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = blobUrl;
-    link.download = file.fileName.endsWith(".txt") ? file.fileName : `${file.fileName}.txt`;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(blobUrl);
+  };
+
+  const handleDownloadFile = async (file: ProjectFile) => {
+    // 1. Serve the stored object verbatim: fetch the Convex storage URL / app document
+    // router path as bytes and save it under the record's own filename.
+    const storedUrl = resolveStoredFileUrl(file);
+    if (storedUrl) {
+      try {
+        const response = await fetch(storedUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        triggerBlobDownload(blob, file.fileName);
+        return;
+      } catch {
+        // Fall back to opening the stored URL directly if the fetch is blocked.
+        window.open(storedUrl, "_blank");
+        return;
+      }
+    }
+
+    // 2. Text-readable records serve their stored text content verbatim.
+    const storedText = resolveStoredFileText(file);
+    if (storedText) {
+      triggerBlobDownload(new Blob([storedText], { type: "text/plain;charset=utf-8;" }), file.fileName);
+      return;
+    }
+
+    // 3. Nothing is stored for this record: say so instead of synthesising a document.
+    setStatusMsg(`Download unavailable: no stored bytes were found for ${file.fileName}.`);
+    setTimeout(() => setStatusMsg(null), 5000);
   };
 
   const handleDeleteFile = (file: ProjectFile) => {
@@ -406,12 +435,12 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
             className="hidden"
             id="convex-file-upload"
             multiple
-            accept=".pdf,.dwg,.dxf,.txt"
+            accept={allowedAcceptForType(fileType)}
           />
 
           <label
             htmlFor="convex-file-upload"
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            className="bg-emerald-700 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
           >
             {uploading ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -485,7 +514,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
             <FolderOpen className="w-4 h-4 text-emerald-400" />
             Project Documents in Convex Storage ({files.length})
           </span>
-          <span className="text-slate-500 font-mono text-[11px]">
+          <span className="text-slate-400 font-mono text-[11px]">
             Convex _storage with direct File-to-AI Actions
           </span>
         </div>
@@ -517,7 +546,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                         <span>•</span>
                         <span>Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</span>
                         <span>•</span>
-                        <span className="text-slate-500">{file.uploadedBy}</span>
+                        <span className="text-slate-400">{file.uploadedBy}</span>
                       </div>
                     </div>
                   </div>
@@ -603,8 +632,20 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
 
       {/* Document Preview Modal */}
       {previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPreviewFile(null);
+          }}
+        >
+          <div
+            ref={previewDialogRef}
+            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Preview of ${previewFile.fileName}`}
+          >
             <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-700/60 flex items-center justify-center text-emerald-400">
@@ -630,40 +671,34 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleDownloadFile(previewFile)}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
-                   title={previewFile.url || getRealDocumentPdfBytes(previewFile.fileName) ? "Download document" : "Download text archive"}
+                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+                  title={previewFile.url || previewFile.textContent ? "Download stored file" : "No stored bytes available"}
                 >
                   <Download className="w-3.5 h-3.5" />
-                   <span>{previewFile.url || getRealDocumentPdfBytes(previewFile.fileName) ? "Download document" : "Download text archive"}</span>
+                  <span>{previewFile.url || previewFile.textContent ? "Download stored file" : "Download unavailable"}</span>
                 </button>
                 <button
                   onClick={() => {
-                    const realBytes = getRealDocumentPdfBytes(previewFile.fileName);
-                    if (realBytes) {
-                      const blob = new Blob([realBytes as any], { type: "application/pdf" });
-                      const blobUrl = URL.createObjectURL(blob);
-                      window.open(blobUrl, "_blank");
+                    const storedUrl = resolveStoredFileUrl(previewFile);
+                    if (storedUrl) {
+                      window.open(storedUrl, "_blank");
                       return;
                     }
-                    if (previewFile.url) {
-                      window.open(previewFile.url, "_blank");
-                      return;
-                    }
-                    const realText = getRealDocumentText(previewFile.fileName) || previewFile.textContent;
-                    if (realText) {
-                      const blob = new Blob([realText], { type: "text/plain;charset=utf-8" });
-                      const blobUrl = URL.createObjectURL(blob);
-                      window.open(blobUrl, "_blank");
+                    const storedText = resolveStoredFileText(previewFile);
+                    if (storedText) {
+                      const blob = new Blob([storedText], { type: "text/plain;charset=utf-8" });
+                      window.open(URL.createObjectURL(blob), "_blank");
                     }
                   }}
                   className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1"
-                  title="Open genuine document in new browser tab"
+                  title="Open the stored document in a new browser tab"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPreviewFile(null)}
                   className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition"
+                  aria-label="Close document preview"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -671,7 +706,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 bg-slate-950 space-y-4">
-              {REAL_DOCUMENTS[previewFile.fileName] ? (
+              {isServedArchiveRecord(previewFile) && REAL_DOCUMENTS[previewFile.fileName] ? (
                 <div className="space-y-4 text-xs">
                   <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
                     <h4 className="font-bold text-white text-sm mb-1">{REAL_DOCUMENTS[previewFile.fileName].title}</h4>
@@ -690,18 +725,25 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : previewFile.textContent ? (
                 <pre className="whitespace-pre-wrap font-mono text-xs bg-slate-900 p-4 rounded-xl border border-slate-800/80 leading-relaxed text-slate-200">
-                  {previewFile.textContent ||
-                    getRealDocumentText(previewFile.fileName) ||
-                    `[TradePulse Pro Official Construction Document Archive: ${previewFile.fileName}]`}
+                  {previewFile.textContent}
                 </pre>
+              ) : (
+                <div className="text-xs text-slate-300 bg-slate-900 p-4 rounded-xl border border-slate-800/80 leading-relaxed">
+                  <p className="font-semibold text-white mb-1">No inline preview available for {previewFile.fileName}.</p>
+                  <p className="text-slate-400">
+                    This record stores a binary object in Convex Storage. Use Download or the open-in-new-tab action to view the stored bytes.
+                  </p>
+                </div>
               )}
             </div>
 
             <div className="p-3 border-t border-slate-800 bg-slate-900 flex items-center justify-between text-xs">
               <span className="text-[11px] text-slate-400">
-                100% Real Construction Document Specification • CSI MasterFormat / AIA A401 / ACORD 25
+                {isServedArchiveRecord(previewFile)
+                  ? `Seeded project document • ${FILE_TYPE_LABELS[previewFile.fileType] || previewFile.fileType} • served from the app document archive`
+                  : `Stored in Convex _storage • ${FILE_TYPE_LABELS[previewFile.fileType] || previewFile.fileType} • uploaded ${formatDateOnly(previewFile.uploadedAt)}`}
               </span>
               <button
                 onClick={() => setPreviewFile(null)}

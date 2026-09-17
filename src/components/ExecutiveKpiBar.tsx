@@ -6,71 +6,37 @@ import {
   AlertTriangle,
   Award,
 } from "lucide-react";
-import { Project, TradePackage, Bid } from "../types.ts";
-import { getDeceptiveBidIds } from "../leveling.ts";
+import { ProcurementMetrics } from "../leveling.ts";
 
 interface ExecutiveKpiBarProps {
-  currentProject: Project | null;
-  tradePackages: TradePackage[];
-  allBids: Bid[];
+  metrics: ProcurementMetrics;
+  projectTitle?: string;
 }
 
-export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
-  currentProject,
-  tradePackages,
-  allBids,
-}) => {
-  if (!currentProject) return null;
-
-  // 1. Total Project Budget
-  const totalBudget = currentProject.estBudget || 0;
-
-  // 2. Package-level best leveled bids and deceptive bid detection
-  let totalLeveledBuyout = 0;
-  let totalExclusionsIdentified = 0;
-  const deceptiveBidIds = new Set<string>();
-
-  tradePackages.forEach((pkg) => {
-    const pkgBids = allBids.filter((b) => b.tradePackageId === pkg._id);
-    if (pkgBids.length > 0) {
-      for (const bidId of getDeceptiveBidIds(pkgBids)) deceptiveBidIds.add(bidId);
-      // Use the awarded bid when present; otherwise use the current lowest leveled bid.
-      const sortedByLeveled = [...pkgBids].sort((a, b) => a.leveledTotalCost - b.leveledTotalCost);
-      const lowestLeveled = sortedByLeveled[0];
-
-      // If awarded, use awarded bid; else best leveled
-      const awardedBid = pkgBids.find((b) => b.isAwarded);
-      const effectiveBid = awardedBid || lowestLeveled;
-      totalLeveledBuyout += effectiveBid.leveledTotalCost;
-      (effectiveBid.identifiedExclusions || []).forEach((exc) => {
-        if (!exc.isWaived) {
-          totalExclusionsIdentified += exc.costImpact || 0;
-        }
-      });
-    } else {
-      totalLeveledBuyout += pkg.budgetEstimate;
-    }
-  });
-
-  // If no package bids and no trade packages exist, estimate buyout equals project budget
-  if (allBids.length === 0 && tradePackages.length === 0) {
-    totalLeveledBuyout = totalBudget;
-  }
-
-  // 3. Procurement Savings
-  const variance = totalBudget - totalLeveledBuyout;
-  const variancePercent = totalBudget > 0 ? (variance / totalBudget) * 100 : 0;
-  const isSavings = variance >= 0;
-
-  // 4. Packages awarded
-  const awardedPackages = tradePackages.filter((p) => p.status === "awarded").length;
-  const totalPackages = tradePackages.length;
-  const deceptiveBidsCount = tradePackages.reduce(
-    (count, pkg) => count + allBids.filter((bid) => bid.tradePackageId === pkg._id && deceptiveBidIds.has(bid._id)).length,
-    0
-  );
+/**
+ * Every headline figure here comes from `computeProcurementMetrics` so the KPI band,
+ * the header stepper, the demo tour and the contracts register always agree.
+ */
+export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, projectTitle }) => {
+  const {
+    totalBudget,
+    totalLeveledBuyout,
+    variance,
+    variancePercent,
+    isSavings,
+    deceptiveBidsCount,
+    gapsCaught,
+    awardedPackages,
+    totalPackages,
+    buyoutProgressPercent,
+    packagesUsingBudget,
+  } = metrics;
 
   const [isCompact, setIsCompact] = React.useState(true);
+  const leveledSourceNote =
+    packagesUsingBudget > 0
+      ? `Best leveled bid per package; ${packagesUsingBudget} package${packagesUsingBudget === 1 ? "" : "s"} still using budget estimate`
+      : "Best leveled bid per package";
 
   if (isCompact) {
     return (
@@ -84,9 +50,9 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
               Budget: <strong className="font-mono text-white font-bold">${totalBudget.toLocaleString()}</strong>
             </span>
             <span className="text-slate-700 hidden sm:inline">•</span>
-            <span className="text-slate-300 font-medium">
+            <span className="text-slate-300 font-medium" title={leveledSourceNote}>
               Leveled Buyout: <strong className={`font-mono font-bold ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>${totalLeveledBuyout.toLocaleString()}</strong>
-              <span className="text-[10px] font-mono text-slate-400 ml-1">(Normalized)</span>
+              <span className="text-[10px] font-mono text-slate-400 ml-1">(best bid per package)</span>
             </span>
             <span className="text-slate-700 hidden sm:inline">•</span>
             <span className="text-slate-300 font-medium">
@@ -100,16 +66,19 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
                 <span className="text-slate-700 hidden md:inline">•</span>
                 <span className="bg-amber-950/80 text-amber-300 border border-amber-800/80 px-2 py-0.5 rounded-full font-semibold text-[10px] flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3 text-amber-400" />
-                  <span>{deceptiveBidsCount} Deceptive Bid Caught</span>
+                  <span>{deceptiveBidsCount} Deceptive Bid{deceptiveBidsCount === 1 ? "" : "s"} Caught</span>
                 </span>
               </>
             )}
-            {totalExclusionsIdentified > 0 && (
+            {gapsCaught > 0 && (
               <>
                 <span className="text-slate-700 hidden lg:inline">•</span>
-                <span className="bg-sky-950/80 text-sky-300 border border-sky-800/80 px-2 py-0.5 rounded-full font-semibold text-[10px] flex items-center gap-1">
+                <span
+                  className="bg-sky-950/80 text-sky-300 border border-sky-800/80 px-2 py-0.5 rounded-full font-semibold text-[10px] flex items-center gap-1"
+                  title="Exclusions + lead-time + COI penalties − accepted VE credits on flagged deceptive bids"
+                >
                   <ShieldAlert className="w-3 h-3 text-sky-400" />
-                  <span>Gaps Plugged: +${totalExclusionsIdentified.toLocaleString()}</span>
+                  <span>Gaps Exposed: +${gapsCaught.toLocaleString()}</span>
                 </span>
               </>
             )}
@@ -134,7 +103,7 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
 
   return (
     <div className="bg-slate-900/90 border border-slate-800/90 rounded-xl px-4 lg:px-6 py-2.5 shadow-md transition-all">
-      <div className="max-w-7xl mx-auto mb-1.5 flex items-center justify-between text-xs text-slate-500">
+      <div className="max-w-7xl mx-auto mb-1.5 flex items-center justify-between text-xs text-slate-400">
         <span className="font-mono text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
           Commercial Procurement Financial Baseline • ADR-0003 Normalized
         </span>
@@ -151,14 +120,14 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400 mb-1">
             <span className="text-[10px] uppercase tracking-wider font-semibold">Total Budget</span>
-            <DollarSign className="w-3.5 h-3.5 text-slate-500" />
+            <DollarSign className="w-3.5 h-3.5 text-slate-400" />
           </div>
           <div>
             <div className="text-base sm:text-lg font-black font-mono text-white">
               ${totalBudget.toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-500 font-medium truncate">
-              {currentProject.title}
+            <div className="text-[10px] text-slate-400 font-medium truncate">
+              {projectTitle || "Active project"}
             </div>
           </div>
         </div>
@@ -175,8 +144,8 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
             <div className={`text-base sm:text-lg font-black font-mono ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>
               ${totalLeveledBuyout.toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 font-medium">
-              Normalized baseline total
+            <div className="text-[10px] text-slate-400 font-medium" title={leveledSourceNote}>
+              Best leveled bid per package
             </div>
           </div>
         </div>
@@ -213,18 +182,18 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
           </div>
         </div>
 
-        {/* KPI 5: Scope Exclusions Normalized */}
+        {/* KPI 5: Hidden Scope Gaps Exposed */}
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] uppercase tracking-wider font-semibold">Scope Gaps Caught</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold">Hidden Gaps Exposed</span>
             <ShieldAlert className="w-3.5 h-3.5 text-sky-400" />
           </div>
           <div>
             <div className="text-base sm:text-lg font-black font-mono text-sky-300">
-              +${totalExclusionsIdentified.toLocaleString()}
+              +${gapsCaught.toLocaleString()}
             </div>
             <div className="text-[10px] text-slate-400 font-medium">
-              Priced into normalization
+              Exclusions + lead + COI on flagged bids
             </div>
           </div>
         </div>
@@ -237,14 +206,12 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({
           </div>
           <div>
             <div className="text-base sm:text-lg font-black font-mono text-white flex items-center gap-1.5">
-              {awardedPackages} <span className="text-slate-500 font-normal text-xs">of</span> {totalPackages || 3}
+              {awardedPackages} <span className="text-slate-400 font-normal text-xs">of</span> {totalPackages}
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
               <div
                 className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${totalPackages > 0 ? (awardedPackages / totalPackages) * 100 : 0}%`,
-                }}
+                style={{ width: `${buyoutProgressPercent}%` }}
               />
             </div>
           </div>

@@ -54,6 +54,8 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
 
   const totalDoubleBuyExposure = activeDoubleBuys.reduce((sum, d) => sum + d.redundantAmount, 0);
   const totalScopeVoidExposure = activeScopeVoids.reduce((sum, v) => sum + v.estimatedVoidCost, 0);
+  const resolvedVoids = scopeVoids.filter((v) => v.status === "assigned");
+  const totalAssignedVoidCost = resolvedVoids.reduce((sum, v) => sum + v.estimatedVoidCost, 0);
   const totalDeductedCredits = doubleBuys
     .filter((d) => d.status === "deducted")
     .reduce((sum, d) => sum + d.redundantAmount, 0);
@@ -208,7 +210,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
             ${totalDeductedCredits.toLocaleString("en-US")}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            1-click VE credits deducted from bids
+            Double-buy credits deducted from trade bids
           </div>
         </div>
 
@@ -272,7 +274,9 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Duplicate Value:</span>
+                    <span className="text-xs text-slate-400" title="Amount recoverable by deducting the redundant scope from the secondary trade proposal">
+                      Deductible Redundant Value:
+                    </span>
                     <span className="font-mono font-bold text-amber-400 text-sm">
                       ${clash.redundantAmount.toLocaleString("en-US")}
                     </span>
@@ -485,7 +489,10 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
             </div>
             <div>
               <div className="text-xs font-bold text-white">
-                Cross-Trade Coordination Applied ({totalDeductedCredits > 0 ? `$${totalDeductedCredits.toLocaleString()} in Deductions Active` : "Scope Scanned"})
+                Cross-Trade Coordination Applied ({[
+                  totalDeductedCredits > 0 ? `$${totalDeductedCredits.toLocaleString()} in double-buy credits deducted` : null,
+                  resolvedVoids.length > 0 ? `$${totalAssignedVoidCost.toLocaleString()} in voids assigned` : null,
+                ].filter(Boolean).join(" • ") || "Scope scanned — no resolutions applied yet"})
               </div>
               <div className="text-[11px] text-slate-400">
                 Next Stage: Review and execute the legally binding AIA Document A401 Standard Form Subcontract Agreement.

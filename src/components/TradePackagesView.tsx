@@ -20,6 +20,7 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { TradePackage, Project } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useDialogFocus } from "../lib/useDialogFocus.ts";
 
 interface TradePackagesViewProps {
   currentProject?: Project | null;
@@ -54,11 +55,13 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   isLoading = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const createDialogRef = useDialogFocus<HTMLDivElement>(isModalOpen);
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
   const [showWhyCare, setShowWhyCare] = useState(false);
 
   // AI Spec Breakdown Modal state
   const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
+  const specDialogRef = useDialogFocus<HTMLDivElement>(isSpecModalOpen);
   const [specInputText, setSpecInputText] = useState("");
   const [isGeneratingPackages, setIsGeneratingPackages] = useState(false);
   const [generationSuccessMessage, setGenerationSuccessMessage] = useState<string | null>(null);
@@ -228,7 +231,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
             )}
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              className="bg-emerald-700 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Create Trade Package
@@ -357,7 +360,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                         </li>
                       ))}
                       {pkg.mandatoryInclusions.length > 3 && (
-                        <li className="text-[10px] text-slate-500 font-medium pl-3">
+                        <li className="text-[10px] text-slate-400 font-medium pl-3">
                           +{pkg.mandatoryInclusions.length - 3} more required items
                         </li>
                       )}
@@ -441,15 +444,27 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
 
       {/* AI Spec Breakdown Modal */}
       {isSpecModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isGeneratingPackages) setIsSpecModalOpen(false);
+          }}
+        >
+          <div
+            ref={specDialogRef}
+            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="spec-breakdown-title"
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-lg bg-amber-950/80 border border-amber-700/60 flex items-center justify-center text-amber-400">
                   <Sparkles className="w-5 h-5 fill-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">
+                  <h3 id="spec-breakdown-title" className="text-base font-bold text-white">
                     AI Specification Breakdown & Auto-Scoping
                   </h3>
                   <p className="text-xs text-slate-400">
@@ -460,6 +475,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
               <button
                 onClick={() => setIsSpecModalOpen(false)}
                 className="p-2 text-slate-400 hover:text-white rounded-lg transition"
+                aria-label="Close AI specification breakdown dialog"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -501,7 +517,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
               )}
 
               <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-slate-400">
                   Target Project: {currentProject?.title}
                 </span>
                 <div className="flex items-center gap-2">
@@ -529,9 +545,21 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
 
       {/* Manual Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-4">Create CSI Trade Package</h3>
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsModalOpen(false);
+          }}
+        >
+          <div
+            ref={createDialogRef}
+            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-package-title"
+          >
+            <h3 id="create-package-title" className="text-lg font-bold text-white mb-4">Create CSI Trade Package</h3>
             <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block text-slate-400 font-medium mb-1">CSI Division Number</label>
@@ -617,7 +645,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-700 text-white font-semibold rounded-lg transition"
                 >
                   Create Package
                 </button>

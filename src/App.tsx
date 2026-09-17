@@ -1,5 +1,5 @@
 import { getErrorMessage } from "./lib/errors.ts";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api.js";
 import { Header } from "./components/Header.tsx";
@@ -41,7 +41,7 @@ import {
   generateAiaA401AgreementText,
   numberToWords,
 } from "./standaloneStore.ts";
-import { calculateLeveledCost } from "./leveling.ts";
+import { calculateLeveledCost, computeProcurementMetrics, getEffectiveBid } from "./leveling.ts";
 
 export { extractTextFromPdfStream, cleanNumber, getStateAbbreviation, parseCityAndState, generateAiaA401AgreementText, numberToWords };
 
@@ -164,6 +164,7 @@ export const App: React.FC = () => {
   const [selectedPackageId, setSelectedPackageId] = useState<string>(() => readStoredSelection("tradepulse.selectedPackageId"));
   const [isSimulationOpen, setIsSimulationOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastTone, setToastTone] = useState<"success" | "error" | "info">("success");
   const [isTourOpen, setIsTourOpen] = useState<boolean>(() => {
     try {
       return window.localStorage.getItem("tradepulse.tourDismissed") !== "1";
@@ -374,6 +375,44 @@ export const App: React.FC = () => {
     standaloneState.agreements.filter((a) => !currentProject || a.projectId === currentProject._id)
   );
 
+  // Single source of truth for every headline procurement figure (KPI bar, stepper, tour).
+  const procurementMetrics = useMemo(
+    () => computeProcurementMetrics(currentProject, tradePackages, allProjectBids, agreements),
+    [currentProject, tradePackages, allProjectBids, agreements]
+  );
+
+  // Live context for the demo tour so scene narration always matches the screen.
+  const tourLiveContext = useMemo(() => {
+    const sortedBids = [...bids].sort((a, b) => a.leveledTotalCost - b.leveledTotalCost);
+    const effective = getEffectiveBid(sortedBids);
+    const runnerUp = sortedBids.find((bid) => bid._id !== effective?._id);
+    const activeAgreement = agreements.find((a) => a.status !== "superseded");
+    return {
+      projectTitle: currentProject?.title || "the active project",
+      packagesCount: tradePackages.length,
+      contractorsCount: contractors.length,
+      conversationsCount: conversations.length,
+      bidsCount: bids.length,
+      agreementsCount: agreements.filter((a) => a.status !== "superseded").length,
+      awardedPackages: procurementMetrics.awardedPackages,
+      totalPackages: procurementMetrics.totalPackages,
+      totalBudget: procurementMetrics.totalBudget,
+      totalLeveledBuyout: procurementMetrics.totalLeveledBuyout,
+      variance: procurementMetrics.variance,
+      gapsCaught: procurementMetrics.gapsCaught,
+      deceptiveBidsCount: procurementMetrics.deceptiveBidsCount,
+      openClashes: activeClashesCount,
+      effectiveBidName: effective?.subcontractorName,
+      effectiveBidCost: effective?.leveledTotalCost,
+      runnerUpName: runnerUp?.subcontractorName,
+      runnerUpCost: runnerUp?.leveledTotalCost,
+      runnerUpBaseCost: runnerUp?.baseBidAmount,
+      contractSum: activeAgreement?.contractSum,
+      contractExecuted: activeAgreement?.status === "executed",
+      hasBids: bids.length > 0,
+    };
+  }, [bids, agreements, currentProject, tradePackages, contractors, conversations, procurementMetrics, activeClashesCount]);
+
   // Audit logs for Activity Audit Stream View
   const auditLogsData = useQuery(
     api.auditLogs.listRecentLogs,
@@ -434,8 +473,9 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, tone: "success" | "error" | "info" = "success") => {
     setToastMessage(msg);
+    setToastTone(tone);
     setTimeout(() => setToastMessage(null), 4500);
   };
 
@@ -453,11 +493,16 @@ export const App: React.FC = () => {
       const isRealPkg = isRealConvexProject && Boolean(packageId) && !packageId.startsWith("pkg_");
       if (isRealPkg) {
         const res = await dispatchRfqsAction({ tradePackageId: packageId as any });
-        showToast(
-          res.emailsSent > 0
-            ? `RFQs sent to ${res.emailsSent} contractors via AgentMail (${res.dispatchedCount} records updated).`
-            : `RFQs queued for ${res.dispatchedCount} contractors; live email delivery is not yet confirmed.`
-        );
+        if (!res || res.dispatchedCount === 0) {
+          showToast("No RFQ invitations were sent: no contractors require dispatch for this package.", "error");
+        } else if (res.emailsSent > 0) {
+          showToast(`RFQs sent to ${res.emailsSent} contractors via AgentMail (${res.dispatchedCount} records updated).`, "success");
+        } else {
+          showToast(
+            `RFQs queued for ${res.dispatchedCount} contractor(s). Live email delivery is not confirmed (AgentMail not configured).`,
+            "info"
+          );
+        }
       } else {
         updateStandaloneAndPersist((prev) => {
           const updatedContractors = prev.contractors.map((c) =>
@@ -491,7 +536,7 @@ export const App: React.FC = () => {
         );
       }
     } catch (err: any) {
-      showToast(`RFQ dispatch failed: ${getErrorMessage(err) || "No invitations were confirmed."}`);
+      showToast(`RFQ dispatch failed: ${getErrorMessage(err) || "No invitations were confirmed."}`, "error");
       throw err;
     }
   };
@@ -3159,7 +3204,7 @@ export const App: React.FC = () => {
         projectId: currentProject._id as any,
         tradePackageId: targetPkgId as any,
       });
-      return `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope gaps from ${res.deceptiveBidder}!`;
+      return `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${res.deceptiveBidder} (lead-time and COI penalties are normalized separately).`;
     }
 
     // Standalone full cycle execution
@@ -3444,7 +3489,7 @@ export const App: React.FC = () => {
         <div className="flex flex-col items-center gap-4" role="status" aria-live="polite">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 border border-emerald-400/30 animate-pulse" />
           <p className="text-sm text-slate-300 font-semibold">Connecting to Convex reactive backend…</p>
-          <p className="text-xs text-slate-500">Loading live procurement data for the active project</p>
+          <p className="text-xs text-slate-400">Loading live procurement data for the active project</p>
         </div>
       </div>
     );
@@ -3454,7 +3499,13 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-[60] bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl animate-in slide-in-from-bottom-3 duration-200 flex items-center gap-2">
+        <div
+          className={`fixed bottom-5 right-5 z-[90] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl animate-in slide-in-from-bottom-3 duration-200 flex items-center gap-2 ${
+            toastTone === "error" ? "bg-rose-600" : toastTone === "info" ? "bg-sky-600" : "bg-emerald-600"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
           <span>{toastMessage}</span>
         </div>
       )}
@@ -3489,7 +3540,7 @@ export const App: React.FC = () => {
         contractorsCount={contractors.length}
         conversationsCount={conversations.length}
         bidsCount={bids.length}
-        agreementsCount={agreements.length}
+        awardedCount={procurementMetrics.awardedPackages}
         clashCount={activeClashesCount}
       />
 
@@ -3508,6 +3559,7 @@ export const App: React.FC = () => {
           }}
           onExecuteSceneAction={handleExecuteSceneAction}
           onOpenSimulationModal={() => setIsSimulationOpen(true)}
+          liveContext={tourLiveContext}
         />
       )}
 
@@ -3515,9 +3567,8 @@ export const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-5 lg:p-6 space-y-4">
         {/* Executive Financial Procurement KPI Bar */}
         <ExecutiveKpiBar
-          currentProject={currentProject}
-          tradePackages={tradePackages}
-          allBids={allProjectBids}
+          metrics={procurementMetrics}
+          projectTitle={currentProject?.title}
         />
 
         {activeTab === "packages" && (

@@ -1,5 +1,6 @@
 import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
+import { formatFullDateTime } from "../lib/datetime.ts";
 import {
   Clock,
   ShieldCheck,
@@ -12,6 +13,7 @@ import {
   Play,
   CheckCircle2,
   Calendar,
+  Layers,
 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
@@ -88,6 +90,8 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
 
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
+      case "package_created":
+        return <Layers className="w-4 h-4 text-slate-300" />;
       case "rfq_dispatched":
         return <Send className="w-4 h-4 text-sky-400" />;
       case "rfi_clarified":
@@ -109,6 +113,8 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
 
   const getEventBadge = (eventType: string) => {
     switch (eventType) {
+      case "package_created":
+        return "bg-slate-800 text-slate-200 border-slate-600";
       case "contract_awarded":
         return "bg-emerald-950/80 text-emerald-300 border-emerald-800/60";
       case "bid_leveled":
@@ -213,7 +219,7 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
             <Clock className="w-4 h-4 text-emerald-400" />
             Activity Events ({logs.length})
           </span>
-          <span className="text-slate-500 font-mono text-[11px]">
+          <span className="text-slate-400 font-mono text-[11px]">
             Convex Realtime Subscriptions (Zero Polling Invariant)
           </span>
         </div>
@@ -246,13 +252,9 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
                       </span>
                     </div>
 
-                    <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                    <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1" title="Local time with timezone">
                       <Calendar className="w-3 h-3 text-slate-400" />
-                      {new Date(log.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
+                      {formatFullDateTime(log.timestamp)}
                     </span>
                   </div>
 

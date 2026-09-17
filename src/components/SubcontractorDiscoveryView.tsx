@@ -19,6 +19,7 @@ import {
   Plus,
   Edit2,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
@@ -357,7 +358,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   onClick={() => onSelectPackage(pkg._id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition shrink-0 ${
                     isSelected
-                      ? "bg-emerald-600 text-white font-bold shadow-sm ring-1 ring-emerald-400"
+                      ? "bg-emerald-700 text-white font-bold shadow-sm ring-1 ring-emerald-400"
                       : "bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 hover:border-slate-600"
                   }`}
                 >
@@ -381,7 +382,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-slate-400">
-                Powered by <strong className="text-amber-300">Firecrawl SERP</strong> & Texas TDLR commercial licensing database.
+                Powered by <strong className="text-amber-300">Firecrawl web search</strong>. Records are labeled with provenance; license verification requires a registry lookup.
               </p>
               <button
                 onClick={() => setShowWhyCare(!showWhyCare)}
@@ -421,7 +422,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
         {showWhyCare && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 leading-relaxed bg-slate-950/60 rounded-lg p-3 border animate-in fade-in">
             <span className="font-semibold text-amber-300">Vetting & Compliance: </span>
-            Unlicensed or non-compliant specialty subcontractors expose commercial GCs to stop-work orders, OSHA fines, and catastrophic mechanics liens. TradePulse Pro utilizes <strong className="text-amber-300 font-semibold">Firecrawl SERP</strong> to autonomously crawl state registries (such as Texas TDLR), pulling active master licenses, safety records, and official estimating contacts into Convex in real-time.
+            Unlicensed or non-compliant specialty subcontractors expose commercial GCs to stop-work orders, OSHA fines, and catastrophic mechanics liens. TradePulse Pro utilizes <strong className="text-amber-300 font-semibold">Firecrawl</strong> web discovery to gather candidate contractors and records the provenance of every data point, so license status is never presented as verified unless the source itself is a registry page.
           </div>
         )}
       </div>
@@ -430,7 +431,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
         {/* Search input */}
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
@@ -468,7 +469,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
               onClick={() => setStatusFilter(tab.id)}
               className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
                 statusFilter === tab.id
-                  ? "bg-emerald-600 text-white shadow-sm"
+                  ? "bg-emerald-700 text-white shadow-sm"
                   : "text-slate-400 hover:text-white"
               }`}
             >
@@ -485,8 +486,18 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
             <Building2 className="w-4 h-4 text-emerald-400" />
             Trade Directory ({filteredContractors.length} of {contractors.length})
           </div>
-          <span className="text-slate-500">Live Web & TDLR Directory Ingest</span>
+          <span className="text-slate-400">Provenance shown per record; verify licensing before sourcing</span>
         </div>
+
+        {contractors.some((c) => /unverified/i.test(c.licenseStatus)) && (
+          <div className="px-5 py-2.5 border-b border-amber-900/40 bg-amber-950/30 text-[11px] text-amber-200 flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <span>
+              Some records below are unverified directory results. TradePulse has not completed a state registry
+              lookup for them, so treat license numbers and contacts as unconfirmed until verified.
+            </span>
+          </div>
+        )}
 
         {filteredContractors.length === 0 ? (
           <div className="p-12 text-center text-slate-400 text-xs">
@@ -509,12 +520,12 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
-                      <Mail className="w-3.5 h-3.5 text-slate-500" />
+                      <Mail className="w-3.5 h-3.5 text-slate-400" />
                       {c.contactEmail}
                     </span>
                     {c.phone && (
                       <span className="flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-slate-500" />
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
                         {c.phone}
                       </span>
                     )}
@@ -523,7 +534,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-500 font-medium uppercase">State License</div>
+                    <div className="text-[10px] text-slate-400 font-medium uppercase">State License</div>
                     <div className="font-mono text-slate-200 flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                       {c.licenseNumber}
@@ -531,8 +542,8 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   </div>
 
                   <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 hidden sm:block">
-                    <div className="text-[10px] text-slate-500 font-medium uppercase">Registry Verification</div>
-                    <div className="text-emerald-400 font-semibold text-[11px]">{c.licenseStatus}</div>
+                    <div className="text-[10px] text-slate-400 font-medium uppercase">License Status</div>
+                    <div className={`font-semibold text-[11px] ${/unverified/i.test(c.licenseStatus) ? "text-amber-300" : "text-emerald-400"}`}>{c.licenseStatus}</div>
                   </div>
 
                   <button
@@ -546,7 +557,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                     ) : (
                       <Globe className="w-3.5 h-3.5 text-amber-400" />
                     )}
-                    <span className="hidden sm:inline">Scrape Profile</span>
+                    <span className="hidden sm:inline">Open source page</span>
                   </button>
 
                   <a
@@ -569,7 +580,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
                   <button
                     onClick={() => handleDelete(c._id, c.companyName)}
-                    className="p-2 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition"
+                    className="p-2 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition"
                     title="Delete contractor"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -601,7 +612,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
             </div>
             <div>
               <div className="text-xs font-bold text-white">
-                Subcontractors Identified ({contractors.length} Verified Trades)
+                Subcontractors Identified ({contractors.length} contractor record{contractors.length === 1 ? "" : "s"})
               </div>
               <div className="text-[11px] text-slate-400">
                 Next Stages: Clarify technical inquiries in Pre-Bid Q&A, or jump straight to leveling incoming proposals.

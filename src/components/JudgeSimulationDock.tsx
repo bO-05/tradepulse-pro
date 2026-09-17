@@ -4,6 +4,8 @@ import { Zap, RefreshCw, X, ShieldAlert, CheckCircle2, MessageSquare, AlertTrian
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { TradePackage } from "../types.ts";
+import { useDialogFocus } from "../lib/useDialogFocus.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface JudgeSimulationDockProps {
   isOpen: boolean;
@@ -28,6 +30,8 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen);
 
   const runFullCycleMutation = useMutation(api.simulation.runFullProcurementCycle);
 
@@ -74,7 +78,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
           tradePackageId: currentPkg?._id as any,
         });
         setLastMessage(
-          `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with generated AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope gaps from ${res.deceptiveBidder}; external signature verification remains required.`
+          `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with generated AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${res.deceptiveBidder}; external signature verification remains required.`
         );
       }
     } catch (err: any) {
@@ -86,7 +90,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" role="presentation">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="judge-dock-title">
+      <div ref={dialogRef} className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="judge-dock-title">
         {/* Modal Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-amber-500/20 via-slate-800 to-slate-900 border-b border-slate-700/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -136,6 +140,9 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
               Executes the complete procurement causal loop in one click: scopes Div 26 package, discovers trade contractors, dispatches RFQ, resolves pre-bid RFI, ingests dual proposals, forensically levels with <strong className="text-emerald-300">ADR-0003</strong>, and signs AIA Document A401 subcontract agreement.
+            </p>
+            <p className="text-[10px] text-slate-400">
+              The three scenario cards below use fixed demonstration figures for repeatable walkthroughs; they write real records to the active project.
             </p>
             <button
               disabled={loadingAction !== null || !projectId}
@@ -250,18 +257,18 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
               <div>
                 <div className="flex items-center gap-2 mb-1.5 text-slate-400 font-semibold text-xs">
                   <RotateCcw className="w-4 h-4" />
-                  Reset Project Seed State
+                  Reset Demo Project Seed
                 </div>
                 <p className="text-xs text-slate-300 mb-2 leading-relaxed">
-                  Clear all live bids, audit logs, and reset contractor statuses back to freshly initialized demo baselines.
+                  Restore the shared demo project to its seeded baseline. This clears live bids, audit logs, and contractor statuses on the demo only.
                 </p>
-                <div className="bg-slate-900 p-2 rounded text-[11px] text-slate-500 mb-2.5 border border-slate-800 font-mono">
-                  State: Resets Austin Commercial Tower demo project.
+                <div className="bg-slate-900 p-2 rounded text-[11px] text-slate-400 mb-2.5 border border-slate-800 font-mono">
+                  Resets the shared seeded demo project to its baseline (live bids, audit logs, and contractor statuses). Custom projects are not modified.
                 </div>
               </div>
               <button
                 disabled={loadingAction !== null}
-                onClick={() => handleAction("reset_seed", onResetSeedData)}
+                onClick={() => setIsResetConfirmOpen(true)}
                 className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition"
               >
                 {loadingAction === "reset_seed" ? (
@@ -286,6 +293,17 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={isResetConfirmOpen}
+        title="Reset the shared demo project?"
+        description="This restores the seeded demo project to its baseline and clears live bids, audit logs, and contractor statuses on the demo only. Custom projects are not modified."
+        confirmLabel="Reset demo project"
+        onCancel={() => setIsResetConfirmOpen(false)}
+        onConfirm={async () => {
+          await handleAction("reset_seed", onResetSeedData);
+          setIsResetConfirmOpen(false);
+        }}
+      />
     </div>
   );
 };

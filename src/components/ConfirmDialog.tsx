@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -10,6 +11,10 @@ interface ConfirmDialogProps {
   onConfirm: () => Promise<void> | void;
   danger?: boolean;
 }
+
+// Monotonic z-index so the most recently opened confirmation always renders above
+// any other confirmation that is still open, instead of both sharing z-[70].
+let openDialogCount = 0;
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
@@ -23,13 +28,23 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const [isConfirming, setIsConfirming] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const zIndexRef = useRef(70);
+  const isTopmostRef = useRef(false);
   const titleId = useId();
   const descriptionId = useId();
 
   useEffect(() => {
     if (!open) return;
+    restoreFocusRef.current = (document.activeElement as HTMLElement) || null;
+    openDialogCount += 1;
+    zIndexRef.current = 70 + openDialogCount;
+    isTopmostRef.current = true;
     cancelButtonRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Only the most recently opened confirmation responds to Escape/Tab,
+      // so stacked confirmations cannot both react to one keypress.
+      if (!isTopmostRef.current) return;
       if (event.key === "Escape" && !isConfirming) onCancel();
       if (event.key !== "Tab") return;
       const focusable = Array.from(
@@ -52,7 +67,15 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      isTopmostRef.current = false;
+      openDialogCount = Math.max(0, openDialogCount - 1);
+      const restore = restoreFocusRef.current;
+      if (restore && document.contains(restore) && typeof restore.focus === "function") {
+        restore.focus();
+      }
+    };
   }, [isConfirming, onCancel, open]);
 
   if (!open) return null;
@@ -66,9 +89,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      style={{ zIndex: zIndexRef.current }}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isConfirming) onCancel();
@@ -76,7 +100,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -127,6 +151,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

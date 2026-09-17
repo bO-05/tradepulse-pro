@@ -179,7 +179,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
         {showWhyCare && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 leading-relaxed bg-slate-950/60 rounded-lg p-3 border animate-in fade-in">
             <span className="font-semibold text-emerald-400">Legal Safeguard: </span>
-            Manual subcontract generation takes 2 to 3 weeks of administrative delay, risking jobsite mobilization and material escalation costs. TradePulse Pro instantly generates standardized, 10-article <strong className="text-emerald-300 font-semibold">AIA Document A401 Subcontract Agreements</strong> populated with negotiated contract sums, mandatory inclusions, retainage percentages (10%), and daily liquidated damages ($1,200/day)—ready for execution and export.
+            Manual subcontract generation takes 2 to 3 weeks of administrative delay, risking jobsite mobilization and material escalation costs. TradePulse Pro instantly generates standardized, 10-article <strong className="text-emerald-300 font-semibold">AIA Document A401 Subcontract Agreements</strong> populated with negotiated contract sums, mandatory inclusions, retainage percentages (10%), and liquidated damages for completion delay ($1,200/calendar day; ADR-0003 lead-time adjustments of $6,000/week are a separate schedule-impact term)—ready for execution and export.
           </div>
         )}
       </div>
@@ -212,7 +212,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
               onClick={() => setStatusFilter(st.id)}
               className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
                 statusFilter === st.id
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "bg-emerald-700 text-white font-semibold"
                   : "bg-slate-800 text-slate-400 hover:text-white"
               }`}
             >
@@ -235,7 +235,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
           {onNavigateToLeveling && agreements.length === 0 && (
             <button
               onClick={onNavigateToLeveling}
-              className="mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 rounded-lg inline-flex items-center gap-1.5 transition"
+              className="mt-2 bg-emerald-700 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2 rounded-lg inline-flex items-center gap-1.5 transition"
             >
               <Award className="w-4 h-4" />
               Go to Bid Leveling Matrix to Award Subcontracts
@@ -284,7 +284,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
 
                     <td className="px-4 py-3.5 text-slate-400 font-mono text-[11px]">
                       <div>Retainage: <strong className="text-slate-200">{agr.retainagePercent}%</strong></div>
-                      <div>LDs: <strong className="text-slate-200">${agr.liquidatedDamagesDaily}/day</strong></div>
+                      <div>LDs: <strong className="text-slate-200">${agr.liquidatedDamagesDaily.toLocaleString("en-US")}/day</strong></div>
                     </td>
 
                     <td className="px-4 py-3.5">
@@ -311,7 +311,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                       {agr.status !== "executed" && (
                         <button
                           onClick={() => handleExecute(agr._id)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 transition shadow-sm"
+                          className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 transition shadow-sm"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                            Record Execution Status
@@ -424,21 +424,21 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
               <div className="max-w-3xl mx-auto space-y-4">
                 <div className="border border-slate-800 bg-slate-900/80 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs not-italic print:hidden">
                   <div>
-                    <span className="text-slate-500 block text-[10px] uppercase">Awarded Subcontractor</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Awarded Subcontractor</span>
                     <span className="font-bold text-white text-sm">{selectedAgreement.subcontractorName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px] uppercase">Subcontract Sum</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Subcontract Sum</span>
                     <span className="font-bold text-emerald-400 text-sm font-mono">
                       ${selectedAgreement.contractSum.toLocaleString("en-US")}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px] uppercase">Retainage</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Retainage</span>
                     <span className="font-bold text-slate-300">{selectedAgreement.retainagePercent}%</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px] uppercase">Liquidated Damages</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Liquidated Damages</span>
                     <span className="font-bold text-slate-300">${selectedAgreement.liquidatedDamagesDaily.toLocaleString("en-US")}/day</span>
                   </div>
                 </div>
@@ -481,7 +481,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                 {selectedAgreement.status !== "executed" && (
                   <button
                     onClick={() => handleExecute(selectedAgreement._id)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                    className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                      Record External Execution

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Sparkles,
   ChevronRight,
@@ -25,92 +25,153 @@ export interface DemoScene {
   actionDescription: string;
 }
 
-export const DEMO_SCENES: DemoScene[] = [
-  {
-    id: "scoping",
-    tabId: "packages",
-    stepNumber: "01",
-    category: "CSI MasterFormat Scoping",
-    title: "The $186k Scope Exclusion Trap & Automated Scoping",
-    problemStatement:
-      "Commercial GCs lose an average of $186,000 on MEP buyout due to fine-print scope exclusions and trade overlaps hidden in architectural specs.",
-    talkTrack:
-      "\"Welcome to TradePulse Pro. Commercial General Contractors frequently get burned by deceptive low bids. TradePulse automatically parses complex CSI specifications into Division 26 Electrical, 23 HVAC, and 22 Plumbing packages—each with dedicated programmatic @agentmail.to inboxes for trade communication.\"",
-    keyMetric: "3 CSI Trade Packages • Dedicated AgentMail Inboxes",
-    actionLabel: "Advance to Contractor Sourcing",
-    actionDescription: "Inspects scoped packages and transitions to autonomous subcontractor discovery.",
-  },
-  {
-    id: "discovery",
-    tabId: "discovery",
-    stepNumber: "02",
-    category: "Autonomous Discovery",
-    title: "Autonomous Specialty Contractor Discovery (Firecrawl)",
-    problemStatement:
-      "Vetting specialty MEP subcontractors manually across state licensing boards takes days of tedious verification.",
-    talkTrack:
-      "\"Using Firecrawl, TradePulse Pro autonomously crawls Texas TDLR state licensing registries and regional web directories. It extracts active master licenses, safety compliance ratings, and verified contact emails directly into Convex.\"",
-    keyMetric: "4 Verified Specialty Contractors • 100% TDLR Validated",
-    actionLabel: "Advance to Pre-Bid Q&A",
-    actionDescription: "Reviews verified contractors and moves to incoming pre-bid inquiries.",
-  },
-  {
-    id: "qna",
-    tabId: "qna",
-    stepNumber: "03",
-    category: "Dynamic Pre-Bid Q&A",
-    title: "AI Technical Clarifications & CSI Addendum Issuance",
-    problemStatement:
-      "Uncoordinated verbal answers to bidder inquiries lead to $300,000+ in post-award delay and dispute claims.",
-    talkTrack:
-      "\"Subcontractors email technical questions to the package inbox. Our spec-grounded AI analyzes the inquiry against project specifications, drafts an accurate citation, and flags edge cases for PM review. Once approved, it compiles a legally binding CSI Addendum No. 01 stored in Convex File Storage.\"",
-    keyMetric: "Spec-Grounded Citations • Binding CSI Addendum No. 01",
-    actionLabel: "Advance to Forensic Leveling",
-    actionDescription: "Moves to the core bid leveling engine to compare incoming subcontractor proposals.",
-  },
-  {
-    id: "leveling",
-    tabId: "leveling",
-    stepNumber: "04",
-    category: "Forensic Bid Leveling",
-    title: "ADR-0003 Normalization & Deceptive Low Bid Flagging",
-    problemStatement:
-      "Alterman bids $1,100,000 vs Rosendin's $1,225,000—appearing $125,000 cheaper on paper while hiding critical crane hoisting, UL firestopping, and seismic exclusions.",
-    talkTrack:
-      "\"Here is the heart of TradePulse Pro. Alterman appears to be the lowest bidder at $1.10M. But our ADR-0003 Forensic Leveling Engine parses the fine print, uncovering $147,000 in excluded crane hoisting, UL firestopping, and seismic bracing. Alterman's true leveled cost is $1.286M—making Rosendin Electric $61,000 cheaper!\"",
-    keyMetric: "$61k-$96k Net GC Savings • Deceptive Low Bid Caught",
-    actionLabel: "Advance to Scope Clash Engine",
-    actionDescription: "Awards the compliant winner and proceeds to cross-trade coordination.",
-  },
-  {
-    id: "coordination",
-    tabId: "coordination",
-    stepNumber: "05",
-    category: "Cross-Trade Coordination",
-    title: "Cross-Trade Scope Clash & Double-Buy Deductions",
-    problemStatement:
-      "Division 26 Electrical and Division 23 HVAC both price the same equipment (VFDs), resulting in redundant spend.",
-    talkTrack:
-      "\"Trades don't talk to each other. Both Electrical and HVAC priced Variable Frequency Drives for mechanical fans. TradePulse Pro's clash engine detects this $38,500 double-buy and allows the GC to deduct it with 1 click, transferring the credit straight into buyout savings.\"",
-    keyMetric: "$38,500 Double-Buy Deducted • Zero Redundant Spend",
-    actionLabel: "Advance to Subcontract Execution",
-    actionDescription: "Transitions to the Contracts Register to inspect the generated AIA A401 agreement.",
-  },
-  {
-    id: "contracts",
-    tabId: "contracts",
-    stepNumber: "06",
-    category: "Subcontract Buyout",
-    title: "Instant AIA Document A401™ Subcontract Agreement",
-    problemStatement:
-      "Manual subcontract drafting causes 2 to 3 weeks of administrative lag, risking site mobilization delays.",
-    talkTrack:
-      "\"With the winner leveled and clashes resolved, TradePulse instantly drafts an authentic 10-article AIA Document A401 Subcontract Agreement. It incorporates all mandatory inclusions, retainage terms, and liquidated damages, ready for digital signature and instant PDF/text export.\"",
-    keyMetric: "100% AIA A401 Compliance • $1,225,000 Subcontract Sealed",
-    actionLabel: "Complete Tour & View Audit Trail",
-    actionDescription: "Inspects executed subcontract and reviews the immutable causal audit log.",
-  },
-];
+export interface TourLiveContext {
+  projectTitle: string;
+  packagesCount: number;
+  contractorsCount: number;
+  conversationsCount: number;
+  bidsCount: number;
+  agreementsCount: number;
+  awardedPackages: number;
+  totalPackages: number;
+  totalBudget: number;
+  totalLeveledBuyout: number;
+  variance: number;
+  gapsCaught: number;
+  deceptiveBidsCount: number;
+  openClashes: number;
+  effectiveBidName?: string;
+  effectiveBidCost?: number;
+  runnerUpName?: string;
+  runnerUpCost?: number;
+  runnerUpBaseCost?: number;
+  contractSum?: number;
+  contractExecuted?: boolean;
+  hasBids: boolean;
+}
+
+const money = (value: number | undefined) =>
+  typeof value === "number" && Number.isFinite(value) ? `$${Math.round(value).toLocaleString()}` : "—";
+
+/**
+ * Scene scripts are presenter cues, but every quantitative claim is interpolated from
+ * `liveContext` (computed once in App) so the narration can never contradict the screen.
+ */
+export function buildDemoScenes(ctx: TourLiveContext): DemoScene[] {
+  const pkgLabel = `${ctx.packagesCount} CSI Trade Package${ctx.packagesCount === 1 ? "" : "s"}`;
+  const subLabel = `${ctx.contractorsCount} Contractor Record${ctx.contractorsCount === 1 ? "" : "s"} in Directory`;
+  const runnerUpDelta =
+    ctx.effectiveBidCost !== undefined && ctx.runnerUpCost !== undefined
+      ? Math.abs(ctx.runnerUpCost - ctx.effectiveBidCost)
+      : undefined;
+
+  const levelingTalk = ctx.hasBids
+    ? `"${ctx.runnerUpName || "The lowest competitor"} appears cheapest on paper at ${money(ctx.runnerUpBaseCost ?? ctx.runnerUpCost)}. ADR-0003 normalization exposes ${money(ctx.gapsCaught)} in hidden scope gaps on ${ctx.deceptiveBidsCount} flagged bid${ctx.deceptiveBidsCount === 1 ? "" : "s"} — true leveled costs land at ${money(ctx.effectiveBidCost)} for ${ctx.effectiveBidName || "the compliant winner"}${
+        runnerUpDelta !== undefined ? `, a ${money(runnerUpDelta)} true variance` : ""
+      }."`
+    : `"No proposals have been leveled for ${ctx.projectTitle} yet. Scope the packages, ingest the trade quotes, and this scene will narrate the live ADR-0003 variance."`;
+
+  const levelingMetric = ctx.hasBids
+    ? `${money(ctx.variance)} True Variance vs Budget • ${ctx.deceptiveBidsCount} Deceptive Bid${ctx.deceptiveBidsCount === 1 ? "" : "s"} Caught`
+    : `No bids leveled yet • ${ctx.packagesCount} package${ctx.packagesCount === 1 ? "" : "s"} awaiting proposals`;
+
+  const contractsMetric =
+    ctx.agreementsCount > 0 && typeof ctx.contractSum === "number"
+      ? `$${Math.round(ctx.contractSum).toLocaleString()} Subcontract ${ctx.contractExecuted ? "Execution Recorded" : "Generated"} • AIA A401`
+      : "No AIA A401 agreement yet • Award a leveled bid to generate one";
+
+  const coordinationMetric =
+    ctx.openClashes > 0
+      ? `${ctx.openClashes} Open Coordination Item${ctx.openClashes === 1 ? "" : "s"} • Review Double-Buys & Voids`
+      : "No open cross-trade clashes detected";
+
+  return [
+    {
+      id: "scoping",
+      tabId: "packages",
+      stepNumber: "01",
+      category: "CSI MasterFormat Scoping",
+      title: "The Scope Exclusion Trap & Automated Scoping",
+      problemStatement:
+        "Commercial GCs lose six figures on MEP buyout to fine-print scope exclusions and trade overlaps hidden in architectural specs.",
+      talkTrack: `"Welcome to TradePulse Pro. TradePulse parses complex CSI specifications into trade packages — each with a dedicated programmatic @agentmail.to inbox for trade communication. The active project currently has ${pkgLabel}."`,
+      keyMetric:
+        ctx.packagesCount > 0
+          ? `${pkgLabel} • Dedicated AgentMail Inboxes`
+          : "No packages scoped yet • Run AI Spec Breakdown to create them",
+      actionLabel: "Advance to Contractor Sourcing",
+      actionDescription: "Inspects scoped packages and transitions to autonomous subcontractor discovery.",
+    },
+    {
+      id: "discovery",
+      tabId: "discovery",
+      stepNumber: "02",
+      category: "Autonomous Discovery",
+      title: "Specialty Contractor Discovery & Provenance",
+      problemStatement:
+        "Vetting specialty MEP subcontractors manually across state licensing boards takes days of tedious verification.",
+      talkTrack: `"TradePulse discovers regional specialty contractors and records where each data point came from. Every record shows its provenance — live web discovery results are labeled unverified until a registry lookup is actually performed. The directory currently holds ${subLabel}."`,
+      keyMetric:
+        ctx.contractorsCount > 0
+          ? `${subLabel} • Provenance shown per record`
+          : "Directory empty • Run Discover Trade Contractors",
+      actionLabel: "Advance to Pre-Bid Q&A",
+      actionDescription: "Reviews contractor records and moves to incoming pre-bid inquiries.",
+    },
+    {
+      id: "qna",
+      tabId: "qna",
+      stepNumber: "03",
+      category: "Dynamic Pre-Bid Q&A",
+      title: "AI Technical Clarifications & CSI Addendum Issuance",
+      problemStatement:
+        "Uncoordinated verbal answers to bidder inquiries lead to post-award delay and dispute claims.",
+      talkTrack: `"Subcontractors email technical questions to the package inbox. Our spec-grounded AI analyzes the inquiry against project specifications, drafts an accurate citation, and flags edge cases for PM review. Once certified, it compiles a CSI Addendum stored in Convex File Storage. The active package has ${ctx.conversationsCount} RFI record${ctx.conversationsCount === 1 ? "" : "s"}."`,
+      keyMetric: `${ctx.conversationsCount} RFI record${ctx.conversationsCount === 1 ? "" : "s"} • PM-certified CSI Addendum`,
+      actionLabel: "Advance to Forensic Leveling",
+      actionDescription: "Moves to the core bid leveling engine to compare incoming subcontractor proposals.",
+    },
+    {
+      id: "leveling",
+      tabId: "leveling",
+      stepNumber: "04",
+      category: "Forensic Bid Leveling",
+      title: "ADR-0003 Normalization & Deceptive Low Bid Flagging",
+      problemStatement:
+        "A low paper bid can hide crane hoisting, firestopping and seismic exclusions that surface as change orders after award.",
+      talkTrack: levelingTalk,
+      keyMetric: levelingMetric,
+      actionLabel: "Advance to Scope Clash Engine",
+      actionDescription: "Awards the compliant winner and proceeds to cross-trade coordination.",
+    },
+    {
+      id: "coordination",
+      tabId: "coordination",
+      stepNumber: "05",
+      category: "Cross-Trade Coordination",
+      title: "Cross-Trade Scope Clash & Double-Buy Deductions",
+      problemStatement:
+        "Electrical and HVAC scopes can both price the same equipment (for example VFDs), resulting in redundant spend, or both can omit shared wiring.",
+      talkTrack: `"Trades don't always talk to each other. The clash engine flags equipment priced by both trades and scope omitted by both, so the GC can deduct or assign with one click. ${coordinationMetric}."`,
+      keyMetric: coordinationMetric,
+      actionLabel: "Advance to Subcontract Execution",
+      actionDescription: "Transitions to the Contracts Register to inspect the generated AIA A401 agreement.",
+    },
+    {
+      id: "contracts",
+      tabId: "contracts",
+      stepNumber: "06",
+      category: "Subcontract Buyout",
+      title: "AIA Document A401 Subcontract Agreement",
+      problemStatement:
+        "Manual subcontract drafting causes weeks of administrative lag, risking site mobilization delays.",
+      talkTrack: `"With the winner leveled and clashes resolved, TradePulse drafts a standard 10-article AIA Document A401 Subcontract Agreement incorporating mandatory inclusions, retainage terms, and liquidated damages. It is ready for external execution. ${ctx.awardedPackages} of ${ctx.totalPackages} package${ctx.totalPackages === 1 ? "" : "s"} currently hold an agreement."`,
+      keyMetric: contractsMetric,
+      actionLabel: "Complete Tour & View Audit Trail",
+      actionDescription: "Inspects the subcontract register and reviews the causal audit log.",
+    },
+  ];
+}
 
 interface InvestorDemoTourBarProps {
   activeTab: string;
@@ -118,6 +179,7 @@ interface InvestorDemoTourBarProps {
   onClose: () => void;
   onExecuteSceneAction?: (sceneId: string) => Promise<void>;
   onOpenSimulationModal?: () => void;
+  liveContext: TourLiveContext;
 }
 
 export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
@@ -126,9 +188,11 @@ export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
   onClose,
   onExecuteSceneAction,
   onOpenSimulationModal,
+  liveContext,
 }) => {
+  const scenes = useMemo(() => buildDemoScenes(liveContext), [liveContext]);
   const [currentSceneIndex, setCurrentSceneIndex] = useState<number>(() => {
-    const idx = DEMO_SCENES.findIndex((s) => s.tabId === activeTab);
+    const idx = scenes.findIndex((s) => s.tabId === activeTab);
     return idx >= 0 ? idx : 0;
   });
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
@@ -136,23 +200,23 @@ export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
   const [showScriptModal, setShowScriptModal] = useState<boolean>(false);
 
   useEffect(() => {
-    const idx = DEMO_SCENES.findIndex((s) => s.tabId === activeTab);
+    const idx = scenes.findIndex((s) => s.tabId === activeTab);
     if (idx >= 0 && idx !== currentSceneIndex) {
       setCurrentSceneIndex(idx);
     }
-  }, [activeTab, currentSceneIndex]);
+  }, [activeTab, currentSceneIndex, scenes]);
 
-  const scene = DEMO_SCENES[currentSceneIndex];
+  const scene = scenes[Math.min(currentSceneIndex, scenes.length - 1)];
 
   const handleGoToScene = (index: number) => {
-    if (index >= 0 && index < DEMO_SCENES.length) {
+    if (index >= 0 && index < scenes.length) {
       setCurrentSceneIndex(index);
-      onSelectTab(DEMO_SCENES[index].tabId);
+      onSelectTab(scenes[index].tabId);
     }
   };
 
   const handleNext = () => {
-    if (currentSceneIndex < DEMO_SCENES.length - 1) {
+    if (currentSceneIndex < scenes.length - 1) {
       handleGoToScene(currentSceneIndex + 1);
     } else {
       onSelectTab("audit");
@@ -191,7 +255,7 @@ export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-xs font-bold text-white tracking-wide">
-                  🎉 Investor Demo Tour Complete • All 6 Procurement Lifecycle Stages Executed
+                  Investor Demo Tour Complete • All 6 Procurement Lifecycle Stages Covered
                 </h4>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-mono font-bold">
                   Complete
@@ -267,7 +331,10 @@ export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
               </span>
             </button>
 
-            <span className="hidden xl:inline-flex shrink-0 text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50">
+            <span
+              className="hidden xl:inline-flex shrink-0 text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50"
+              title="Figures in this cue are read live from the active project"
+            >
               {scene.keyMetric}
             </span>
           </div>
@@ -284,7 +351,7 @@ export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
               >
                 <ChevronLeft className="w-3 h-3" />
               </button>
-              {DEMO_SCENES.map((s, idx) => (
+              {scenes.map((s, idx) => (
                 <button
                   key={s.id}
                   onClick={() => handleGoToScene(idx)}
@@ -358,6 +425,10 @@ export const InvestorDemoTourBar: React.FC<InvestorDemoTourBarProps> = ({
               <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-amber-100 italic leading-relaxed text-xs">
                 "{scene.talkTrack}"
               </div>
+              <p className="text-[10px] text-slate-400">
+                Quantitative figures in this cue are interpolated live from the active project ({liveContext.projectTitle}),
+                so the narration cannot drift from the screen.
+              </p>
             </div>
 
             <div className="shrink-0 flex flex-col sm:flex-row md:flex-col gap-2 items-start md:items-end">

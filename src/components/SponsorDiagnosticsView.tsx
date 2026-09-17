@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { formatFullDateTime } from "../lib/datetime.ts";
 import {
   Activity,
   CheckCircle2,
@@ -35,7 +36,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
         targetEnvironment: "prod",
         triggeredBy: "judge_diagnostics",
       });
-      setEvalStatusMsg(`Run ${res.runId} completed! Leveled Cost MAPE: ${res.leveledCostMape}% • Scope Recall: ${Math.round(res.scopeRecallAvg * 100)}% • Parity: ${res.passedCases}/${res.totalCases}`);
+      setEvalStatusMsg(`Run ${res.runId} completed. Extraction matches: ${res.passedCases}/${res.totalCases} • Leveled-cost MAPE: ${res.leveledCostMape}% • Exclusion recall: ${Math.round(res.scopeRecallAvg * 100)}%`);
     } catch (err: any) {
       setEvalStatusMsg(`Evaluation failed: ${err.message || err}`);
     } finally {
@@ -251,17 +252,16 @@ export const SponsorDiagnosticsView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  Chief Estimator Ground-Truth Evaluation Suite
+                  Bid Extraction & ADR-0003 Normalization Check
                 </h3>
                 <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-mono font-semibold">
-                  ASPE / AGC Benchmark Standard
-                </span>
-                <span className="text-[10px] bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full font-mono">
-                  Zero Cheating
+                  Prompt-grounded extraction check
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Empirically evaluates TradePulse Pro across 10 commercial MEP cases (Div 26, 23, 22, Cross-Trade Double-Buys & Scope Voids) against Certified Professional Estimator ground-truth sheets.
+                Runs 10 commercial MEP cases through the live LLM extraction + ADR-0003 normalization pipeline against
+                authored ground-truth sheets. Each case's proposal text states its own figures, so this validates
+                parsing and normalization fidelity — it is not an independent estimating benchmark.
               </p>
             </div>
           </div>
@@ -288,7 +288,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
               ) : (
                 <Play className="w-3.5 h-3.5" />
               )}
-              {isRunningEvals ? "Evaluating 10 Cases..." : "Run Chief Estimator Evals"}
+              {isRunningEvals ? "Evaluating 10 Cases..." : "Run Extraction & Leveling Check"}
             </button>
           </div>
         </div>
@@ -304,15 +304,15 @@ export const SponsorDiagnosticsView: React.FC = () => {
         {latestEvalData?.run ? (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-500 uppercase block font-semibold">Parity Achieved</span>
+              <span className="text-[10px] text-slate-400 uppercase block font-semibold">Cases Extracted Correctly</span>
               <span className="text-base font-bold text-emerald-400 font-mono">
                 {latestEvalData.run.passedCases} / {latestEvalData.run.totalCases}
               </span>
-               <span className="text-[10px] text-slate-400 block mt-0.5">Computed from case verdicts</span>
+               <span className="text-[10px] text-slate-400 block mt-0.5">Extraction matched the ground truth</span>
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-500 uppercase block font-semibold">Leveled Cost MAPE</span>
+              <span className="text-[10px] text-slate-400 uppercase block font-semibold">Leveled Cost MAPE</span>
               <span className="text-base font-bold text-sky-400 font-mono">
                 {latestEvalData.run.leveledCostMape.toFixed(2)}%
               </span>
@@ -320,21 +320,21 @@ export const SponsorDiagnosticsView: React.FC = () => {
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-500 uppercase block font-semibold">Scope Recall</span>
+              <span className="text-[10px] text-slate-400 uppercase block font-semibold">Scope Recall</span>
               <span className="text-base font-bold text-amber-400 font-mono">
                 {Math.round(latestEvalData.run.scopeRecallAvg * 100)}%
               </span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Zero Missed Exclusions</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Exclusions present in the proposal were extracted</span>
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-500 uppercase block font-semibold">MEP Clash Recall</span>
+              <span className="text-[10px] text-slate-400 uppercase block font-semibold">MEP Clash Recall</span>
                <span className="text-base font-bold text-purple-400 font-mono">{Math.round(latestEvalData.run.clashRecallAvg * 100)}%</span>
                <span className="text-[10px] text-slate-400 block mt-0.5">Computed from cross-trade cases</span>
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-500 uppercase block font-semibold">AIA A401 Conformity</span>
+              <span className="text-[10px] text-slate-400 uppercase block font-semibold">AIA A401 Conformity</span>
                <span className="text-base font-bold text-emerald-400 font-mono">{latestEvalData.run.aiaConformityAvg > 0 ? `${Math.round(latestEvalData.run.aiaConformityAvg * 100)}%` : "N/A"}</span>
                <span className="text-[10px] text-slate-400 block mt-0.5">Not covered by this suite</span>
             </div>
@@ -355,8 +355,10 @@ export const SponsorDiagnosticsView: React.FC = () => {
                 <FileText className="w-3.5 h-3.5 text-emerald-400" />
                 Case-by-Case Forensic Audit Trail & Side-by-Side Comparison
               </h4>
-              <span className="text-[11px] text-slate-500">
-                Run ID: <code className="font-mono text-slate-400">{latestEvalData.run?.runId}</code>
+              <span className="text-[11px] text-slate-400">
+                Run ID: <code className="font-mono text-slate-300">{latestEvalData.run?.runId}</code>
+                {latestEvalData.run?.createdAt ? ` • started ${formatFullDateTime(latestEvalData.run.createdAt)}` : ""}
+                {isRunningEvals && <span className="text-amber-300 ml-2">New run in progress…</span>}
               </span>
             </div>
 
@@ -447,14 +449,14 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
                                 <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
-                                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Raw Prompt Input</span>
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Raw Prompt Input</span>
                                   <pre className="text-[11px] text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
                                     {t.rawPrompt}
                                   </pre>
                                 </div>
 
                                 <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
-                                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Model Extraction & ADR-0003 Normalization</span>
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Model Extraction & ADR-0003 Normalization</span>
                                   <pre className="text-[11px] text-emerald-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
                                     {JSON.stringify(t.parsedOutput, null, 2)}
                                   </pre>
@@ -465,7 +467,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
                                   {t.systemPrompt && (
                                     <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
-                                      <span className="text-[10px] uppercase font-bold text-slate-500 block">System Prompt</span>
+                                      <span className="text-[10px] uppercase font-bold text-slate-400 block">System Prompt</span>
                                       <pre className="text-[11px] text-sky-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
                                         {t.systemPrompt}
                                       </pre>
@@ -473,7 +475,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
                                   )}
                                   {t.rawResponse && (
                                     <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
-                                      <span className="text-[10px] uppercase font-bold text-slate-500 block">Raw Model Response</span>
+                                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Raw Model Response</span>
                                       <pre className="text-[11px] text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
                                         {t.rawResponse}
                                       </pre>
@@ -484,7 +486,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
                               {t.groundTruth && (
                                 <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs">
-                                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                                     Certified Professional Estimator Ground Truth Verification
                                   </span>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
@@ -623,38 +625,38 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">Throughput</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">Throughput</span>
                 <span className="text-sm font-bold text-white font-mono">{benchmarkResult.throughputTokSec} tok/s</span>
               </div>
 
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">Latency</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">Latency</span>
                 <span className="text-sm font-bold text-sky-400 font-mono">{benchmarkResult.latencyMs} ms</span>
               </div>
 
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">Input Tokens</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">Input Tokens</span>
                 <span className="text-sm font-bold text-slate-300 font-mono">{benchmarkResult.inputTokens.toLocaleString()}</span>
               </div>
 
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">Output Tokens</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">Output Tokens</span>
                 <span className="text-sm font-bold text-slate-300 font-mono">{benchmarkResult.outputTokens.toLocaleString()}</span>
               </div>
 
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">Query Cost</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">Query Cost</span>
                 <span className="text-sm font-bold text-emerald-400 font-mono">${benchmarkResult.totalCostUsd.toFixed(5)}</span>
               </div>
 
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-500 block mb-0.5 uppercase">CSI Accuracy</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">CSI Accuracy</span>
                  <span className="text-sm font-bold text-amber-400 font-mono">{benchmarkResult.accuracyScore === null ? "N/A" : `${benchmarkResult.accuracyScore}%`}</span>
               </div>
             </div>
 
             <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-300 leading-relaxed">
-              <span className="text-[10px] text-slate-500 uppercase block mb-1">Model Inference Output</span>
+              <span className="text-[10px] text-slate-400 uppercase block mb-1">Model Inference Output</span>
               {benchmarkResult.sampleOutput}
             </div>
           </div>

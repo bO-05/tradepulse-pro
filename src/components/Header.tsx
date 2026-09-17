@@ -1,5 +1,7 @@
 import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useDialogFocus } from "../lib/useDialogFocus.ts";
 import {
   Building2,
   Layers,
@@ -47,7 +49,7 @@ interface HeaderProps {
   contractorsCount?: number;
   conversationsCount?: number;
   bidsCount?: number;
-  agreementsCount?: number;
+  awardedCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,11 +65,11 @@ export const Header: React.FC<HeaderProps> = ({
   clashCount = 0,
   isTourOpen = false,
   onToggleTour,
-  packagesCount = 3,
-  contractorsCount = 4,
-  conversationsCount = 3,
-  bidsCount = 2,
-  agreementsCount = 1,
+  packagesCount = 0,
+  contractorsCount = 0,
+  conversationsCount = 0,
+  bidsCount = 0,
+  awardedCount = 0,
 }) => {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -80,6 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const newProjectDialogRef = useDialogFocus<HTMLDivElement>(isNewProjectModalOpen);
 
   // Keyboard shortcut listener for 1-6 keys
   useEffect(() => {
@@ -166,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
       label: "Subcontracts",
       sublabel: "AIA A401",
       icon: FileCheck,
-      badge: `${agreementsCount} Award`,
+      badge: `${awardedCount}/${packagesCount} Awarded`,
     },
   ];
 
@@ -220,11 +223,11 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Top Banner with Sponsor Integration Badges & Presentation Mode */}
       <div className="border-b border-slate-800/80 px-4 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-full">
+          <span className="flex items-center gap-1.5 font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-full" title={isStandaloneMode ? "Serving the local snapshot of the dataset because Convex is unreachable. Figures may be stale." : "Live data is streaming from the Convex deployment."}>
             <Radio className={`w-3 h-3 text-emerald-400 ${isStandaloneMode ? "" : "animate-pulse"}`} />
-            {isStandaloneMode ? "Zero-Cloud Localhost Resilient Mode" : "Convex Reactive WebSockets Active"}
+            {isStandaloneMode ? "Offline snapshot mode — data may be stale" : "Convex Reactive WebSockets Active"}
           </span>
-          <span className="text-slate-500 hidden sm:inline">•</span>
+          <span className="text-slate-400 hidden sm:inline">•</span>
           <span className="text-slate-400 hidden sm:inline font-mono text-[11px]">
             Convex "All Gas" Hackathon 2026
           </span>
@@ -232,7 +235,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="flex items-center gap-2">
           <div className="hidden xl:flex items-center gap-1.5 mr-1">
-            <span className="text-slate-500 text-[11px]">Sponsors:</span>
+            <span className="text-slate-400 text-[11px]">Sponsors:</span>
             <span className="bg-orange-950/40 text-orange-300 border border-orange-800/40 px-1.5 py-0.5 rounded text-[10px] font-mono">Convex</span>
             <span className="bg-emerald-950/40 text-emerald-300 border border-emerald-800/40 px-1.5 py-0.5 rounded text-[10px] font-mono">OpenAI</span>
             <span className="bg-amber-950/40 text-amber-300 border border-amber-800/40 px-1.5 py-0.5 rounded text-[10px] font-mono">Firecrawl</span>
@@ -345,7 +348,7 @@ export const Header: React.FC<HeaderProps> = ({
       />
 
       {/* Procurement Pipeline Stepper & Navigation */}
-      <div className="px-4 lg:px-8 flex flex-wrap items-center justify-between border-t border-slate-800/80 bg-slate-950/50 gap-2">
+      <div className="px-4 lg:px-8 flex flex-wrap items-center justify-between border-t border-slate-800/80 bg-slate-950/50 gap-2 min-w-0">
         <label className="sm:hidden flex items-center gap-2 py-2 text-[11px] font-semibold text-slate-400 shrink-0">
           Stage
           <select
@@ -360,7 +363,7 @@ export const Header: React.FC<HeaderProps> = ({
           </select>
         </label>
         {/* 6-Stage Pipeline Stepper */}
-        <div className="hidden sm:flex items-center gap-1 py-1 shrink-0 overflow-x-auto">
+        <div className="hidden sm:flex items-center gap-1 py-1 overflow-x-auto min-w-0 flex-1">
           {pipelineStages.map((stage, idx) => {
             const Icon = stage.icon;
             const isActive = activeTab === stage.id;
@@ -369,8 +372,8 @@ export const Header: React.FC<HeaderProps> = ({
               (stage.id === "discovery" && contractorsCount > 0) ||
               (stage.id === "qna" && conversationsCount > 0) ||
               (stage.id === "leveling" && bidsCount > 0) ||
-              (stage.id === "coordination" && clashCount === 0 && agreementsCount > 0) ||
-              (stage.id === "contracts" && agreementsCount > 0);
+              (stage.id === "coordination" && clashCount === 0 && awardedCount > 0) ||
+              (stage.id === "contracts" && awardedCount > 0);
             return (
               <React.Fragment key={stage.id}>
                 <button
@@ -394,7 +397,7 @@ export const Header: React.FC<HeaderProps> = ({
                     {isCompleted && !isActive ? "✓" : stage.step}
                   </span>
                   <Icon
-                    className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : isCompleted ? "text-emerald-500/80" : "text-slate-500 group-hover:text-slate-300"}`}
+                    className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : isCompleted ? "text-emerald-500/80" : "text-slate-400 group-hover:text-slate-300"}`}
                   />
                   <span className={isActive ? "text-white font-bold" : ""}>{stage.label}</span>
 
@@ -435,7 +438,7 @@ export const Header: React.FC<HeaderProps> = ({
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-850/60"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : "text-slate-500"}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : "text-slate-400"}`} />
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             );
@@ -444,9 +447,22 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* New Project Modal */}
-      {isNewProjectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in" role="presentation">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+      {isNewProjectModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !creating) setIsNewProjectModalOpen(false);
+            }}
+          >
+            <div
+              ref={newProjectDialogRef}
+              className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-project-title"
+            >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 id="new-project-title" className="text-base font-bold text-white flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-emerald-400" />
@@ -514,23 +530,29 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 font-medium mb-1">Estimated Budget ($)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newBudget}
-                    onChange={(e) => setNewBudget(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono"
-                  />
+<input
+                  type="number"
+                  required
+                  min={1}
+                  max={1000000000}
+                  step={1}
+                  value={newBudget}
+                  onChange={(e) => setNewBudget(Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono"
+                />
                 </div>
                 <div>
                   <label className="block text-slate-400 font-medium mb-1">Duration (Weeks)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newWeeks}
-                    onChange={(e) => setNewWeeks(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono"
-                  />
+<input
+                  type="number"
+                  required
+                  min={1}
+                  max={520}
+                  step={1}
+                  value={newWeeks}
+                  onChange={(e) => setNewWeeks(Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono"
+                />
                 </div>
               </div>
 
@@ -564,9 +586,10 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </header>
   );
 };

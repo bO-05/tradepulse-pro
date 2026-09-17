@@ -1,5 +1,5 @@
 import { getErrorMessage } from "../lib/errors.ts";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Sparkles,
   CheckCircle2,
@@ -15,10 +15,13 @@ import {
   Edit3,
   ShieldCheck,
   Filter,
+  RefreshCw,
 } from "lucide-react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Conversation, Contractor, TradePackage } from "../types.ts";
+import { MarkdownLite } from "../lib/markdown.tsx";
+import { formatFullDateTime } from "../lib/datetime.ts";
 
 interface PreBidQnAViewProps {
   currentPackage: TradePackage | null;
@@ -61,6 +64,8 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   onNavigateToPackages,
 }) => {
   const [submitting, setSubmitting] = useState(false);
+  const [pendingRfiSince, setPendingRfiSince] = useState<number | null>(null);
+  const conversationCountAtSubmit = useRef<number>(0);
   const [showWhyCare, setShowWhyCare] = useState(false);
   const [selectedContractorId, setSelectedContractorId] = useState("");
   const [subject, setSubject] = useState("");
@@ -151,6 +156,8 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
     const cId = selectedContractorId || contractors[0]?._id || "guest_contractor";
 
     setSubmitting(true);
+    conversationCountAtSubmit.current = conversations.length;
+    setPendingRfiSince(Date.now());
     try {
       await onSubmitRfi({
         contractorId: cId,
@@ -159,10 +166,20 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
       });
       setSubject("");
       setQuestion("");
+    } catch (err) {
+      setPendingRfiSince(null);
+      throw err;
     } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (pendingRfiSince === null) return;
+    if (conversations.length > conversationCountAtSubmit.current) {
+      setPendingRfiSince(null);
+    }
+  }, [conversations, pendingRfiSince]);
 
   const handleGenerateAddendum = async () => {
     if (!projectId) {
@@ -174,6 +191,12 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
     if (pendingCertificationCount > 0) {
       setIsGeneratingAddendum(false);
       setAddendumError(`PM certification is required before issuing a binding addendum. Review ${pendingCertificationCount} pending RFI(s).`);
+      return;
+    }
+    const certifiedCount = addendumConversations.filter((c) => c.status === "clarified" && c.pmCertifiedAt).length;
+    if (certifiedCount === 0) {
+      setIsGeneratingAddendum(false);
+      setAddendumError("An addendum must clarify at least one PM-certified RFI. Submit and certify an RFI before issuing one.");
       return;
     }
     try {
@@ -315,7 +338,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                   onClick={() => onSelectPackage(pkg._id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition shrink-0 ${
                     isSelected
-                      ? "bg-emerald-600 text-white font-bold shadow-sm ring-1 ring-emerald-400"
+                      ? "bg-emerald-700 text-white font-bold shadow-sm ring-1 ring-emerald-400"
                       : "bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 hover:border-slate-600"
                   }`}
                 >
@@ -414,11 +437,11 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
               <h4 className="font-bold text-emerald-300 text-sm">
-                 {addendumResult.isLocalPreview ? "Local Pre-Bid Addendum Preview Ready" : "Official Pre-Bid Legal Addendum NO. 01 Successfully Issued & Filed!"}
+                 {addendumResult.isLocalPreview ? "Local Pre-Bid Addendum Preview Ready" : "Pre-Bid Addendum NO. 01 Successfully Issued & Filed"}
               </h4>
               <p className="text-slate-300 leading-relaxed">
                  {addendumResult.isLocalPreview ? "Preview only; this artifact was not filed to Convex Storage. " : "Compiled "}<strong className="text-white">{addendumResult.qaCount} PM-certified RFIs</strong> across{" "}
-                <strong className="text-white">{addendumResult.csiDivisionCount} CSI divisions</strong> into an official AIA A401 standard pre-bid legal addendum. Filed to CSI Project Documents register as{" "}
+                <strong className="text-white">{addendumResult.csiDivisionCount} CSI divisions</strong> into a CSI MasterFormat pre-bid addendum (AIA Document A401 is the separate subcontract form). Filed to the project document register as{" "}
                 <span className="font-mono text-emerald-400 font-bold">{addendumResult.fileName}</span>.
               </p>
             </div>
@@ -428,7 +451,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
               href={addendumResult.downloadUrl}
               target="_blank"
               rel="noreferrer"
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0 transition"
+              className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0 transition"
             >
               <FileDown className="w-3.5 h-3.5" />
               Download Addendum
@@ -437,7 +460,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             <button
               type="button"
               onClick={handleDownloadAddendumFile}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0 transition"
+              className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0 transition"
             >
               <FileDown className="w-3.5 h-3.5" />
               Download Addendum
@@ -535,7 +558,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                           className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full"
                           title={
                             conv.pmCertifiedBy
-                              ? `Certified by ${conv.pmCertifiedBy}${conv.pmCertifiedAt ? ` on ${new Date(conv.pmCertifiedAt).toLocaleString()}` : ""}`
+                              ? `Certified by ${conv.pmCertifiedBy}${conv.pmCertifiedAt ? ` on ${formatFullDateTime(conv.pmCertifiedAt)}` : ""}`
                               : undefined
                           }
                         >
@@ -553,11 +576,8 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                            <Clock className="w-3 h-3" /> PM Review Required
                          </span>
                        )}
-                      <span className="text-[11px] text-slate-500 font-mono">
-                        {new Date(conv.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <span className="text-[11px] text-slate-400 font-mono" title="Local time with timezone">
+                        {formatFullDateTime(conv.timestamp)}
                       </span>
                     </div>
                   </div>
@@ -590,7 +610,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                       </div>
 
                       <p className="text-slate-200 leading-relaxed pl-1">
-                        {conv.autonomousReply}
+                        <MarkdownLite text={conv.autonomousReply} className="space-y-1.5" />
                       </p>
                     </div>
                   )}
@@ -621,7 +641,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                         <button
                           onClick={() => handleApprove(conv)}
                           disabled={isReviewing}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1"
+                          className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1"
                         >
                           <Check className="w-3.5 h-3.5" />
                           Save & Approve for Addendum
@@ -666,7 +686,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                           <button
                             onClick={() => handleApprove(conv)}
                             disabled={isReviewing}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow-sm"
+                            className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow-sm"
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>{isReviewing ? "Approving..." : "Approve for Addendum"}</span>
@@ -683,6 +703,19 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
         {/* Right 1 Col: Direct RFI Submission Panel */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 h-fit space-y-4">
+          {pendingRfiSince !== null && (
+            <div
+              className="rounded-xl border border-sky-800/70 bg-sky-950/40 p-3 text-xs text-sky-200 flex items-start gap-2"
+              role="status"
+              aria-live="polite"
+            >
+              <RefreshCw className="w-4 h-4 text-sky-400 shrink-0 mt-0.5 animate-spin" />
+              <span className="leading-relaxed">
+                RFI submitted. The AI is analyzing it against the specification and drafting a citation; the
+                clarification appears in the list automatically (typically 10–30 seconds). No need to resubmit.
+              </span>
+            </div>
+          )}
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
               <Send className="w-4 h-4 text-sky-400" />
