@@ -1,5 +1,5 @@
 import { getErrorMessage } from "../lib/errors.ts";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useDialogFocus } from "../lib/useDialogFocus.ts";
 import {
@@ -81,6 +81,9 @@ export const Header: React.FC<HeaderProps> = ({
   const [newGeneralContractor, setNewGeneralContractor] = useState("Austin Commercial, LP");
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Synchronous guard: React's `disabled` prop only applies on the next render,
+  // so a rapid double-click can fire the submit twice before that render lands.
+  const createInFlightRef = useRef(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const newProjectDialogRef = useDialogFocus<HTMLDivElement>(isNewProjectModalOpen);
 
@@ -180,6 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (createInFlightRef.current) return;
     const parsedBudget = Number(newBudget);
     const parsedWeeks = Number(newWeeks);
     if (!Number.isFinite(parsedBudget) || parsedBudget <= 0) {
@@ -196,6 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
     setCreating(true);
     setCreateError(null);
+    createInFlightRef.current = true;
     try {
       await onCreateProject({
         title: newTitle.trim(),
@@ -214,6 +219,7 @@ export const Header: React.FC<HeaderProps> = ({
     } catch (err: any) {
       setCreateError(getErrorMessage(err) || "The project could not be created.");
     } finally {
+      createInFlightRef.current = false;
       setCreating(false);
     }
   };

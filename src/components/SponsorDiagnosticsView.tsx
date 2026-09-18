@@ -31,13 +31,13 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
   const handleRunExpertEvals = async () => {
     setIsRunningEvals(true);
-    setEvalStatusMsg("Running 10-Case Chief Estimator Ground-Truth Evaluation against live backend...");
+    setEvalStatusMsg("Running the 13-case extraction, holdout and cross-trade evaluation against live backend...");
     try {
       const res = await executeEvalSuiteAction({
         targetEnvironment: "prod",
         triggeredBy: "judge_diagnostics",
       });
-      setEvalStatusMsg(`Run ${res.runId} completed. Extraction matches: ${res.passedCases}/${res.totalCases} • Leveled-cost MAPE: ${res.leveledCostMape}% • Exclusion recall: ${Math.round(res.scopeRecallAvg * 100)}%`);
+      setEvalStatusMsg(`Run ${res.runId} completed. Extraction matches: ${res.passedCases}/${res.totalCases} • Holdout (answer not in prompt): ${res.holdoutPassed ?? 0}/${res.holdoutCases ?? 0} • Leveled-cost MAPE: ${res.leveledCostMape}% • Exclusion recall: ${Math.round(res.scopeRecallAvg * 100)}%`);
     } catch (err: any) {
       setEvalStatusMsg(`Evaluation failed: ${err.message || err}`);
     } finally {
@@ -266,9 +266,11 @@ export const SponsorDiagnosticsView: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Runs 10 commercial MEP cases through the live LLM extraction + ADR-0003 normalization pipeline against
-                authored ground-truth sheets. Each case's proposal text states its own figures, so this validates
-                parsing and normalization fidelity — it is not an independent estimating benchmark.
+                Runs 13 commercial MEP cases through the live LLM extraction + ADR-0003 normalization pipeline: 8
+                prompt-grounded parsing cases, 2 cross-trade coordination cases, and <strong className="text-slate-200">3 holdout
+                cases whose proposal text states no total at all</strong> — those require the model to sum the schedule of
+                values and apply the normalization arithmetic itself, so the score cannot be satisfied by copying a figure
+                out of the prompt.
               </p>
             </div>
           </div>
@@ -295,7 +297,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
               ) : (
                 <Play className="w-3.5 h-3.5" />
               )}
-              {isRunningEvals ? "Evaluating 10 Cases..." : "Run Extraction & Leveling Check"}
+              {isRunningEvals ? "Evaluating 13 Cases..." : "Run Extraction & Leveling Check"}
             </button>
           </div>
         </div>
@@ -309,7 +311,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
         {/* Evaluation Summary KPIs */}
         {latestEvalData?.run ? (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
               <span className="text-[10px] text-slate-400 uppercase block font-semibold">Cases Extracted Correctly</span>
               <span className="text-base font-bold text-emerald-400 font-mono">
@@ -340,16 +342,26 @@ export const SponsorDiagnosticsView: React.FC = () => {
                <span className="text-[10px] text-slate-400 block mt-0.5">Computed from cross-trade cases</span>
             </div>
 
-            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase block font-semibold">AIA A401 Conformity</span>
+<div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+               <span className="text-[10px] text-slate-400 uppercase block font-semibold">AIA A401 Conformity</span>
                <span className="text-base font-bold text-emerald-400 font-mono">{latestEvalData.run.aiaConformityAvg > 0 ? `${Math.round(latestEvalData.run.aiaConformityAvg * 100)}%` : "N/A"}</span>
                <span className="text-[10px] text-slate-400 block mt-0.5">Not covered by this suite</span>
+             </div>
+
+            <div className="bg-slate-950 p-3 rounded-lg border border-emerald-800/60">
+              <span className="text-[10px] text-slate-400 uppercase block font-semibold">Holdout — Answer Not In Prompt</span>
+              <span className="text-base font-bold text-emerald-300 font-mono">
+                {latestEvalData.run.holdoutPassed ?? 0} / {latestEvalData.run.holdoutCases ?? 0}
+              </span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                MAPE {latestEvalData.run.holdoutMape !== undefined ? `${latestEvalData.run.holdoutMape.toFixed(2)}%` : "—"} • model must compute
+              </span>
             </div>
           </div>
         ) : (
           <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-center">
-            <p className="text-xs text-slate-400">
-              Click <strong className="text-white">"Run Chief Estimator Evals"</strong> above or run <code className="text-emerald-400 bg-slate-900 px-1.5 py-0.5 rounded">npm run evals</code> in the CLI to execute the live empirical benchmark against Convex Cloud!
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Click <strong className="text-white">"Run Extraction &amp; Leveling Check"</strong> above or run <code className="text-emerald-400 bg-slate-900 px-1.5 py-0.5 rounded">npm run evals</code> in the CLI to execute the live benchmark against Convex Cloud. Holdout cases deliberately omit the total from the prompt, so they cannot be passed by copying.
             </p>
           </div>
         )}
@@ -397,7 +409,14 @@ export const SponsorDiagnosticsView: React.FC = () => {
                     return (
                       <React.Fragment key={t.caseId}>
                         <tr className="hover:bg-slate-900/50 transition">
-                          <td className="p-2.5 font-mono text-[11px] text-slate-300">{t.caseId}</td>
+                          <td className="p-2.5 font-mono text-[11px] text-slate-300">
+                            {t.caseId}
+                            {(t.metrics as any)?.isHoldout && (
+                              <span className="ml-2 text-[9px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-950 border border-emerald-700 px-1.5 py-0.5 rounded">
+                                Holdout
+                              </span>
+                            )}
+                          </td>
                           <td className="p-2.5">
                             <span className="font-medium text-slate-200">{t.csiDivision}</span>
                           </td>

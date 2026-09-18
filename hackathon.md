@@ -12,9 +12,34 @@
 - **Auth:** none
 - **AI models:** gpt-4o, gemini-3.8-flash, claude-sonnet-5
 - **Started:** 2026-09-09T12:41:52Z
-- **Last updated:** 2026-09-17T13:40:00Z
+- **Last updated:** 2026-09-18T06:10:00Z
+
+## Submission Summary
+
+**What it is.** TradePulse Pro is an autonomous subcontractor procurement platform for commercial construction general contractors. One project, one causal loop: decompose a specification into CSI MasterFormat trade packages, discover candidate subcontractors with provenance, dispatch RFQ invitations, answer pre-bid RFIs against the spec, level every proposal with the ADR-0003 normalization formula, resolve cross-trade double-buys and scope voids, generate an AIA Document A401 subcontract, and log every action to a realtime audit stream.
+
+**Stack (all four sponsors, verified live).**
+- **Convex** — schema, indexed queries, mutations, actions, HTTP router, file storage (`_storage`), scheduled crons, and realtime `useQuery` with zero polling. Static hosting via `@convex-dev/static-hosting`.
+- **Firecrawl** — live web discovery of trade contractors; only published data is recorded, each record carries a provenance label, and fabricated fallback data was removed entirely.
+- **AgentMail** — real `@agentmail.to` inboxes and outbound RFQ delivery through the AgentMail REST API (the published component's sandbox cannot see host env on current Convex, so the app calls the API directly). The free-tier inbox limit reuses an inbox and discloses it in the UI.
+- **OpenAI** — BYOK adapter wired into the multi-model router; activates when `OPENAI_API_KEY` is configured. The hackathon provides no OpenAI credits, so live reasoning currently runs on Gemini and Claude, and the diagnostics surface says exactly that.
+
+**What makes it credible.** Derived numbers are computed once (`src/leveling.ts`) and read by every surface; the eval suite includes three holdout cases whose proposals state no total, so the model must do the arithmetic; claims-integrity is enforced by a source-level honesty test suite; every mutation is validated server-side; and the audit trail is immutable.
+
+**Verification snapshot (2026-09-18).** `tsc -b` clean; `npm test` 22/22; eval run `eval_1789711637426` 13/13 with holdout 3/3 at 0.00% MAPE on live Claude traces; adversarial pass (triple-click create, zero-recipient dispatch, refresh race, Back, 720px zoom, keyboard-only) green; demo project byte-stable; all `AUDIT-*` fixtures removed.
+
+**Links.** Live app <https://brainy-skunk-440.convex.site> · Repo <https://github.com/bO-05/tradepulse-pro> · API manifest `/llms.txt` · Health `/api/health`.
 
 ## Log
+
+### 2026-09-18 - holdout_evals_and_adversarial_pass
+Closed the remaining credibility gap in the eval suite and hardened the flows the adversarial persona targets:
+1. Holdout evaluation: added three cases (`case-holdout-26/23/22`) whose proposal text is a schedule of values with **no total stated anywhere**. Passing requires the model to sum line items and apply ADR-0003 (exclusions + lead-time + COI − accepted VE) itself, so the score cannot be satisfied by copying a figure out of the prompt. New run fields `holdoutCases` / `holdoutPassed` / `holdoutMape`; the Diagnostics tab shows a "Holdout — Answer Not In Prompt" KPI card and a per-case Holdout badge. Live run `eval_1789711637426`: 13/13 cases, holdout 3/3, 0.00% MAPE, Claude traces, prompts verified to contain none of the expected totals.
+2. Double-submit race fixed: React's `disabled` prop only applies on the next render, so a rapid triple-click on "Create Commercial Project" created three projects. Added a synchronous `createInFlightRef` guard in the header modal; live re-test triple-click now creates exactly one project.
+3. Adversarial persona pass (live): zero-recipient RFQ dispatch keeps the package `draft` and writes zero `rfq_dispatched` events (verified in the backend after a double-click); a mid-submit page refresh neither duplicates nor loses the RFI (count 1 after reload); Back returns leveling → Q&A with the correct tab; 720px (≈200% zoom) has 0px horizontal overflow; keyboard-only New Project open/close works with trapped focus and focus restore.
+4. AgentMail free-tier note: provisioning reuses an existing inbox when the plan limit is hit and the package card discloses "Shared inbox — AgentMail plan inbox limit reached"; no fake dedicated addresses.
+5. Gemini `gemini-3.8-flash` returns 429 (quota) on the free key; `GEMINI_MODEL=gemini-3.6-flash` is pinned on both deployments and Gemini now answers live with `usedFallback: false`.
+Verification: `tsc -b` clean; `npm test` 22/22; evidence in `evidence/fix-adversarial-*.json` and `evidence/fix-sponsor-*.json`; demo project intact; all `AUDIT-*` fixtures removed from dev and prod. Demo recording script: `doc/tradepulse audit 2/DEMO-SCRIPT.md`.
 
 ### 2026-09-17 - audit2_remediation
 Remediated the independent User-Journey Audit (25 findings, `doc/tradepulse audit 2`). Every reported finding was re-verified against the live app and current source before any change; one (#BUG-04 empty-spec silent close) no longer reproduced because the submit button is already disabled on empty input, and the stale-report class was recorded rather than "fixed".

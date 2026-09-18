@@ -58,13 +58,19 @@ test("File download serves stored bytes and never synthesises documents from the
   expect(helper).toContain("resolveStoredFileUrl");
 });
 
-test("Eval surface is labeled as an extraction/normalization check, not estimating parity", () => {
+test("Eval surface is labeled as an extraction/normalization check with a real holdout", () => {
   const diagnostics = find("SponsorDiagnosticsView.tsx", componentSources);
   expect(diagnostics).not.toContain("Zero Cheating");
   expect(diagnostics).not.toContain("PARITY ACHIEVED");
   expect(diagnostics).not.toContain("Chief Estimator Ground-Truth Evaluation Suite");
   expect(diagnostics).toContain("Bid Extraction & ADR-0003 Normalization Check");
-  expect(diagnostics).toContain("not an independent estimating benchmark");
+  expect(diagnostics).toContain("Holdout");
+  expect(diagnostics).toContain("states no total at all");
+
+  const evals = find("evals.ts", convexSources);
+  expect(evals).toContain("case-holdout-26-01");
+  expect(evals).toContain("isHoldout: true");
+  expect(evals).toContain("holdoutMape");
 });
 
 test("Tour narration does not hard-code demo dollar figures or verification claims", () => {

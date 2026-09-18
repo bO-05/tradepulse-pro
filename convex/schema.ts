@@ -199,6 +199,11 @@ export default defineSchema({
     aiaConformityAvg: v.number(),
     overallScore: v.number(),
     totalDurationMs: v.number(),
+    // Holdout cases omit the answer from the prompt; optional so pre-existing
+    // runs remain valid.
+    holdoutCases: v.optional(v.number()),
+    holdoutPassed: v.optional(v.number()),
+    holdoutMape: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_runId", ["runId"])

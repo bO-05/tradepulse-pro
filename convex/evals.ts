@@ -21,6 +21,8 @@ export interface EvalMetricResult {
   status: "PASS" | "FAIL";
   latencyMs: number;
   verdict: string;
+  /** True for cases whose proposal text omits the total, forcing real arithmetic. */
+  isHoldout?: boolean;
 }
 
 function calculatePercentageError(actual: number, expected: number): number {
@@ -77,6 +79,9 @@ export const recordEvalRun = internalMutation({
     aiaConformityAvg: v.number(),
     overallScore: v.number(),
     totalDurationMs: v.number(),
+    holdoutCases: v.optional(v.number()),
+    holdoutPassed: v.optional(v.number()),
+    holdoutMape: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("evalRuns", {
@@ -372,6 +377,106 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
           leveledCost: 935000,
         },
       },
+{
+        // HOLDOUT CASE — the proposal states no total anywhere, so the model
+        // must sum the schedule of values and apply ADR-0003 arithmetic itself.
+        // Copying a figure out of the prompt cannot satisfy this case.
+        caseId: "case-holdout-26-01",
+        csiDivision: "26 00 00",
+        tradeName: "Electrical & Lighting Systems",
+        contractorName: "Meridian Electric LLC",
+        pkgId: elecPkg?._id,
+        isHoldout: true,
+        rawProposalText: `MERIDIAN ELECTRIC LLC - SCHEDULE OF VALUES
+To: Austin Commercial, LP
+Project: The Domain Tower B - Division 26 Electrical
+This proposal is priced as a schedule of values only. No lump sum total is stated in this document.
+1. 1600A main switchboard and distribution equipment: $620,000.00
+2. Branch power, conduit, and lighting systems: $415,000.00
+3. Emergency power inverters and controls: $105,000.00
+EXCLUSIONS & QUALIFICATIONS:
+- Crane hoisting and rigging to the 14th-floor penthouse plant room is excluded (GC tower crane required).
+- UL 1479 rated firestop floor penetrations are excluded (by others).
+- Seismic engineered structural bracing per IBC Section 1613 is excluded.
+Lead time on the main switchboard: 16 weeks.
+Insurance: statutory limits only; excess umbrella liability endorsement excluded.`,
+        groundTruth: {
+          baseBid: 1140000,
+          expectedCodes: ["CSI_26_CRANE", "CSI_26_FIRESTOP", "CSI_26_SEISMIC"],
+          exclusionsTotal: 122000,
+          leadWeeks: 16,
+          leadPenalty: 24000,
+          coiStatus: "deficiency_detected",
+          coiPenalty: 15000,
+          veDeduct: 0,
+          leveledCost: 1301000,
+        },
+      },
+      {
+        // HOLDOUT CASE — total not stated; arithmetic required.
+        caseId: "case-holdout-23-01",
+        csiDivision: "23 00 00",
+        tradeName: "HVAC & Mechanical Systems",
+        contractorName: "Summit Mechanical Group",
+        pkgId: hvacPkg?._id,
+        isHoldout: true,
+        rawProposalText: `SUMMIT MECHANICAL GROUP - SCHEDULE OF VALUES
+To: Austin Commercial, LP
+Project: The Domain Tower B - Division 23 HVAC
+Pricing is presented as line items only; the proposal contains no stated total.
+1. Rooftop air handling units and chilled water piping: $780,000.00
+2. Sheet metal ductwork and VAV terminal boxes: $520,000.00
+3. TAB, DDC controls, and commissioning: $160,000.00
+EXCLUSIONS & QUALIFICATIONS:
+- Independent certified TAB balance report excluded.
+- BACnet MS/TP automation integration gateway card excluded.
+- Spring vibration isolation hangers excluded.
+Lead time on chillers: 20 weeks.
+Insurance: statutory limits only; excess umbrella liability not provided.`,
+        groundTruth: {
+          baseBid: 1460000,
+          expectedCodes: ["CSI_23_TAB", "CSI_23_BACNET", "CSI_23_VIBRATION"],
+          exclusionsTotal: 60000,
+          leadWeeks: 20,
+          leadPenalty: 24000,
+          coiStatus: "deficiency_detected",
+          coiPenalty: 15000,
+          veDeduct: 0,
+          leveledCost: 1559000,
+        },
+      },
+      {
+        // HOLDOUT CASE — total not stated; arithmetic required.
+        caseId: "case-holdout-22-01",
+        csiDivision: "22 00 00",
+        tradeName: "Plumbing & Piping Systems",
+        contractorName: "Pioneer Plumbing Co.",
+        pkgId: plumbingPkg?._id,
+        isHoldout: true,
+        rawProposalText: `PIONEER PLUMBING CO. - SCHEDULE OF VALUES
+To: Austin Commercial, LP
+Project: The Domain Tower B - Division 22 Plumbing
+Line-item pricing only; no total is stated in this proposal.
+1. Sanitary waste and vent rough-in: $340,000.00
+2. Domestic water piping and water heaters: $260,000.00
+3. Fixtures, trim, and the triplex booster skid: $180,000.00
+EXCLUSIONS & QUALIFICATIONS:
+- Core drilling and floor penetration sleeves excluded (by concrete subcontractor).
+- City of Austin municipal backflow preventer inspection certification excluded.
+Lead time on the booster skid: 16 weeks.
+Insurance: fully compliant with a $5,000,000 excess umbrella policy naming GC and Owner as additional insured.`,
+        groundTruth: {
+          baseBid: 780000,
+          expectedCodes: ["CSI_22_CORE_DRILL", "CSI_22_BACKFLOW"],
+          exclusionsTotal: 24500,
+          leadWeeks: 16,
+          leadPenalty: 0,
+          coiStatus: "compliant",
+          coiPenalty: 0,
+          veDeduct: 0,
+          leveledCost: 804500,
+        },
+      },
     ];
 
     const results: EvalMetricResult[] = [];
@@ -478,6 +583,7 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
         status: isPassed ? "PASS" : "FAIL",
         latencyMs,
         verdict: isPassed ? "PARITY ACHIEVED" : "DRIFT DETECTED",
+        isHoldout: Boolean((tc as any).isHoldout),
       };
 
       // Persist trace to agentTraces table
@@ -637,6 +743,15 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
     const coiF1 = coiPrecision + coiRecall === 0 ? 0 : (2 * coiPrecision * coiRecall) / (coiPrecision + coiRecall);
     const overallScore = Math.round((passedCount / results.length) * 100);
 
+    // Holdout cases specifically measure arithmetic that cannot be satisfied by
+    // copying a total out of the prompt.
+    const holdoutResults = results.filter((r) => r.isHoldout);
+    const holdoutCases = holdoutResults.length;
+    const holdoutPassed = holdoutResults.filter((r) => r.status === "PASS").length;
+    const holdoutMape = holdoutCases > 0
+      ? holdoutResults.reduce((sum, r) => sum + r.apePercent, 0) / holdoutCases
+      : 0;
+
     await ctx.runMutation(internal.evals.recordEvalRun, {
       runId,
       targetEnvironment: targetEnv,
@@ -652,6 +767,9 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
       aiaConformityAvg: 0,
       overallScore,
       totalDurationMs,
+      holdoutCases,
+      holdoutPassed,
+      holdoutMape: Math.round(holdoutMape * 100) / 100,
     });
 
     return {
@@ -665,6 +783,9 @@ Insurance: Fully compliant with $5,000,000 excess umbrella policy.`,
       scopeRecallAvg: Math.round(recallAvg * 100) / 100,
       scopePrecisionAvg: Math.round(precisionAvg * 100) / 100,
       totalDurationMs,
+      holdoutCases,
+      holdoutPassed,
+      holdoutMape: Math.round(holdoutMape * 100) / 100,
       scoreCard: results,
       tracesCount: results.length,
     };
