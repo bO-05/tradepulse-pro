@@ -95,7 +95,7 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
             )}
             <span className="text-slate-700 hidden xl:inline">•</span>
             <span className="text-slate-400 font-medium hidden xl:inline text-[11px]">
-              Buyout: <strong className="font-mono text-white">{awardedPackages}/{totalPackages} Awarded</strong>
+              Subcontracts: <strong className="font-mono text-white">{awardedPackages}/{totalPackages} Awarded</strong>
             </span>
           </div>
 
@@ -215,10 +215,10 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
           </div>
         </div>
 
-        {/* KPI 6: Subcontract Buyout Progress */}
+        {/* KPI 6: Subcontract Award Progress */}
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] uppercase tracking-wider font-semibold">Buyout Progress</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold">Subcontract Awards</span>
             <Award className="w-3.5 h-3.5 text-emerald-400" />
           </div>
           <div>

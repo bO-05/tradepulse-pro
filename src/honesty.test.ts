@@ -176,6 +176,13 @@ test("F9: inbox copy reflects plan-limit sharing, never a 'dedicated' claim", ()
   expect(diag).not.toContain("Dedicated Stateful Project Inboxes");
 });
 
+test("F12: 'Buyout' means the dollar forecast; award counts use award wording", () => {
+  const kpi = find("ExecutiveKpiBar.tsx", componentSources);
+  expect(kpi).not.toContain("Buyout: <strong");
+  expect(kpi).toContain("Subcontracts: <strong");
+  expect(kpi).toContain("Subcontract Awards");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");
