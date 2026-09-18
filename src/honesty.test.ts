@@ -136,6 +136,12 @@ test("F4: the leveling simulate control's label matches what it opens", () => {
   expect(levelingView).toContain("Scenario B (deceptive bid)");
 });
 
+test("F6: the RFI form sends an explicit target trade package", () => {
+  const qna = find("PreBidQnAView.tsx", componentSources);
+  expect(qna).toContain("tradePackageId: targetPackage._id");
+  expect(qna).toContain("Routing to:");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");

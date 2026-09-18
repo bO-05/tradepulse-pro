@@ -75,7 +75,12 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   const [pendingTimedOut, setPendingTimedOut] = useState(false);
   const [rfiSubmitError, setRfiSubmitError] = useState<{ message: string; conversationId?: string } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [selectedTradePackageId, setSelectedTradePackageId] = useState(currentPackage?._id || "");
   const [showWhyCare, setShowWhyCare] = useState(false);
+
+  useEffect(() => {
+    if (currentPackage?._id) setSelectedTradePackageId(currentPackage._id);
+  }, [currentPackage?._id]);
   const [selectedContractorId, setSelectedContractorId] = useState("");
   const [subject, setSubject] = useState("");
   const [question, setQuestion] = useState("");
@@ -142,6 +147,12 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   contractors.forEach((c) => contractorMap.set(c._id, c));
   const addendumConversations = projectConversationsForAddendum ?? conversations;
 
+  // F6: routing selector defaults to the active package but can be changed, so a
+  // Div 22 question is never silently filed under the active Div 26 package.
+  const tradeOptions = tradePackages.length > 0 ? tradePackages : [currentPackage];
+  const targetPackage = tradeOptions.find((pkg) => pkg._id === selectedTradePackageId) || currentPackage;
+  const isCrossPackage = targetPackage._id !== currentPackage._id;
+
   const escalatedCount = conversations.filter(
     (c) => (c.status === "escalated_to_pm" || c.status === "clarified") && !c.pmCertifiedAt
   ).length;
@@ -160,10 +171,10 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
 
   const submitRfi = async () => {
     if (!question.trim() || submitting) return;
-    if (!selectedContractorId && contractors.length > 0) {
+    if (!isCrossPackage && !selectedContractorId && contractors.length > 0) {
       setSelectedContractorId(contractors[0]._id);
     }
-    const cId = selectedContractorId || contractors[0]?._id || "guest_contractor";
+    const cId = isCrossPackage ? "guest_contractor" : (selectedContractorId || contractors[0]?._id || "guest_contractor");
 
     setSubmitting(true);
     setRfiSubmitError(null);
@@ -173,6 +184,7 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
         contractorId: cId,
         subject,
         question,
+        tradePackageId: targetPackage._id,
       });
       setSubject("");
       setQuestion("");
@@ -886,17 +898,38 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
           <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
             <div>
+              <label htmlFor="rfi-trade-package" className="block font-semibold text-slate-300 mb-1">
+                Trade Package / Division
+              </label>
+              <select
+                id="rfi-trade-package"
+                value={targetPackage._id}
+                onChange={(e) => setSelectedTradePackageId(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none font-medium"
+              >
+                {tradeOptions.map((pkg) => (
+                  <option key={pkg._id} value={pkg._id}>
+                    CSI {pkg.csiDivision} — {pkg.tradeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block font-semibold text-slate-300 mb-1">
                 Subcontractor
               </label>
               <select
-                value={selectedContractorId}
+                value={isCrossPackage ? "guest_contractor" : selectedContractorId}
                 onChange={(e) => setSelectedContractorId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none font-medium"
+                disabled={isCrossPackage}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none font-medium disabled:opacity-60"
               >
-                {contractors.length === 0 ? (
+                {isCrossPackage || contractors.length === 0 ? (
                   <option value="guest_contractor">
-                    Guest / Inquiring Subcontractor (No pre-registered bidders)
+                    {isCrossPackage
+                      ? "Guest / Inquiring Subcontractor (cross-package routing)"
+                      : "Guest / Inquiring Subcontractor (No pre-registered bidders)"}
                   </option>
                 ) : (
                   contractors.map((c) => (
@@ -934,6 +967,19 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                 placeholder="Ask a technical or scope coordination question..."
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none leading-relaxed"
               />
+            </div>
+
+            <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-[11px] text-slate-300 flex items-start gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+              <span>
+                <strong className="text-slate-200">Routing to:</strong> CSI {targetPackage.csiDivision} — {targetPackage.tradeName}
+                {isCrossPackage && (
+                  <span className="block text-slate-400 mt-0.5">
+                    Different package than the page selector. No registered contractor exists here, so the inquiry will be
+                    filed as a Guest bidder for {targetPackage.csiDivision}.
+                  </span>
+                )}
+              </span>
             </div>
 
             <button

@@ -426,3 +426,45 @@ test("F1: retry refuses to re-run an already answered RFI", async () => {
   const retry: any = await t.mutation(api.simulation.retryRfiAnalysis, { conversationId: pending });
   expect(retry.success).toBe(false);
 });
+
+test("F6: an RFI targeting another package is stored on that package, not the active one", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "F6 Routing Project");
+  const electricalId = await createPackage(t, projectId);
+  const plumbingId = await t.mutation(api.tradePackages.createTradePackage, {
+    projectId,
+    csiDivision: "22 00 00",
+    tradeName: "Plumbing Systems",
+    budgetEstimate: 620_000,
+    scopeSummary: "Domestic water and sanitary.",
+    mandatoryInclusions: ["Backflow certification"],
+    bidDeadline: "2026-10-31",
+  });
+
+  const res: any = await t.mutation(api.simulation.submitCustomRfi, {
+    tradePackageId: plumbingId,
+    subject: "Medical gas routing",
+    question: "Does this package require third-party medical gas certification?",
+  });
+  expect(res.success).toBe(true);
+
+  const plumbingConvos = await t.run(async (ctx) =>
+    await ctx.db
+      .query("conversations")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", plumbingId))
+      .collect()
+  );
+  const electricalConvos = await t.run(async (ctx) =>
+    await ctx.db
+      .query("conversations")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", electricalId))
+      .collect()
+  );
+  expect(plumbingConvos.length).toBe(1);
+  expect(electricalConvos.length).toBe(0);
+  expect(plumbingConvos[0].inboundSubject).toBe("Medical gas routing");
+
+  const guestContractors = await t.query(api.contractors.listByPackage, { tradePackageId: plumbingId });
+  expect(guestContractors.length).toBe(1);
+  expect(guestContractors[0].companyName).toContain("Guest");
+});
