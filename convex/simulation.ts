@@ -2,6 +2,7 @@ import { mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { generateAiaA401AgreementText, getStateAbbreviation } from "./agreements";
+import { persistPendingRfi } from "./rfq";
 import { LIQUIDATED_DAMAGES_PER_DAY, RETAINAGE_PERCENT } from "./terms";
 
 /**
@@ -286,6 +287,7 @@ export const submitCustomRfi = mutation({
     }
 
     let fromEmail = "guest.inquiry@tradepulse-pro.test";
+    let resolvedContractorId: any = args.contractorId;
     if (args.contractorId) {
       const contractor = await ctx.db.get(args.contractorId);
       if (!contractor || contractor.tradePackageId !== args.tradePackageId) {
@@ -302,8 +304,9 @@ export const submitCustomRfi = mutation({
         .first();
       if (existingGuest) {
         fromEmail = existingGuest.contactEmail;
+        resolvedContractorId = existingGuest._id;
       } else {
-        await ctx.db.insert("contractors", {
+        resolvedContractorId = await ctx.db.insert("contractors", {
           tradePackageId: args.tradePackageId,
           companyName: "Guest / Inquiring Subcontractor",
           contactEmail: fromEmail,
@@ -316,15 +319,76 @@ export const submitCustomRfi = mutation({
       }
     }
 
-    await ctx.scheduler.runAfter(0, internal.emailActions.processSimulatedInbound, {
+    // F1 durability: persist the submitted text as a pending RFI inside this
+    // transaction, before any LLM work is scheduled. A refresh or analysis
+    // failure can no longer lose the question.
+    const subjectText = subject || "Guest Pre-Bid Inquiry";
+    const threadId = `sim_th_${Date.now().toString().slice(-6)}`;
+    const conversationId = await persistPendingRfi(ctx, {
       tradePackageId: args.tradePackageId,
-      fromEmail,
-      subject: subject || "Guest Pre-Bid Inquiry",
-      bodyText: question,
-      isBid: false,
+      contractorId: resolvedContractorId,
+      threadId,
+      inboundSubject: subjectText,
+      inboundQuestion: question,
     });
 
-    return { success: true, message: "Custom RFI submitted to TradePulse autonomous AI clarification engine." };
+    await ctx.scheduler.runAfter(0, internal.emailActions.handleRfiProcessing, {
+      tradePackageId: args.tradePackageId,
+      contractorId: resolvedContractorId,
+      fromEmail,
+      subject: subjectText,
+      text: question,
+      threadId,
+      conversationId,
+    });
+
+    return {
+      success: true,
+      conversationId,
+      message: "Custom RFI submitted to TradePulse autonomous AI clarification engine.",
+    };
+  },
+});
+
+/**
+ * F1 retry: re-queues the stored text for analysis after a failure (or a stuck
+ * pending run) without asking the bidder to retype anything.
+ */
+export const retryRfiAnalysis = mutation({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const convo = await ctx.db.get(args.conversationId);
+    if (!convo) throw new ConvexError("The RFI record could not be found.");
+    if (convo.status === "clarified" || convo.status === "escalated_to_pm") {
+      return { success: false, message: "This RFI has already been analyzed." };
+    }
+    if (convo.status === "rejected") {
+      return { success: false, message: "This RFI was rejected and cannot be retried." };
+    }
+    const contractor = await ctx.db.get(convo.contractorId);
+    if (!contractor || contractor.tradePackageId !== convo.tradePackageId) {
+      throw new ConvexError("The RFI contractor no longer exists for this trade package.");
+    }
+
+    await ctx.db.patch(args.conversationId, {
+      status: "pending_analysis",
+      analysisError: undefined,
+      autonomousReply: "",
+      confidenceScore: 0,
+    });
+
+    const threadId = convo.threadId || `sim_th_${Date.now().toString().slice(-6)}`;
+    await ctx.scheduler.runAfter(0, internal.emailActions.handleRfiProcessing, {
+      tradePackageId: convo.tradePackageId,
+      contractorId: convo.contractorId,
+      fromEmail: contractor.contactEmail,
+      subject: convo.inboundSubject,
+      text: convo.inboundQuestion,
+      threadId,
+      conversationId: args.conversationId,
+    });
+
+    return { success: true, message: "RFI re-queued for analysis." };
   },
 });
 

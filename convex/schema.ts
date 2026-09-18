@@ -54,10 +54,13 @@ export default defineSchema({
     inboundQuestion: v.string(),
     autonomousReply: v.string(),
     confidenceScore: v.number(),
-    status: v.string(), // "clarified" | "escalated_to_pm"
+    status: v.string(), // "pending_analysis" | "clarified" | "escalated_to_pm" | "failed_analysis" | "rejected"
     pmCertifiedAt: v.optional(v.number()),
     pmCertifiedBy: v.optional(v.string()),
     reviewNote: v.optional(v.string()),
+    // Set only when automated analysis fails; the submitted text stays intact so
+    // the bidder can retry instead of losing the RFI.
+    analysisError: v.optional(v.string()),
     timestamp: v.number(),
   })
     .index("by_contractor", ["contractorId"])

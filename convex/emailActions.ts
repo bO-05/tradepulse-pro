@@ -98,6 +98,11 @@ export const processInboundEmail = internalAction({
     const isBid = !isPureRfi && (hasExplicitBidKeyword || hasAttachment);
     const fullContent = attachedQuoteText ? `${args.text}\n\n${attachedQuoteText}` : args.text;
 
+    if (!contractorId) {
+      console.warn("Could not resolve a contractor for inbound message:", args.subject);
+      return;
+    }
+
     if (isBid) {
       await ctx.runAction(internal.emailActions.handleBidProcessing, {
         tradePackageId: args.tradePackageId,
@@ -107,6 +112,15 @@ export const processInboundEmail = internalAction({
         text: fullContent,
       });
     } else {
+      // F1 durability: persist the inbound question before the LLM step so a
+      // failed analysis can never drop a subcontractor's RFI.
+      const conversationId: any = await ctx.runMutation(internal.rfq.createPendingInboundRfi, {
+        tradePackageId: args.tradePackageId,
+        contractorId,
+        threadId: args.threadId,
+        inboundSubject: args.subject,
+        inboundQuestion: args.text,
+      });
       await ctx.runAction(internal.emailActions.handleRfiProcessing, {
         tradePackageId: args.tradePackageId,
         contractorId,
@@ -114,6 +128,7 @@ export const processInboundEmail = internalAction({
         subject: args.subject,
         text: args.text,
         threadId: args.threadId,
+        conversationId,
       });
     }
   },
@@ -151,6 +166,14 @@ export const processSimulatedInbound = internalAction({
         text: args.bodyText,
       });
     } else {
+      // F1 durability: persist the question before analysis.
+      const conversationId: any = await ctx.runMutation(internal.rfq.createPendingInboundRfi, {
+        tradePackageId: args.tradePackageId,
+        contractorId: contractor._id,
+        threadId: `sim_th_${Date.now().toString().slice(-6)}`,
+        inboundSubject: args.subject,
+        inboundQuestion: args.bodyText,
+      });
       await ctx.runAction(internal.emailActions.handleRfiProcessing, {
         tradePackageId: args.tradePackageId,
         contractorId: contractor._id,
@@ -158,6 +181,7 @@ export const processSimulatedInbound = internalAction({
         subject: args.subject,
         text: args.bodyText,
         threadId: `sim_th_${Date.now().toString().slice(-6)}`,
+        conversationId,
       });
     }
   },
@@ -171,6 +195,8 @@ export const handleRfiProcessing = internalAction({
     subject: v.string(),
     text: v.string(),
     threadId: v.string(),
+    // Present when the RFI row was persisted before analysis (F1 durability).
+    conversationId: v.optional(v.id("conversations")),
   },
   handler: async (ctx, args) => {
     let contractorId = args.contractorId;
@@ -189,62 +215,97 @@ export const handleRfiProcessing = internalAction({
       contractorId = contractor._id;
     }
 
-    const tradePkg = await ctx.runQuery(internal.tradePackages.getPackageInternal, {
-      tradePackageId: args.tradePackageId,
-    });
-
-    // Call LLM Router for RFI reply
-    const llmResult = await ctx.runAction(internal.llmRouter.executeReasoning, {
-      taskType: "rfi_reply",
-      prompt: `Inbound Contractor Subject: ${args.subject}\nInbound Question: ${args.text}\nContext: CSI MasterFormat Commercial Subcontractor Procurement for CSI ${tradePkg?.csiDivision || "trade"} (${tradePkg?.tradeName || "Trade Package"}). Mandatory inclusions: ${(tradePkg?.mandatoryInclusions || []).join("; ")}. Answer authoritatively referencing Division 01 General Requirements and Section ${tradePkg?.csiDivision || "specifications"}.`,
-      systemPrompt: "You are the TradePulse Pro Autonomous RFI Clarification Agent. Respond factually and clearly to subcontractor pre-bid questions based on contract specifications.",
-    });
-
-    const subjectLower = args.subject.toLowerCase();
-    const textLower = args.text.toLowerCase();
-    const isEscalationRequest =
-      subjectLower.includes("extension") ||
-      subjectLower.includes("waiver") ||
-      subjectLower.includes("exception") ||
-      subjectLower.includes("liquidated damages") ||
-      subjectLower.includes("retainage") ||
-      subjectLower.includes("subcontract terms") ||
-      textLower.includes("extension") ||
-      textLower.includes("waiver") ||
-      textLower.includes("exception rider") ||
-      textLower.includes("liquidated damages") ||
-      textLower.includes("waive") ||
-      (llmResult.confidenceScore !== undefined && llmResult.confidenceScore < 0.92);
-
-    const rfiStatus: "clarified" | "escalated_to_pm" = isEscalationRequest ? "escalated_to_pm" : "clarified";
-
-    if (contractorId) {
-      await ctx.runMutation(internal.rfq.recordInboundRfi, {
-        tradePackageId: args.tradePackageId,
-        contractorId,
-        threadId: args.threadId,
-        inboundSubject: args.subject,
-        inboundQuestion: args.text,
-        autonomousReply: llmResult.content,
-        confidenceScore: llmResult.confidenceScore ?? 0.96,
-        status: rfiStatus,
-      });
+    // F1: persistence-first. If the caller did not already create the row, create
+    // it now — before the LLM call — so the submitted text survives any failure.
+    let conversationId = args.conversationId;
+    if (!conversationId && contractorId) {
+      try {
+        conversationId = await ctx.runMutation(internal.rfq.createPendingInboundRfi, {
+          tradePackageId: args.tradePackageId,
+          contractorId,
+          threadId: args.threadId,
+          inboundSubject: args.subject,
+          inboundQuestion: args.text,
+        });
+      } catch (persistErr) {
+        console.error("Could not persist inbound RFI before analysis:", persistErr);
+      }
     }
 
-    // Attempt outbound email via AgentMail if configured (never for escalated RFIs requiring PM approval)
-    const agentMailKey = process.env.AGENTMAIL_API_KEY;
-    if (agentMailKey && args.fromEmail.includes("@") && rfiStatus !== "escalated_to_pm") {
-      try {
-        if (tradePkg?.agentMailboxId && !String(tradePkg.agentMailboxId).startsWith("local_")) {
-          await sendAgentmailMessage({
-            inboxId: tradePkg.agentMailboxId,
-            to: args.fromEmail,
-            subject: `RE: ${args.subject}`,
-            text: llmResult.content,
-          });
+    try {
+      if (conversationId) {
+        const existing: any = await ctx.runQuery(internal.rfq.getConversationInternal, { conversationId });
+        if (existing && (existing.status === "clarified" || existing.status === "escalated_to_pm")) {
+          return; // idempotent guard: this RFI was already answered
         }
-      } catch (err) {
-        console.warn("Outbound AgentMail dispatch failed (offline or test env):", err);
+      }
+
+      const tradePkg = await ctx.runQuery(internal.tradePackages.getPackageInternal, {
+        tradePackageId: args.tradePackageId,
+      });
+
+      // Call LLM Router for RFI reply
+      const llmResult = await ctx.runAction(internal.llmRouter.executeReasoning, {
+        taskType: "rfi_reply",
+        prompt: `Inbound Contractor Subject: ${args.subject}\nInbound Question: ${args.text}\nContext: CSI MasterFormat Commercial Subcontractor Procurement for CSI ${tradePkg?.csiDivision || "trade"} (${tradePkg?.tradeName || "Trade Package"}). Mandatory inclusions: ${(tradePkg?.mandatoryInclusions || []).join("; ")}. Answer authoritatively referencing Division 01 General Requirements and Section ${tradePkg?.csiDivision || "specifications"}. Format the answer as concise markdown: a one-line determination, the specific reasons with spec/section references, and any action required of the bidder.`,
+        systemPrompt: "You are the TradePulse Pro Autonomous RFI Clarification Agent. Respond factually and clearly to subcontractor pre-bid questions based on contract specifications.",
+      });
+
+      const subjectLower = args.subject.toLowerCase();
+      const textLower = args.text.toLowerCase();
+      const isEscalationRequest =
+        subjectLower.includes("extension") ||
+        subjectLower.includes("waiver") ||
+        subjectLower.includes("exception") ||
+        subjectLower.includes("liquidated damages") ||
+        subjectLower.includes("retainage") ||
+        subjectLower.includes("subcontract terms") ||
+        textLower.includes("extension") ||
+        textLower.includes("waiver") ||
+        textLower.includes("exception rider") ||
+        textLower.includes("liquidated damages") ||
+        textLower.includes("waive") ||
+        (llmResult.confidenceScore !== undefined && llmResult.confidenceScore < 0.92);
+
+      const rfiStatus: "clarified" | "escalated_to_pm" = isEscalationRequest ? "escalated_to_pm" : "clarified";
+
+      if (conversationId) {
+        await ctx.runMutation(internal.rfq.completeInboundRfi, {
+          conversationId,
+          autonomousReply: llmResult.content,
+          confidenceScore: llmResult.confidenceScore ?? 0.96,
+          status: rfiStatus,
+        });
+      }
+
+      // Attempt outbound email via AgentMail if configured (never for escalated RFIs requiring PM approval)
+      const agentMailKey = process.env.AGENTMAIL_API_KEY;
+      if (agentMailKey && args.fromEmail.includes("@") && rfiStatus !== "escalated_to_pm") {
+        try {
+          if (tradePkg?.agentMailboxId && !String(tradePkg.agentMailboxId).startsWith("local_")) {
+            await sendAgentmailMessage({
+              inboxId: tradePkg.agentMailboxId,
+              to: args.fromEmail,
+              subject: `RE: ${args.subject}`,
+              text: llmResult.content,
+            });
+          }
+        } catch (err) {
+          console.warn("Outbound AgentMail dispatch failed (offline or test env):", err);
+        }
+      }
+    } catch (analysisErr: any) {
+      const message = analysisErr?.message || String(analysisErr);
+      console.error("RFI analysis failed; the submitted question is preserved for retry:", message);
+      if (conversationId) {
+        try {
+          await ctx.runMutation(internal.rfq.failInboundRfiAnalysis, {
+            conversationId,
+            error: message,
+          });
+        } catch (markErr) {
+          console.error("Could not mark the RFI as failed:", markErr);
+        }
       }
     }
   },
@@ -259,6 +320,7 @@ export const handleBidProcessing = internalAction({
     text: v.string(),
   },
   handler: async (ctx, args) => {
+    try {
     let contractorId = args.contractorId;
     if (!contractorId) {
       let contractor: any = await ctx.runQuery(internal.simulation.findContractorByEmail, {
@@ -430,6 +492,27 @@ export const handleBidProcessing = internalAction({
       coiPenalty: effectiveCoiPenalty,
       leveledTotalCost: calculatedLeveledCost,
     });
+    } catch (bidErr: any) {
+      const message = bidErr?.message || String(bidErr);
+      console.error("Bid ingestion failed; recording an audit event so the quote is not lost silently:", message);
+      try {
+        const tradePkgForLog = await ctx.runQuery(internal.tradePackages.getPackageInternal, {
+          tradePackageId: args.tradePackageId,
+        });
+        if (tradePkgForLog) {
+          await ctx.runMutation(internal.auditLogs.recordLog, {
+            projectId: tradePkgForLog.projectId,
+            tradePackageId: args.tradePackageId,
+            eventType: "bid_ingest_failed",
+            title: `Bid Ingestion Failed: ${args.subject}`,
+            description: `Proposal from ${args.fromEmail} could not be extracted or saved (${message}). Resend the proposal or ingest it from the Bid Leveling tab.`,
+            actor: "TradePulse AI Forensic Leveling Agent",
+          });
+        }
+      } catch (logErr) {
+        console.error("Could not record the bid ingestion failure:", logErr);
+      }
+    }
   },
 });
 

@@ -195,40 +195,88 @@ export const markSingleContractorInvitedInternal = internalMutation({
   },
 });
 
-export const recordInboundRfi = internalMutation({
+/**
+ * F1 durability: persist the submitted RFI text BEFORE any LLM work so a
+ * failed/slow analysis can never drop a subcontractor's formal question.
+ * Returns the new conversation id.
+ */
+export async function persistPendingRfi(
+  ctx: any,
+  args: {
+    tradePackageId: any;
+    contractorId: any;
+    threadId: string;
+    inboundSubject: string;
+    inboundQuestion: string;
+  }
+) {
+  const contractor = await ctx.db.get(args.contractorId);
+  if (!contractor || contractor.tradePackageId !== args.tradePackageId) {
+    throw new Error("The RFI contractor does not belong to the selected trade package.");
+  }
+  if (contractor.rfqStatus !== "bid_received") {
+    await ctx.db.patch(args.contractorId, { rfqStatus: "rfi_submitted" });
+  }
+  return await ctx.db.insert("conversations", {
+    tradePackageId: args.tradePackageId,
+    contractorId: args.contractorId,
+    threadId: args.threadId,
+    inboundSubject: args.inboundSubject,
+    inboundQuestion: args.inboundQuestion,
+    autonomousReply: "",
+    confidenceScore: 0,
+    status: "pending_analysis",
+    timestamp: Date.now(),
+  });
+}
+
+export const createPendingInboundRfi = internalMutation({
   args: {
     tradePackageId: v.id("tradePackages"),
     contractorId: v.id("contractors"),
     threadId: v.string(),
     inboundSubject: v.string(),
     inboundQuestion: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await persistPendingRfi(ctx, args);
+  },
+});
+
+export const getConversationInternal = internalQuery({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.conversationId);
+  },
+});
+
+/**
+ * Marks an RFI as answered (or escalated) after the analysis step succeeds.
+ * Keeps the contractor validation so a stale/mismatched retry cannot complete.
+ */
+export const completeInboundRfi = internalMutation({
+  args: {
+    conversationId: v.id("conversations"),
     autonomousReply: v.string(),
     confidenceScore: v.number(),
     status: v.union(v.literal("clarified"), v.literal("escalated_to_pm")),
   },
   handler: async (ctx, args) => {
-    // Update contractor status to rfi_submitted if not already bid_received
-    const contractor = await ctx.db.get(args.contractorId);
-    if (!contractor || contractor.tradePackageId !== args.tradePackageId) {
-      throw new Error("The RFI contractor does not belong to the selected trade package.");
-    }
-    if (contractor && contractor.rfqStatus !== "bid_received") {
-      await ctx.db.patch(args.contractorId, { rfqStatus: "rfi_submitted" });
+    const convo = await ctx.db.get(args.conversationId);
+    if (!convo) throw new Error("The RFI record no longer exists.");
+    const contractor = await ctx.db.get(convo.contractorId);
+    if (!contractor || contractor.tradePackageId !== convo.tradePackageId) {
+      throw new Error("The RFI contractor no longer belongs to the selected trade package.");
     }
 
-    const tradePkg = await ctx.db.get(args.tradePackageId);
-    const convoId = await ctx.db.insert("conversations", {
-      tradePackageId: args.tradePackageId,
-      contractorId: args.contractorId,
-      threadId: args.threadId,
-      inboundSubject: args.inboundSubject,
-      inboundQuestion: args.inboundQuestion,
+    await ctx.db.patch(args.conversationId, {
       autonomousReply: args.autonomousReply,
       confidenceScore: args.confidenceScore,
       status: args.status,
-      timestamp: Date.now(),
+      analysisError: undefined,
     });
 
+    const tradePkg = await ctx.db.get(convo.tradePackageId);
     if (tradePkg) {
       const isEscalated = args.status === "escalated_to_pm";
       await ctx.db.insert("auditLogs", {
@@ -236,8 +284,8 @@ export const recordInboundRfi = internalMutation({
         tradePackageId: tradePkg._id,
         eventType: isEscalated ? "compliance_audit" : "rfi_clarified",
         title: isEscalated
-          ? `Pre-Bid RFI Escalated to PM: ${args.inboundSubject}`
-          : `Pre-Bid RFI Clarified: ${args.inboundSubject}`,
+          ? `Pre-Bid RFI Escalated to PM: ${convo.inboundSubject}`
+          : `Pre-Bid RFI Clarified: ${convo.inboundSubject}`,
         description: isEscalated
           ? `Subcontractor inquiry from ${contractor?.companyName || "Contractor"} flagged for human PM review (scope waiver, schedule extension, or low confidence threshold).`
           : `TradePulse AI autonomously answered pre-bid question for ${contractor?.companyName || "Contractor"} with ${Math.round(args.confidenceScore * 100)}% model confidence.`,
@@ -246,7 +294,40 @@ export const recordInboundRfi = internalMutation({
       });
     }
 
-    return convoId;
+    return args.conversationId;
+  },
+});
+
+/**
+ * F1 durability: record an analysis failure on the persisted RFI row so the
+ * submitted text, the error, and a retry affordance survive a refresh.
+ */
+export const failInboundRfiAnalysis = internalMutation({
+  args: {
+    conversationId: v.id("conversations"),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const convo = await ctx.db.get(args.conversationId);
+    if (!convo) throw new Error("The RFI record no longer exists.");
+    const shortError = args.error.slice(0, 400);
+    await ctx.db.patch(args.conversationId, {
+      status: "failed_analysis",
+      analysisError: shortError,
+    });
+    const tradePkg = await ctx.db.get(convo.tradePackageId);
+    if (tradePkg) {
+      await ctx.db.insert("auditLogs", {
+        projectId: tradePkg.projectId,
+        tradePackageId: tradePkg._id,
+        eventType: "compliance_audit",
+        title: `RFI Analysis Failed — Retry Available: ${convo.inboundSubject}`,
+        description: `Automated clarification could not complete (${shortError}). The submitted question is preserved and can be retried from the Pre-Bid Q&A queue.`,
+        actor: "TradePulse AI Spec Agent",
+        timestamp: Date.now(),
+      });
+    }
+    return args.conversationId;
   },
 });
 

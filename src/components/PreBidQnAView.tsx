@@ -1,5 +1,5 @@
 import { getErrorMessage } from "../lib/errors.ts";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sparkles,
   CheckCircle2,
@@ -34,10 +34,12 @@ interface PreBidQnAViewProps {
     contractorId: string;
     subject: string;
     question: string;
-  }) => Promise<void>;
+    tradePackageId?: string;
+  }) => Promise<{ conversationId?: string } | void>;
   onOpenSimulation: () => void;
   projectId?: string;
   projectTitle?: string;
+  onRetryRfi?: (conversationId: string) => Promise<void>;
   onReviewRfi?: (
     convoId: string,
     status: "clarified" | "escalated_to_pm" | "rejected",
@@ -59,13 +61,20 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   onOpenSimulation,
   projectId,
   projectTitle,
+  onRetryRfi,
   onReviewRfi,
   onNavigateToLeveling,
   onNavigateToPackages,
 }) => {
   const [submitting, setSubmitting] = useState(false);
-  const [pendingRfiSince, setPendingRfiSince] = useState<number | null>(null);
-  const conversationCountAtSubmit = useRef<number>(0);
+  const [pendingRfi, setPendingRfi] = useState<{
+    conversationId?: string;
+    startedAt: number;
+    baselineCount: number;
+  } | null>(null);
+  const [pendingTimedOut, setPendingTimedOut] = useState(false);
+  const [rfiSubmitError, setRfiSubmitError] = useState<{ message: string; conversationId?: string } | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [showWhyCare, setShowWhyCare] = useState(false);
   const [selectedContractorId, setSelectedContractorId] = useState("");
   const [subject, setSubject] = useState("");
@@ -133,7 +142,9 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
   contractors.forEach((c) => contractorMap.set(c._id, c));
   const addendumConversations = projectConversationsForAddendum ?? conversations;
 
-  const escalatedCount = conversations.filter((c) => c.status !== "rejected" && !c.pmCertifiedAt).length;
+  const escalatedCount = conversations.filter(
+    (c) => (c.status === "escalated_to_pm" || c.status === "clarified") && !c.pmCertifiedAt
+  ).length;
   const clarifiedCount = conversations.filter((c) => c.status === "clarified" && Boolean(c.pmCertifiedAt)).length;
   const pendingCertificationCount = addendumConversations.filter(
     (c) => c.status !== "rejected" && !c.pmCertifiedAt
@@ -141,45 +152,105 @@ export const PreBidQnAView: React.FC<PreBidQnAViewProps> = ({
 
   const filteredConversations = conversations.filter((c) => {
     if (filterMode === "escalated") {
-      return c.status !== "rejected" && !c.pmCertifiedAt;
+      return (c.status === "escalated_to_pm" || c.status === "clarified") && !c.pmCertifiedAt;
     }
     if (filterMode === "clarified") return c.status === "clarified" && Boolean(c.pmCertifiedAt);
     return true;
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question.trim()) return;
+  const submitRfi = async () => {
+    if (!question.trim() || submitting) return;
     if (!selectedContractorId && contractors.length > 0) {
       setSelectedContractorId(contractors[0]._id);
     }
     const cId = selectedContractorId || contractors[0]?._id || "guest_contractor";
 
     setSubmitting(true);
-    conversationCountAtSubmit.current = conversations.length;
-    setPendingRfiSince(Date.now());
+    setRfiSubmitError(null);
+    setPendingTimedOut(false);
     try {
-      await onSubmitRfi({
+      const res = await onSubmitRfi({
         contractorId: cId,
         subject,
         question,
       });
       setSubject("");
       setQuestion("");
-    } catch (err) {
-      setPendingRfiSince(null);
-      throw err;
+      setPendingRfi({
+        conversationId: res && "conversationId" in res ? res.conversationId : undefined,
+        startedAt: Date.now(),
+        baselineCount: conversations.length,
+      });
+    } catch (err: any) {
+      setRfiSubmitError({
+        message: getErrorMessage(err) || "The RFI could not be submitted. Your text was kept — try again.",
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    if (pendingRfiSince === null) return;
-    if (conversations.length > conversationCountAtSubmit.current) {
-      setPendingRfiSince(null);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void submitRfi();
+  };
+
+  const retryAnalysis = async (conversationId?: string) => {
+    const id = conversationId || pendingRfi?.conversationId || rfiSubmitError?.conversationId;
+    if (!id || !onRetryRfi) {
+      setRfiSubmitError(null);
+      void submitRfi();
+      return;
     }
-  }, [conversations, pendingRfiSince]);
+    setRetryingId(id);
+    setRfiSubmitError(null);
+    try {
+      await onRetryRfi(id);
+      setPendingRfi({ conversationId: id, startedAt: Date.now(), baselineCount: conversations.length });
+      setPendingTimedOut(false);
+    } catch (err: any) {
+      setRfiSubmitError({
+        message: getErrorMessage(err) || "The retry could not be queued. The question is still saved.",
+        conversationId: id,
+      });
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  // F1: resolve the in-flight indicator from the persisted RFI row's status and
+  // never spin forever — a timeout offers a retry without retyping.
+  useEffect(() => {
+    if (!pendingRfi) return;
+    const byId = pendingRfi.conversationId
+      ? conversations.find((c) => c._id === pendingRfi.conversationId)
+      : undefined;
+    if (byId) {
+      if (byId.status === "pending_analysis") return;
+      setPendingRfi(null);
+      setPendingTimedOut(false);
+      if (byId.status === "failed_analysis") {
+        setRfiSubmitError({
+          message: byId.analysisError || "The AI analysis failed. Your question is saved — retry it below.",
+          conversationId: byId._id,
+        });
+      }
+      return;
+    }
+    if (!pendingRfi.conversationId && conversations.length > pendingRfi.baselineCount) {
+      setPendingRfi(null);
+      setPendingTimedOut(false);
+    }
+  }, [conversations, pendingRfi]);
+
+  useEffect(() => {
+    if (!pendingRfi || pendingTimedOut) return;
+    const startedAt = pendingRfi.startedAt;
+    const timer = setInterval(() => {
+      if (Date.now() - startedAt > 75_000) setPendingTimedOut(true);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [pendingRfi, pendingTimedOut]);
 
   const handleGenerateAddendum = async () => {
     if (!projectId) {
@@ -528,16 +599,22 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                const isEscalated = conv.status === "escalated_to_pm";
                const isClarified = conv.status === "clarified";
                const isCertified = isClarified && Boolean(conv.pmCertifiedAt);
-               const isPendingCertification = !isCertified && conv.status !== "rejected";
+               const isPendingCertification = !isCertified && (conv.status === "escalated_to_pm" || conv.status === "clarified");
               const isEditing = editingConvoId === conv._id;
               const isReviewing = reviewingId === conv._id;
+              const isAnalyzing = conv.status === "pending_analysis";
+              const isFailed = conv.status === "failed_analysis";
 
               return (
                 <div
                   key={conv._id}
                   className={`bg-slate-900 border rounded-xl p-5 space-y-4 shadow-sm transition ${
-                     isPendingCertification
-                       ? "border-amber-800/80 bg-amber-950/10"
+                    isFailed
+                      ? "border-rose-800/80 bg-rose-950/10"
+                      : isAnalyzing
+                      ? "border-sky-800/70 bg-sky-950/10"
+                      : isPendingCertification
+                      ? "border-amber-800/80 bg-amber-950/10"
                       : isClarified
                       ? "border-slate-800"
                       : "border-rose-800/50 bg-rose-950/10"
@@ -593,8 +670,43 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                     </p>
                   </div>
 
+                  {/* In-flight analysis status (F1) */}
+                  {isAnalyzing && (
+                    <div className="rounded-xl border border-sky-800/70 bg-sky-950/30 p-3 text-xs text-sky-200 flex items-start gap-2" role="status" aria-live="polite">
+                      <RefreshCw className="w-4 h-4 text-sky-400 shrink-0 mt-0.5 animate-spin" />
+                      <span className="leading-relaxed">
+                        Saved. The AI is analyzing this question against the specification and drafting a citation.
+                        This row updates automatically — no need to resubmit.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Failed analysis (F1): text is preserved, retry available */}
+                  {isFailed && (
+                    <div className="rounded-xl border border-rose-800/80 bg-rose-950/40 p-3 text-xs text-rose-200 space-y-2" role="alert">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">
+                          AI analysis failed for this RFI. The submitted question is preserved.
+                          {conv.analysisError ? <span className="block text-rose-300/80 mt-1 font-mono text-[10px]">{conv.analysisError}</span> : null}
+                        </span>
+                      </div>
+                      {onRetryRfi && (
+                        <button
+                          type="button"
+                          onClick={() => retryAnalysis(conv._id)}
+                          disabled={retryingId === conv._id}
+                          className="bg-rose-700 hover:bg-rose-600 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${retryingId === conv._id ? "animate-spin" : ""}`} />
+                          {retryingId === conv._id ? "Re-queuing..." : "Retry analysis"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* AI Autonomous Clarification or PM Editing Form */}
-                  {conv.autonomousReply && !isEditing && (
+                  {conv.autonomousReply && !isEditing && !isAnalyzing && !isFailed && (
                     <div className="bg-slate-950 rounded-xl p-4 border border-sky-900/40 space-y-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 font-bold text-sky-400 text-[11px]">
@@ -654,13 +766,17 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
                     <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
                       <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                       {isCertified
+                       {isAnalyzing
+                         ? "Analysis in progress — no PM action needed yet."
+                         : isFailed
+                         ? "Analysis failed — the question is preserved; retry or ask the bidder to resubmit."
+                         : isCertified
                          ? "Certified for inclusion in binding legal addenda."
                          : "Requires PM verification before addendum inclusion."}
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {!isEditing && (
+                      {!isEditing && !isAnalyzing && !isFailed && (
                         <button
                           onClick={() => startEditing(conv)}
                           className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg transition text-xs flex items-center gap-1 border border-slate-700"
@@ -703,17 +819,59 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
 
         {/* Right 1 Col: Direct RFI Submission Panel */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 h-fit space-y-4">
-          {pendingRfiSince !== null && (
+          {pendingRfi && (
             <div
-              className="rounded-xl border border-sky-800/70 bg-sky-950/40 p-3 text-xs text-sky-200 flex items-start gap-2"
+              className={`rounded-xl border p-3 text-xs flex items-start gap-2 ${
+                pendingTimedOut
+                  ? "border-amber-800/70 bg-amber-950/30 text-amber-200"
+                  : "border-sky-800/70 bg-sky-950/40 text-sky-200"
+              }`}
               role="status"
               aria-live="polite"
             >
-              <RefreshCw className="w-4 h-4 text-sky-400 shrink-0 mt-0.5 animate-spin" />
+              {pendingTimedOut ? (
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-sky-400 shrink-0 mt-0.5 animate-spin" />
+              )}
               <span className="leading-relaxed">
-                RFI submitted. The AI is analyzing it against the specification and drafting a citation; the
-                clarification appears in the list automatically (typically 10–30 seconds). No need to resubmit.
+                {pendingTimedOut ? (
+                  <>
+                    Analysis is taking longer than usual. Your question is saved as a pending RFI — you do not need
+                    to retype it.{" "}
+                    {pendingRfi.conversationId && onRetryRfi && (
+                      <button
+                        type="button"
+                        onClick={() => retryAnalysis()}
+                        disabled={retryingId !== null}
+                        className="underline font-bold text-amber-100 hover:text-white disabled:opacity-50"
+                      >
+                        Retry analysis
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    RFI saved. The AI is analyzing it against the specification and drafting a citation; the
+                    clarification appears in the list automatically (typically 10–30 seconds). No need to resubmit.
+                  </>
+                )}
               </span>
+            </div>
+          )}
+          {rfiSubmitError && (
+            <div className="rounded-xl border border-rose-800/70 bg-rose-950/40 p-3 text-xs text-rose-200 flex flex-wrap items-center gap-2" role="alert">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="leading-relaxed flex-1 min-w-[160px]">{rfiSubmitError.message}</span>
+              <button
+                type="button"
+                onClick={() => (rfiSubmitError.conversationId ? retryAnalysis(rfiSubmitError.conversationId) : submitRfi())}
+                disabled={retryingId !== null || submitting}
+                className="bg-rose-700 hover:bg-rose-600 disabled:opacity-50 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${retryingId || submitting ? "animate-spin" : ""}`} />
+                {retryingId ? "Re-queuing..." : submitting ? "Submitting..." : "Retry"}
+              </button>
             </div>
           )}
           <div>

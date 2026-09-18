@@ -434,6 +434,7 @@ export const App: React.FC = () => {
   const generateAgreementMutation = useMutation(api.agreements.generateAgreement);
   const triggerSimulationMutation = useMutation(api.simulation.triggerJudgeSimulation);
   const submitCustomRfiMutation = useMutation(api.simulation.submitCustomRfi);
+  const retryRfiAnalysisMutation = useMutation(api.simulation.retryRfiAnalysis);
   const discoverAction = useAction(api.contractorDiscovery.discoverSubcontractors);
   const deductDoubleBuyCreditMutation = useMutation(api.coordination.deductDoubleBuyCredit);
   const assignScopeVoidToTradeMutation = useMutation(api.coordination.assignScopeVoidToTrade);
@@ -1234,22 +1235,28 @@ export const App: React.FC = () => {
     contractorId: string;
     subject: string;
     question: string;
-  }) => {
-    if (!activePackage || !data.question?.trim()) return;
+    tradePackageId?: string;
+  }): Promise<{ conversationId?: string }> => {
+    if (!activePackage || !data.question?.trim()) return {};
+    const targetPackageId = data.tradePackageId || activePackage._id;
+    const targetPackage = tradePackages.find((p) => p._id === targetPackageId) || activePackage;
+    const isCrossPackage = targetPackageId !== activePackage._id;
     try {
-      const isGuestSubmitter = data.contractorId === "guest_contractor";
+      const isGuestSubmitter = data.contractorId === "guest_contractor" || isCrossPackage;
       const canSubmitConvex =
         isRealConvexProject &&
         isRealConvexPackage &&
-        !activePackage._id.startsWith("pkg_") &&
+        !targetPackageId.startsWith("pkg_") &&
         !data.contractorId.startsWith("ctr_");
       if (canSubmitConvex) {
-        await submitCustomRfiMutation({
-          tradePackageId: activePackage._id as any,
+        const res = await submitCustomRfiMutation({
+          tradePackageId: targetPackageId as any,
           contractorId: isGuestSubmitter ? undefined : (data.contractorId as any),
           subject: data.subject,
           question: data.question,
         });
+        showToast("RFI submitted to TradePulse autonomous AI clarification engine.");
+        return { conversationId: (res as any)?.conversationId };
       } else {
         const lowerSub = data.subject.toLowerCase();
         const lowerQ = data.question.toLowerCase();
@@ -1269,14 +1276,14 @@ export const App: React.FC = () => {
 
         const newConvo: Conversation = {
           _id: `conv_${Date.now()}`,
-          tradePackageId: activePackage._id,
+          tradePackageId: targetPackageId,
           contractorId: data.contractorId,
           threadId: `th_sim_${Date.now()}`,
           inboundSubject: data.subject,
           inboundQuestion: data.question,
           autonomousReply: isEscalation
             ? `Subcontractor inquiry involves commercial contract riders/terms (${data.subject}). Escalated to General Contractor Project Manager for formal review prior to addendum publication.`
-            : `Per TradePulse Spec Analysis (Section ${activePackage.csiDivision} & Division 01 General Requirements): Scope requirement confirmed in bidding documents. Subcontractor must adhere to specified requirements.`,
+            : `Per TradePulse Spec Analysis (Section ${targetPackage.csiDivision} & Division 01 General Requirements): Scope requirement confirmed in bidding documents. Subcontractor must adhere to specified requirements.`,
           confidenceScore: isEscalation ? 0.88 : 0.95,
           status,
           timestamp: Date.now(),
@@ -1284,12 +1291,12 @@ export const App: React.FC = () => {
         const newAudit: AuditLog = {
           _id: `audit_${Date.now()}`,
           projectId: currentProject?._id || "proj_domain_tower_b",
-          tradePackageId: activePackage._id,
+          tradePackageId: targetPackageId,
           eventType: isEscalation ? "compliance_audit" : "rfi_clarified",
           title: isEscalation ? `Pre-Bid RFI Escalated to PM: ${data.subject}` : `Pre-Bid RFI Clarified: ${data.subject}`,
           description: isEscalation
             ? `Subcontractor inquiry requires PM review (${data.subject}). Escalated to PM review queue.`
-            : `Autonomous clarification dispatched with 0.95 confidence score citing Section ${activePackage.csiDivision}.`,
+            : `Autonomous clarification dispatched with 0.95 confidence score citing Section ${targetPackage.csiDivision}.`,
           actor: "Gemini 3.8 Flash Spec Reasoner",
           timestamp: Date.now(),
         };
@@ -1298,10 +1305,37 @@ export const App: React.FC = () => {
           conversations: [newConvo, ...prev.conversations],
           auditLogs: [newAudit, ...prev.auditLogs],
         }));
+        showToast("RFI submitted to TradePulse autonomous AI clarification engine.");
+        return { conversationId: newConvo._id };
       }
-      showToast("RFI submitted to TradePulse autonomous AI clarification engine.");
     } catch (err: any) {
       showToast(`RFI clarification failed: ${getErrorMessage(err) || "The clarification was not saved."}`);
+      throw err;
+    }
+  };
+
+  const handleRetryRfi = async (conversationId: string) => {
+    try {
+      if (isRealConvexProject && conversationId && !conversationId.startsWith("conv_")) {
+        const res: any = await retryRfiAnalysisMutation({ conversationId: conversationId as any });
+        if (res?.success) {
+          showToast("RFI re-queued for AI analysis.");
+        } else {
+          showToast(res?.message || "This RFI cannot be retried.");
+        }
+        return;
+      }
+      updateStandaloneAndPersist((prev) => ({
+        ...prev,
+        conversations: prev.conversations.map((c) =>
+          c._id === conversationId
+            ? { ...c, status: "clarified" as const, analysisError: undefined }
+            : c
+        ),
+      }));
+      showToast("RFI re-queued for AI analysis.");
+    } catch (err: any) {
+      showToast(`RFI retry failed: ${getErrorMessage(err) || "The RFI was not re-queued."}`);
       throw err;
     }
   };
@@ -3660,6 +3694,7 @@ export const App: React.FC = () => {
             projectConversationsForAddendum={isConvexConnected ? undefined : standaloneProjectConversations}
             contractors={contractors}
             onSubmitRfi={handleSubmitRfi}
+            onRetryRfi={handleRetryRfi}
             onOpenSimulation={() => setIsSimulationOpen(true)}
             onReviewRfi={handleReviewRfi}
             onNavigateToLeveling={() => setActiveTab("leveling")}

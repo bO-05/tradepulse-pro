@@ -48,11 +48,12 @@ export interface Conversation {
   inboundQuestion: string;
   autonomousReply: string;
   confidenceScore: number;
-  status: "clarified" | "escalated_to_pm" | "rejected" | "autonomous_replied" | string;
+  status: "clarified" | "escalated_to_pm" | "rejected" | "pending_analysis" | "failed_analysis" | "autonomous_replied" | string;
   timestamp: number;
   csiDivision?: string;
   tradeName?: string;
   reviewNote?: string;
+  analysisError?: string;
   pmCertifiedAt?: number;
   pmCertifiedBy?: string;
 }

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { expect, test, vi } from "vitest";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -287,4 +287,142 @@ test("RFQ dispatch with discovered contractors marks them invited", async () => 
   expect(contractors.find((c) => c._id === contractorId)?.rfqStatus).toBe("invited");
   const pkg = await t.query(api.tradePackages.getPackage, { tradePackageId: packageId });
   expect(pkg?.status).toBe("rfqs_dispatched");
+});
+
+/** Force the deterministic (no-network) reasoning path in tests. */
+function withoutProviderKeys<T>(fn: () => Promise<T>): Promise<T> {
+  const keys = ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "VERTEX_API_KEY", "VERTEX_ACCESS_TOKEN", "GCP_PROJECT", "VERTEX_PROJECT_ID"] as const;
+  const saved = keys.map((k) => [k, process.env[k]] as const);
+  for (const k of keys) delete process.env[k];
+  return fn().finally(() => {
+    for (const [k, v] of saved) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+}
+
+test("F1: submitted RFI is persisted as pending_analysis before any LLM work", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "F1 Durability Project");
+  const packageId = await createPackage(t, projectId);
+
+  const result: any = await t.mutation(api.simulation.submitCustomRfi, {
+    tradePackageId: packageId,
+    subject: "F1 durability subject",
+    question: "Is the 400A temporary power distribution board part of this package?",
+  });
+  expect(result.success).toBe(true);
+  expect(result.conversationId).toBeTruthy();
+
+  const convos = await t.run(async (ctx) =>
+    await ctx.db
+      .query("conversations")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", packageId))
+      .collect()
+  );
+  expect(convos.length).toBe(1);
+  expect(convos[0].status).toBe("pending_analysis");
+  expect(convos[0].inboundQuestion).toContain("400A temporary power");
+  expect(convos[0].inboundSubject).toBe("F1 durability subject");
+});
+
+test("F1: a failed analysis keeps the RFI text and records failed_analysis + error", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "F1 Failure Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+
+  const pending: any = await t.mutation(internal.rfq.createPendingInboundRfi, {
+    tradePackageId: packageId,
+    contractorId,
+    threadId: "th_f1_fail",
+    inboundSubject: "F1 failure subject",
+    inboundQuestion: "Will the GC provide crane access on weekends for this scope?",
+  });
+
+  // Simulate the failure class: the contractor record vanishes while the RFI is
+  // in flight, so completing the analysis throws. The question must survive.
+  await t.run(async (ctx) => {
+    await ctx.db.delete(contractorId);
+  });
+
+  await withoutProviderKeys(() =>
+    t.action(internal.emailActions.handleRfiProcessing, {
+      tradePackageId: packageId,
+      contractorId,
+      fromEmail: "regression@sub.test",
+      subject: "F1 failure subject",
+      text: "Will the GC provide crane access on weekends for this scope?",
+      threadId: "th_f1_fail",
+      conversationId: pending,
+    })
+  );
+
+  const convo: any = await t.run(async (ctx) => await ctx.db.get(pending));
+  expect(convo.status).toBe("failed_analysis");
+  expect(convo.inboundQuestion).toContain("crane access on weekends");
+  expect(typeof convo.analysisError).toBe("string");
+  expect(convo.analysisError.length).toBeGreaterThan(0);
+
+  const logs = await t.query(api.auditLogs.listRecentLogs, { projectId });
+  expect(logs.some((l) => /RFI Analysis Failed/i.test(l.title))).toBe(true);
+});
+
+test("F1: retry re-queues a failed RFI without losing the text and completes it", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "F1 Retry Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+
+  const pending: any = await t.mutation(internal.rfq.createPendingInboundRfi, {
+    tradePackageId: packageId,
+    contractorId,
+    threadId: "th_f1_retry",
+    inboundSubject: "F1 retry subject",
+    inboundQuestion: "Who furnishes the seismic bracing for conduit runs over 2.5 inches?",
+  });
+  await t.mutation(internal.rfq.failInboundRfiAnalysis, {
+    conversationId: pending,
+    error: "simulated transient failure",
+  });
+
+  const retry: any = await t.mutation(api.simulation.retryRfiAnalysis, { conversationId: pending });
+  expect(retry.success).toBe(true);
+  const afterRetry: any = await t.run(async (ctx) => await ctx.db.get(pending));
+  expect(afterRetry.status).toBe("pending_analysis");
+  expect(afterRetry.analysisError).toBeUndefined();
+  expect(afterRetry.inboundQuestion).toContain("seismic bracing");
+
+  vi.useFakeTimers();
+  try {
+    await withoutProviderKeys(() => t.finishAllScheduledFunctions(vi.runAllTimers));
+  } finally {
+    vi.useRealTimers();
+  }
+  const completed: any = await t.run(async (ctx) => await ctx.db.get(pending));
+  expect(completed.status, `status=${completed.status} err=${completed.analysisError}`).toMatch(/clarified|escalated_to_pm/);
+  expect(completed.autonomousReply.length).toBeGreaterThan(20);
+});
+
+test("F1: retry refuses to re-run an already answered RFI", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "F1 Answered Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const pending: any = await t.mutation(internal.rfq.createPendingInboundRfi, {
+    tradePackageId: packageId,
+    contractorId,
+    threadId: "th_f1_done",
+    inboundSubject: "Answered",
+    inboundQuestion: "Already handled?",
+  });
+  await t.mutation(internal.rfq.completeInboundRfi, {
+    conversationId: pending,
+    autonomousReply: "Yes, already handled.",
+    confidenceScore: 0.97,
+    status: "clarified",
+  });
+  const retry: any = await t.mutation(api.simulation.retryRfiAnalysis, { conversationId: pending });
+  expect(retry.success).toBe(false);
 });
