@@ -623,7 +623,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
             {onNavigateToQnA && (
               <button
                 onClick={onNavigateToQnA}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition border border-slate-700"
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition shadow-sm"
               >
                 <span>Advance to Pre-Bid Q&A</span>
                 <span>➔</span>
@@ -632,10 +632,10 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
             {onNavigateToLeveling && (
               <button
                 onClick={onNavigateToLeveling}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                className="text-slate-400 hover:text-slate-200 underline underline-offset-2 text-xs font-medium transition"
+                title="Skip Pre-Bid Q&A and go straight to the leveling matrix"
               >
-                <span>Proceed to Bid Leveling Matrix</span>
-                <span>➔</span>
+                Skip to leveling →
               </button>
             )}
           </div>

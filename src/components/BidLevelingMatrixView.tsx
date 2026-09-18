@@ -756,16 +756,6 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
               Ingest Quote / PDF
             </button>
 
-            {onNavigateToCoordination && (
-              <button
-                onClick={onNavigateToCoordination}
-                className="bg-amber-950/70 hover:bg-amber-900/80 text-amber-300 border border-amber-800/80 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
-              >
-                <Split className="w-3.5 h-3.5" />
-                Scope Clash Engine
-              </button>
-            )}
-
             {/* Export CSV Button */}
             <button
               onClick={handleExportCsv}
@@ -1541,10 +1531,9 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
           {onNavigateToContracts && (
             <button
               onClick={onNavigateToContracts}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              className="text-slate-400 hover:text-slate-200 underline underline-offset-2 text-xs font-medium transition"
               title="Skip the Scope Clash stage and go straight to the subcontract register"
             >
-              <FileText className="w-3.5 h-3.5 text-emerald-400" />
               Skip ahead: Contracts Register →
             </button>
           )}

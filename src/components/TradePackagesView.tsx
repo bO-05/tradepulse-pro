@@ -243,7 +243,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
         {showWhyCare && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 leading-relaxed bg-slate-950/60 rounded-lg p-3 border animate-in fade-in">
             <span className="font-semibold text-emerald-400">GC Preconstruction Baseline: </span>
-            General Contractors prevent scope voids and trade clash claims by defining clear CSI MasterFormat boundaries before soliciting bids. TradePulse provisions dedicated programmatic <code className="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded font-mono">@agentmail.to</code> inboxes per trade package, ensuring all subcontractor communications are tracked and audit-ready.
+            General Contractors prevent scope voids and trade clash claims by defining clear CSI MasterFormat boundaries before soliciting bids. TradePulse provisions programmatic <code className="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded font-mono">@agentmail.to</code> inboxes per trade package — shared when the AgentMail plan limit is reached, and labeled as shared on the package card — so all subcontractor communications are tracked and audit-ready.
           </div>
         )}
       </div>
@@ -264,22 +264,10 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
           <p className="text-xs text-slate-400 max-w-md">
             Break down your architectural specifications into CSI MasterFormat buyout packages using AI Spec Breakdown, or create a package manually.
           </p>
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={() => setIsSpecModalOpen(true)}
-              className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
-            >
-              <Sparkles className="w-4 h-4 fill-slate-950" />
-              ⚡ Run AI Spec Breakdown
-            </button>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-slate-800 hover:bg-slate-750 text-white font-semibold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition border border-slate-700"
-            >
-              <Plus className="w-4 h-4" />
-              Create Trade Package
-            </button>
-          </div>
+          <p className="text-[11px] text-slate-400 pt-1">
+            Use <strong className="text-slate-300">⚡ AI Spec Breakdown (Auto-Scope)</strong> or{" "}
+            <strong className="text-slate-300">Create Trade Package</strong> in the header above to get started.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

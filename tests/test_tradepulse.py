@@ -859,7 +859,10 @@ def test_real_world_commercial_quote_ingestion_and_package_resilience():
 
     pkgs_src = Path("src/components/TradePackagesView.tsx").read_text(encoding="utf-8")
     assert "No Trade Packages Configured" in pkgs_src, "TradePackagesView must render clear empty state banner when tradePackages is empty"
-    assert "Run AI Spec Breakdown" in pkgs_src, "TradePackagesView must provide AI Spec Breakdown CTA in empty state"
+    # F5: the header owns the primary CTAs; the empty state must not duplicate them.
+    assert "AI Spec Breakdown (Auto-Scope)" in pkgs_src, "TradePackagesView header must expose the AI Spec Breakdown CTA"
+    assert "Run AI Spec Breakdown" not in pkgs_src, "F5: empty state must not duplicate the header AI Spec Breakdown CTA"
+    assert "in the header above to get started" in pkgs_src, "F5: empty state must point to the header CTAs instead of duplicating them"
 
     coord_src = Path("src/components/CrossTradeCoordinationView.tsx").read_text(encoding="utf-8")
     assert "matchedSecondary || matchedPrimary" in coord_src, "CrossTradeCoordinationView must dynamically match target package by clash division"

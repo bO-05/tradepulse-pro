@@ -148,6 +148,20 @@ test("F7: the PM queue button does not use white text on amber-600", () => {
   expect(qna).toContain("bg-amber-400 hover:bg-amber-300 text-slate-950");
 });
 
+test("F5: each stage exposes one primary next-step CTA and no duplicated empty-state action", () => {
+  const leveling = find("BidLevelingMatrixView.tsx", componentSources);
+  expect((leveling.match(/Advance to Scope Clash Engine/g) || []).length).toBe(1);
+  expect(leveling).not.toContain('Scope Clash Engine\n              </button>');
+
+  const discovery = find("SubcontractorDiscoveryView.tsx", componentSources);
+  expect((discovery.match(/Advance to Pre-Bid Q&A/g) || []).length).toBe(1);
+  expect(discovery).toContain("Skip to leveling");
+
+  const packages = find("TradePackagesView.tsx", componentSources);
+  expect(packages).not.toContain("Run AI Spec Breakdown");
+  expect(packages).toContain("in the header above to get started");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");
