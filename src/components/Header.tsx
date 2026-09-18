@@ -171,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({
       id: "contracts",
       step: "06",
       label: "Subcontracts",
-      sublabel: "AIA A401",
+      sublabel: "A401-style",
       icon: FileCheck,
       badge: `${awardedCount}/${packagesCount} Awarded`,
     },
@@ -304,6 +304,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onChange={(e) => onSelectProject(e.target.value)}
                 aria-label="Select Commercial Construction Project"
                 className="bg-slate-850 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-emerald-500 font-medium appearance-none cursor-pointer max-w-[130px] sm:max-w-xs truncate"
+                title={projects.map((p) => `${p.title} (${p.location})`).join("\n")}
               >
                 {projects.map((p) => (
                   <option key={p._id} value={p._id} className="bg-slate-900 text-white">
@@ -369,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
           </select>
         </label>
         {/* 6-Stage Pipeline Stepper */}
-        <div className="hidden sm:flex items-center gap-1 py-1 overflow-x-auto min-w-0 flex-1">
+        <div className="hidden sm:flex flex-wrap items-center gap-1 py-1 min-w-0 flex-1">
           {pipelineStages.map((stage, idx) => {
             const Icon = stage.icon;
             const isActive = activeTab === stage.id;
@@ -384,6 +385,7 @@ export const Header: React.FC<HeaderProps> = ({
               <React.Fragment key={stage.id}>
                 <button
                   onClick={() => setActiveTab(stage.id)}
+                  aria-current={isActive ? "page" : undefined}
                   className={`group flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
                     isActive
                       ? "bg-slate-800 text-white shadow-sm ring-1 ring-emerald-500/60"
@@ -490,6 +492,7 @@ export const Header: React.FC<HeaderProps> = ({
                   type="text"
                   required
                   value={newTitle}
+                  aria-label="Project title"
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. Austin Innovation Tower - Phase II"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -503,6 +506,7 @@ export const Header: React.FC<HeaderProps> = ({
                     type="text"
                     required
                     value={newLocation}
+                    aria-label="Project location"
                     onChange={(e) => setNewLocation(e.target.value)}
                     placeholder="e.g. Austin, TX"
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -514,6 +518,7 @@ export const Header: React.FC<HeaderProps> = ({
                     type="text"
                     required
                     value={newType}
+                    aria-label="Project type"
                     onChange={(e) => setNewType(e.target.value)}
                     placeholder="e.g. Healthcare / Mixed-Use"
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -527,6 +532,7 @@ export const Header: React.FC<HeaderProps> = ({
                   type="text"
                   required
                   value={newGeneralContractor}
+                  aria-label="General contractor or contracting entity"
                   onChange={(e) => setNewGeneralContractor(e.target.value)}
                   placeholder="e.g. Austin Commercial, LP"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -574,7 +580,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                {createError && <p className="mr-auto max-w-[55%] text-[11px] text-rose-400">{createError}</p>}
+                {createError && <p role="alert" className="mr-auto max-w-[55%] text-[11px] text-rose-400">{createError}</p>}
                 <button
                   type="button"
                   onClick={() => setIsNewProjectModalOpen(false)}
@@ -585,7 +591,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-lg transition flex items-center gap-1.5"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold rounded-lg transition flex items-center gap-1.5"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
                   {creating ? "Creating Project..." : "Create Commercial Project"}

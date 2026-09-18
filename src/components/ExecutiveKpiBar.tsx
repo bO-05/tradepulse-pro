@@ -147,7 +147,10 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400 mb-1">
             <span className="text-[10px] uppercase tracking-wider font-semibold">Leveled Buyout</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${isSavings ? "bg-emerald-950 text-emerald-400 border-emerald-800/60" : "bg-rose-950 text-rose-400 border-rose-800/60"}`}>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${isSavings ? "bg-emerald-950 text-emerald-400 border-emerald-800/60" : "bg-rose-950 text-rose-400 border-rose-800/60"}`}
+              title="ADR-0003: leveled cost = base bid + scope-gap exclusions + lead-time penalty + COI penalty − accepted value-engineering credits."
+            >
               ADR-0003
             </span>
           </div>

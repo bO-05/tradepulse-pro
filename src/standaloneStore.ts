@@ -521,7 +521,7 @@ Furnish and install 4x packaged rooftop chilled water air handling units (AHU-1 
           "UL 1479 floor/wall firestopping",
         ],
         status: "generated",
-        contractText: `AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor
+        contractText: `SUBCONTRACT AGREEMENT — A401-STYLE STRUCTURE (GENERATED DRAFT) — not an AIA-licensed form
 AGREEMENT made as of the day of contract award in the year 2026.
 BETWEEN the Contractor: Austin Commercial, LP, Austin, TX
 and the Subcontractor: Rosendin Electric, Inc., TX-TECL-18042
@@ -1364,17 +1364,21 @@ export function generateAiaA401AgreementText(params: {
   bidDeadline: string;
 }): string {
   return `================================================================================
-AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor
+SUBCONTRACT AGREEMENT — A401-STYLE STRUCTURE (GENERATED DRAFT)
 AGREEMENT NO: ${params.agreementNumber}
 ================================================================================
+
+NOTICE: This is a TradePulse-generated draft that follows the A401 article
+structure. It is not an official AIA document or a licensed AIA form, and the
+parties, addresses, license numbers and dates marked [from the Prime Agreement]
+must be completed from the executed Prime Agreement before use. TradePulse does
+not provide a signature service.
 
 AGREEMENT made as of the ${params.formattedDate}.
 
 BETWEEN the Contractor:
   ${params.generalContractor}
-  100 Congress Avenue, Suite 1400
-  ${params.gcCity}, ${params.gcState}
-  License No. ${params.stateAbbr}-GC-901844
+  Address & license: [from the Prime Agreement — verify before execution]
 
 and the Subcontractor:
   ${params.subName}
@@ -1385,10 +1389,10 @@ The Prime Project:
   ${params.projectTitle}
   Location: ${params.projectLocation}
   Type: ${params.projectType}
-  Owner: ${params.gcCity} Metro Development Partners LLC
+  Owner: [Owner from the Prime Agreement]
 
-The Prime Agreement between Contractor and Owner is dated: August 15, 2026.
-The Architect / Owner Representative: ${params.gcCity} Commercial Engineering & Design Group LLP.
+The Prime Agreement between Contractor and Owner is dated: [Prime Agreement date]
+The Architect / Owner Representative: [from the Prime Agreement]
 
 --------------------------------------------------------------------------------
 TABLE OF ARTICLES
@@ -1408,7 +1412,7 @@ ARTICLE 10  ATTESTATION & FORMAL EXECUTION
 ARTICLE 1 - THE SUBCONTRACT DOCUMENTS
 --------------------------------------------------------------------------------
 § 1.1 The Subcontract Documents consist of:
-  (1) this AIA Document A401 Agreement;
+  (1) this Subcontract Agreement (A401-style structure);
   (2) the Prime Agreement between Contractor and Owner;
   (3) the Conditions of the Subcontract (General, Supplementary, and Special);
   (4) CSI MasterFormat Division ${params.csiDivision} (${params.tradeName}) Drawings and Specifications;
@@ -1468,7 +1472,7 @@ performance of the Subcontract the Subcontract Sum of:
 § 6.2 Progress Payments: Contractor shall pay Subcontractor monthly based on approved
 Schedule of Values minus ${params.retainagePercent}% retainage.
 Payment terms: Net 30 days following Owner funding.
-Liquidated Damages: $${params.liquidatedDamagesDaily.toLocaleString("en-US")} per calendar day for unexcused project delays past the ${params.bidDeadline} milestone.
+Liquidated Damages: $${params.liquidatedDamagesDaily.toLocaleString("en-US")} per calendar day for unexcused project delays past Substantial Completion (see the Project Schedule / Prime Agreement).
 
 --------------------------------------------------------------------------------
 ARTICLE 7 - INSURANCE & INDEMNIFICATION
@@ -1499,8 +1503,8 @@ by the American Arbitration Association (AAA) in ${params.gcCity}, ${params.gcSt
 --------------------------------------------------------------------------------
 ARTICLE 10 - ATTESTATION & FORMAL EXECUTION
 --------------------------------------------------------------------------------
-IN WITNESS WHEREOF, the parties hereto have executed this AIA Document A401
-Subcontract Agreement as of the day and year first written above.
+IN WITNESS WHEREOF, the parties hereto have executed this Subcontract Agreement
+(A401-style structure) as of the day and year first written above.
 
 CONTRACTOR: ${params.generalContractor}
 By: ___________________________________       Date: ${params.formattedDate}
@@ -1512,6 +1516,6 @@ By: ___________________________________       Date: ${params.formattedDate}
 
 ================================================================================
 Generated autonomously via TradePulse Pro Procurement Platform
-Convex "All Gas" Hackathon Architecture • AIA Document A401™ Compliant
+Generated draft based on the A401 article structure — not an AIA-licensed form
 ================================================================================`;
 }

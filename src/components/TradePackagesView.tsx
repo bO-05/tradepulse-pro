@@ -20,7 +20,7 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { TradePackage, Project } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
-import { useDialogFocus } from "../lib/useDialogFocus.ts";
+import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
 
 interface TradePackagesViewProps {
   currentProject?: Project | null;
@@ -56,6 +56,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const createDialogRef = useDialogFocus<HTMLDivElement>(isModalOpen);
+  useEscapeToClose(isModalOpen, () => setIsModalOpen(false));
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
   const [showWhyCare, setShowWhyCare] = useState(false);
 
@@ -64,6 +65,7 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   const specDialogRef = useDialogFocus<HTMLDivElement>(isSpecModalOpen);
   const [specInputText, setSpecInputText] = useState("");
   const [isGeneratingPackages, setIsGeneratingPackages] = useState(false);
+  useEscapeToClose(isSpecModalOpen, () => setIsSpecModalOpen(false), !isGeneratingPackages);
   const [generationSuccessMessage, setGenerationSuccessMessage] = useState<string | null>(null);
   const [generationErrorMessage, setGenerationErrorMessage] = useState<string | null>(null);
   const [packageToDelete, setPackageToDelete] = useState<TradePackage | null>(null);
@@ -497,6 +499,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
 
               <textarea
                 rows={8}
+                aria-label="Architectural and engineering specifications text"
                 value={specInputText}
                 onChange={(e) => setSpecInputText(e.target.value)}
                 placeholder="Paste project manual or CSI specification divisions..."
@@ -567,6 +570,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   type="text"
                   required
                   placeholder="e.g. 26 00 00"
+                  aria-label="CSI division number"
                   value={csiDivision}
                   pattern="[0-9]{2} [0-9]{2} [0-9]{2}"
                   title="Use CSI format NN NN NN, for example 26 00 00."
@@ -581,6 +585,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   type="text"
                   required
                   placeholder="e.g. Electrical & Lighting Systems"
+                  aria-label="Trade package name"
                   value={tradeName}
                   onChange={(e) => setTradeName(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -592,6 +597,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                 <input
                   type="number"
                   required
+                  aria-label="Budget estimate in dollars"
                   value={budgetEstimate}
                   min={1}
                   max={1000000000}
@@ -606,6 +612,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   required
                   rows={2}
                   placeholder="Scope details..."
+                  aria-label="Scope summary"
                   value={scopeSummary}
                   onChange={(e) => setScopeSummary(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
@@ -616,6 +623,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                 <label className="block text-slate-400 font-medium mb-1">Mandatory Inclusions (one per line)</label>
                 <textarea
                   rows={3}
+                  aria-label="Mandatory inclusions, one per line"
                   value={mandatoryInclusions}
                   onChange={(e) => setMandatoryInclusions(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-xs"
@@ -627,6 +635,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                 <input
                   type="date"
                   required
+                  aria-label="Bid deadline"
                   value={bidDeadline}
                   min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setBidDeadline(e.target.value)}
@@ -635,7 +644,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                {creationError && <p className="mr-auto max-w-[55%] text-[11px] text-rose-400">{creationError}</p>}
+                {creationError && <p role="alert" className="mr-auto max-w-[55%] text-[11px] text-rose-400">{creationError}</p>}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}

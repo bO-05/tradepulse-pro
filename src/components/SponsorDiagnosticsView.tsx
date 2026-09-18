@@ -290,7 +290,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
             <button
               disabled={isRunningEvals}
               onClick={handleRunExpertEvals}
-              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
             >
               {isRunningEvals ? (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -558,6 +558,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
           <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-2">
             <select
+              aria-label="Diagnostic prompt scenario"
               value={selectedPromptType}
               onChange={(e) => setSelectedPromptType(e.target.value)}
               className="w-full sm:w-auto max-w-full bg-slate-850 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
@@ -570,7 +571,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
             <button
               disabled={isBenchmarking}
               onClick={handleRunBenchmark}
-              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
             >
               {isBenchmarking ? (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -808,7 +809,7 @@ TradePulse Pro automates the $1.8T commercial construction subcontractor procure
 3. Programmatic Project Inboxes via AgentMail (@agentmail.to) — shared when the free-tier plan limit is reached, disclosed on each package
 4. Autonomous Pre-Bid RFI Clarifications via OpenAI, Gemini & Claude reasoning (OpenAI is a BYOK adapter; Gemini/Claude run when no OpenAI key is configured)
 5. Forensic Bid Leveling & Scope Gap Normalization via Claude & OpenAI (OpenAI is a BYOK adapter; Claude runs when no OpenAI key is configured)
-6. Autonomous AIA Document A401 Standard Subcontract Agreement Generation
+6. A401-style Subcontract Draft Generation (not an AIA-licensed form)
 
 ## Live Endpoints
 - Web UI: https://brainy-skunk-440.convex.site

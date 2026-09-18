@@ -417,6 +417,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
         {/* Upload Controls */}
         <div className="flex items-center gap-2">
           <select
+            aria-label="Document type for upload"
             value={fileType}
             onChange={(e) => setFileType(e.target.value)}
             className="bg-slate-850 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
@@ -565,7 +566,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                  <button
                         onClick={() => handleAutoScope(file)}
                         disabled={isProcessing}
-                        className="bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                        className="bg-emerald-700/90 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                         title="Parse CSI specification and generate trade packages with dynamic inboxes"
                       >
                         <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -578,7 +579,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                         <button
                           onClick={() => handleExtractBid(file)}
                           disabled={isProcessing}
-                          className="bg-sky-600/90 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                          className="bg-sky-700/90 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                           title="Forensically extract line items, fine-print exclusions, and level into matrix"
                         >
                           <Scale className="w-3.5 h-3.5" />

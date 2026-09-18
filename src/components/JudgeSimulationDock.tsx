@@ -15,6 +15,8 @@ interface JudgeSimulationDockProps {
   onTriggerSimulation: (scenario: "rfi_inquiry" | "bid_with_hidden_exclusion" | "bid_clean_compliant") => Promise<void>;
   onResetSeedData: () => Promise<void>;
   projectId?: string;
+  projectTitle?: string;
+  isDemoProject?: boolean;
   onRunFullCycle?: (packageId?: string) => Promise<string>;
 }
 
@@ -26,11 +28,14 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
   onTriggerSimulation,
   onResetSeedData,
   projectId,
+  projectTitle,
+  isDemoProject = false,
   onRunFullCycle,
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [simConfirm, setSimConfirm] = useState<{ label: string; run: () => Promise<void> } | null>(null);
   const dialogRef = useDialogFocus<HTMLDivElement>(isOpen);
 
   const runFullCycleMutation = useMutation(api.simulation.runFullProcurementCycle);
@@ -38,11 +43,11 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !loadingAction) onClose();
+      if (event.key === "Escape" && !loadingAction && !isResetConfirmOpen && !simConfirm) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, loadingAction, onClose]);
+  }, [isOpen, loadingAction, onClose, isResetConfirmOpen, simConfirm]);
 
   if (!isOpen) return null;
 
@@ -62,30 +67,48 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
   };
 
   const handleRunFullCycle = async () => {
-    setLoadingAction("full_cycle");
-    setLastMessage(null);
-    try {
-      if (onRunFullCycle) {
-        const msg = await onRunFullCycle(currentPkg?._id);
-        setLastMessage(msg);
-      } else {
-        if (!projectId) {
-          setLastMessage("Error: No active project ID available for full simulation.");
-          return;
+    const run = async () => {
+      setLoadingAction("full_cycle");
+      setLastMessage(null);
+      try {
+        if (onRunFullCycle) {
+          const msg = await onRunFullCycle(currentPkg?._id);
+          setLastMessage(msg);
+        } else {
+          if (!projectId) {
+            setLastMessage("Error: No active project ID available for full simulation.");
+            return;
+          }
+          const res = await runFullCycleMutation({
+            projectId: projectId as any,
+            tradePackageId: currentPkg?._id as any,
+          });
+          setLastMessage(
+            `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with generated A401-style subcontract draft ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${res.deceptiveBidder}; external signature verification remains required.`
+          );
         }
-        const res = await runFullCycleMutation({
-          projectId: projectId as any,
-          tradePackageId: currentPkg?._id as any,
-        });
-        setLastMessage(
-          `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with generated AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${res.deceptiveBidder}; external signature verification remains required.`
-        );
+      } catch (err: any) {
+        setLastMessage(`Lifecycle simulation failed: ${getErrorMessage(err) || "Unknown error"}`);
+      } finally {
+        setLoadingAction(null);
       }
-    } catch (err: any) {
-      setLastMessage(`Lifecycle simulation failed: ${getErrorMessage(err) || "Unknown error"}`);
-    } finally {
-      setLoadingAction(null);
+    };
+    if (!isDemoProject) {
+      setSimConfirm({ label: "Run the full autonomous lifecycle", run });
+      return;
     }
+    await run();
+  };
+
+  const handleScenario = async (actionKey: string, scenario: "rfi_inquiry" | "bid_with_hidden_exclusion" | "bid_clean_compliant") => {
+    const run = async () => {
+      await handleAction(actionKey, () => onTriggerSimulation(scenario));
+    };
+    if (!isDemoProject) {
+      setSimConfirm({ label: `Run the "${actionKey.replace(/_/g, " ")}" simulation`, run });
+      return;
+    }
+    await run();
   };
 
   return (
@@ -120,12 +143,30 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
 
         {/* Modal Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
-          <div className="bg-slate-850 p-2.5 rounded-lg border border-slate-700/60 text-xs flex items-center justify-between">
+          <div className="bg-slate-850 p-2.5 rounded-lg border border-slate-700/60 text-xs flex items-center justify-between gap-2">
             <span className="text-slate-400">Target CSI Trade Package:</span>
-            <span className="font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded font-mono">
+            <span className="font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded font-mono truncate">
               {currentPkg ? `${currentPkg.csiDivision} - ${currentPkg.tradeName}` : "Auto-provisioned when the cycle runs"}
             </span>
           </div>
+          <div className="bg-slate-850 p-2.5 rounded-lg border border-slate-700/60 text-xs flex items-center justify-between gap-2">
+            <span className="text-slate-400">Target project:</span>
+            <span className={`font-semibold px-2 py-0.5 rounded font-mono truncate ${isDemoProject ? "text-emerald-400" : "text-amber-300 bg-amber-950/40 border border-amber-800/40"}`}>
+              {projectTitle || "Active project"} {isDemoProject ? "(demo)" : "(custom project)"}
+            </span>
+          </div>
+
+          {!isDemoProject && (
+            <div className="bg-amber-950/50 border border-amber-700/70 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2" role="alert">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">
+                Simulations write real records — packages, proposals, bids, and a subcontract draft — into{" "}
+                <strong className="text-amber-100">{projectTitle || "this project"}</strong>. Reset Demo Data only restores the
+                demo project, so run scenarios on the demo unless you intend to modify this project. Each action asks for
+                confirmation.
+              </span>
+            </div>
+          )}
 
           {/* Hero: 1-Click Full Autonomous Procurement Lifecycle Simulation */}
           <div className="bg-gradient-to-r from-emerald-950/70 via-slate-850 to-amber-950/50 border-2 border-emerald-500/50 rounded-xl p-3.5 shadow-lg space-y-2.5">
@@ -139,7 +180,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Executes the complete procurement causal loop in one click: scopes Div 26 package, discovers trade contractors, dispatches RFQ, resolves pre-bid RFI, ingests dual proposals, forensically levels with <strong className="text-emerald-300">ADR-0003</strong>, and signs AIA Document A401 subcontract agreement.
+              Executes the complete procurement causal loop in one click: scopes Div 26 package, discovers trade contractors, dispatches RFQ, resolves pre-bid RFI, ingests dual proposals, forensically levels with <strong className="text-emerald-300">ADR-0003</strong>, and drafts an A401-style subcontract agreement for external execution.
             </p>
             <p className="text-[10px] text-slate-400">
               The three scenario cards below use fixed demonstration figures for repeatable walkthroughs; they write real records to the active project.
@@ -184,8 +225,8 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
               </div>
               <button
                 disabled={loadingAction !== null}
-                onClick={() => handleAction("rfi_inquiry", () => onTriggerSimulation("rfi_inquiry"))}
-                className="w-full bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
+                onClick={() => handleScenario("rfi_inquiry", "rfi_inquiry")}
+                className="w-full bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
               >
                 {loadingAction === "rfi_inquiry" ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -212,7 +253,7 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
               </div>
               <button
                 disabled={loadingAction !== null}
-                onClick={() => handleAction("bid_with_hidden_exclusion", () => onTriggerSimulation("bid_with_hidden_exclusion"))}
+                onClick={() => handleScenario("bid_with_hidden_exclusion", "bid_with_hidden_exclusion")}
                 className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
               >
                 {loadingAction === "bid_with_hidden_exclusion" ? (
@@ -240,8 +281,8 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
               </div>
               <button
                 disabled={loadingAction !== null}
-                onClick={() => handleAction("bid_clean_compliant", () => onTriggerSimulation("bid_clean_compliant"))}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
+                onClick={() => handleScenario("bid_clean_compliant", "bid_clean_compliant")}
+                className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
               >
                 {loadingAction === "bid_clean_compliant" ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -302,6 +343,18 @@ export const JudgeSimulationDock: React.FC<JudgeSimulationDockProps> = ({
         onConfirm={async () => {
           await handleAction("reset_seed", onResetSeedData);
           setIsResetConfirmOpen(false);
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(simConfirm)}
+        title="Run simulation in this project?"
+        description={`${simConfirm?.label || "This simulation"} writes simulated packages, proposals, bids, and a subcontract draft into "${projectTitle || "the active project"}". This is a custom project — Reset Demo Data will not undo it.`}
+        confirmLabel="Run simulation"
+        onCancel={() => setSimConfirm(null)}
+        onConfirm={async () => {
+          const run = simConfirm?.run;
+          setSimConfirm(null);
+          if (run) await run();
         }}
       />
     </div>

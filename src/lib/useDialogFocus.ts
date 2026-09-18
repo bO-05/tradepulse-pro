@@ -7,6 +7,42 @@ function isVisible(el: HTMLElement): boolean {
   return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
 }
 
+// A2-09: while any modal is open the page behind it must not scroll. A counter
+// keeps nested dialogs from unlocking the body when the inner one closes.
+let bodyLockCount = 0;
+let previousOverflow = "";
+
+export function lockBodyScroll(): () => void {
+  if (bodyLockCount === 0) {
+    previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  bodyLockCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    bodyLockCount = Math.max(0, bodyLockCount - 1);
+    if (bodyLockCount === 0) {
+      document.body.style.overflow = previousOverflow;
+    }
+  };
+}
+
+/**
+ * A2-05: consistent Escape-to-close for dialogs that handle their own key events.
+ */
+export function useEscapeToClose(open: boolean, onClose: () => void, enabled = true) {
+  useEffect(() => {
+    if (!open || !enabled) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose, enabled]);
+}
+
 /**
  * Completes the modal contract for dialogs: on open, focus moves inside the dialog;
  * Tab/Shift+Tab are trapped within it; on close, focus is restored to the element
@@ -19,6 +55,7 @@ export function useDialogFocus<T extends HTMLElement>(open: boolean) {
   useEffect(() => {
     if (!open) return;
     restoreRef.current = (document.activeElement as HTMLElement) || null;
+    const releaseScrollLock = lockBodyScroll();
 
     const focusables = () => {
       const node = containerRef.current;
@@ -63,6 +100,7 @@ export function useDialogFocus<T extends HTMLElement>(open: boolean) {
     document.addEventListener("keydown", handleKeyDown, true);
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
+      releaseScrollLock();
       const restore = restoreRef.current;
       if (restore && document.contains(restore) && typeof restore.focus === "function") {
         restore.focus();

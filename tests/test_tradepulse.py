@@ -222,7 +222,8 @@ def test_aia_document_a401_contract_generator():
     assert "generateAgreement" in content, "generateAgreement mutation missing"
     assert "executeAgreement" in content, "executeAgreement mutation missing"
     assert "getAgreementByBid" in content, "getAgreementByBid query missing"
-    assert "AIA Document A401" in content, "Must generate authentic AIA Document A401 text"
+    assert "A401-STYLE STRUCTURE (GENERATED DRAFT)" in content, "Must label the generated subcontract as an A401-style draft"
+    assert "not an AIA-licensed form" in content, "Must disclose that the draft is not an AIA-licensed form"
     assert "retainagePercent" in content, "Must define retainage percentage"
     assert "liquidatedDamagesDaily" in content, "Must define liquidated damages"
     assert "ARTICLE 1" in content and "ARTICLE 4" in content, "Must include AIA standard articles"
@@ -231,7 +232,7 @@ def test_aia_document_a401_contract_generator():
     matrix_path = Path("src/components/BidLevelingMatrixView.tsx")
     assert matrix_path.exists()
     matrix_content = matrix_path.read_text(encoding="utf-8")
-    assert "Inspect AIA Document A401 Agreement" in matrix_content or "Award Subcontract & Generate AIA A401" in matrix_content
+    assert "Inspect Subcontract Draft" in matrix_content or "Award Subcontract & Draft Agreement" in matrix_content
     assert "Export Leveling CSV" in matrix_content, "Must include 1-click CSV leveling export"
 
     print("PASS: test_aia_document_a401_contract_generator")
@@ -407,7 +408,10 @@ def test_csv_export_escaping_and_null_guards():
     Validates CSV leveling export escapes quotes properly and guards against undefined exclusions.
     """
     matrix_content = Path("src/components/BidLevelingMatrixView.tsx").read_text(encoding="utf-8")
-    assert 'replace(/"/g, \'""\')' in matrix_content, "BidLevelingMatrixView.tsx must escape double quotes in CSV export"
+    csv_content = Path("src/lib/csv.ts").read_text(encoding="utf-8")
+    assert 'replace(/"/g, \'""\')' in csv_content, "src/lib/csv.ts must escape double quotes in CSV export"
+    assert "FORMULA_PREFIX" in csv_content, "src/lib/csv.ts must neutralize spreadsheet formula injection"
+    assert "buildCsv" in matrix_content, "BidLevelingMatrixView.tsx must use the shared buildCsv helper"
     assert "bid.identifiedExclusions || []" in matrix_content, "BidLevelingMatrixView.tsx must defensively guard identifiedExclusions"
 
     print("PASS: test_csv_export_escaping_and_null_guards")
@@ -506,7 +510,8 @@ def test_boost_autonomous_scoping_and_legal_addenda():
     assert contracts_view.exists()
     contracts_content = contracts_view.read_text(encoding="utf-8")
     assert "Subcontract Agreements Register" in contracts_content
-    assert "AIA Document A401" in contracts_content
+    assert "A401-style Subcontract Draft" in contracts_content
+    assert "not an AIA-licensed form" in contracts_content
 
     # 4. App & Header navigation wiring
     app_content = Path("src/App.tsx").read_text(encoding="utf-8")

@@ -418,6 +418,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
               return (
                 <button
                   key={pkg._id}
+                  aria-pressed={isSelected}
                   onClick={() => onSelectPackage(pkg._id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition shrink-0 ${
                     isSelected
@@ -461,19 +462,30 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
           <div className="flex items-center gap-2.5 flex-wrap">
             {projectId && (
               <button
-                disabled={isGeneratingAddendum}
+                disabled={isGeneratingAddendum || clarifiedCount === 0}
                 onClick={handleGenerateAddendum}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-slate-600 font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
-                title="Compile all clarified subcontractor RFIs into official AIA/CSI ADDENDUM NO. 01"
+                className="bg-slate-800 hover:bg-slate-750 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700 hover:border-slate-600 font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                title={
+                  clarifiedCount === 0
+                    ? "Certify at least one RFI (Approve for Addendum) before issuing a binding addendum"
+                    : "Compile all clarified subcontractor RFIs into official AIA/CSI ADDENDUM NO. 01"
+                }
               >
                 <FileText className="w-4 h-4 text-emerald-400" />
                 {isGeneratingAddendum ? "Compiling Addendum..." : "📜 Issue Legal Addendum NO. 01"}
               </button>
             )}
+            {projectId && clarifiedCount === 0 && (
+              <span className="text-[10px] text-slate-400 font-mono w-full sm:w-auto">
+                {escalatedCount > 0
+                  ? `Certify at least one RFI to enable (${escalatedCount} awaiting PM review)`
+                  : "Certify at least one RFI to enable"}
+              </span>
+            )}
 
             <button
               onClick={onOpenSimulation}
-              className="bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+              className="bg-sky-700 hover:bg-sky-600 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
             >
               <Sparkles className="w-4 h-4" />
               Simulate Inbound RFI
@@ -524,7 +536,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
               </h4>
               <p className="text-slate-300 leading-relaxed">
                  {addendumResult.isLocalPreview ? "Preview only; this artifact was not filed to Convex Storage. " : "Compiled "}<strong className="text-white">{addendumResult.qaCount} PM-certified RFIs</strong> across{" "}
-                <strong className="text-white">{addendumResult.csiDivisionCount} CSI divisions</strong> into a CSI MasterFormat pre-bid addendum (AIA Document A401 is the separate subcontract form). Filed to the project document register as{" "}
+                <strong className="text-white">{addendumResult.csiDivisionCount} CSI divisions</strong> into a CSI MasterFormat pre-bid addendum (the subcontract draft is a separate A401-style document). Filed to the project document register as{" "}
                 <span className="font-mono text-emerald-400 font-bold">{addendumResult.fileName}</span>.
               </p>
             </div>
@@ -602,8 +614,18 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
         {/* Left 2 Cols: Conversations Feed */}
         <div className="lg:col-span-2 space-y-4">
           {filteredConversations.length === 0 ? (
-            <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-400">
-              No pre-bid RFIs matching this queue filter.
+            <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-400 space-y-1.5">
+              {conversations.length === 0 ? (
+                <>
+                  <p className="text-slate-300 font-semibold">No pre-bid RFIs yet.</p>
+                  <p>
+                    Bidders email questions to this package's AgentMail inbox and they appear here automatically, or use
+                    the form on the right to file one manually. Dispatch RFQs from Discovery first to start the round.
+                  </p>
+                </>
+              ) : (
+                <p>No pre-bid RFIs matching this queue filter.</p>
+              )}
             </div>
           ) : (
             filteredConversations.map((conv) => {
@@ -727,8 +749,8 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                         </span>
 
                         {conv.confidenceScore && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 bg-sky-950 text-sky-300 rounded border border-sky-800">
-                            Confidence: {Math.round(conv.confidenceScore * 100)}%
+                          <span className="text-[10px] font-mono px-2 py-0.5 bg-sky-950 text-sky-300 rounded border border-sky-800"title="Model confidence is self-reported by the LLM and still requires PM certification before it can bind.">
+                            Confidence (self-reported): {Math.round(conv.confidenceScore * 100)}%
                           </span>
                         )}
                       </div>
@@ -903,6 +925,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
               </label>
               <select
                 id="rfi-trade-package"
+                aria-label="Target trade package for this RFI"
                 value={targetPackage._id}
                 onChange={(e) => setSelectedTradePackageId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none font-medium"
@@ -921,6 +944,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
               </label>
               <select
                 value={isCrossPackage ? "guest_contractor" : selectedContractorId}
+                aria-label="Submitting subcontractor"
                 onChange={(e) => setSelectedContractorId(e.target.value)}
                 disabled={isCrossPackage}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none font-medium disabled:opacity-60"
@@ -949,6 +973,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                 type="text"
                 required
                 value={subject}
+                aria-label="RFI subject or scope topic"
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g. Hoisting responsibility for switchgear"
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none"
@@ -963,6 +988,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                 required
                 rows={4}
                 value={question}
+                aria-label="Subcontractor question"
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="Ask a technical or scope coordination question..."
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-sky-500 focus:outline-none leading-relaxed"
@@ -985,7 +1011,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             <button
               type="submit"
               disabled={submitting || !subject.trim() || !question.trim()}
-              className="w-full bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
+              className="w-full bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 transition shadow-sm"
             >
               <Send className="w-3.5 h-3.5" />
               {submitting ? "Analyzing Specifications..." : "Submit RFI for Clarification"}

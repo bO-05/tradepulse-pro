@@ -147,7 +147,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
             {onNavigateToLeveling && (
               <button
                 onClick={onNavigateToLeveling}
-                className="bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                className="bg-sky-700 hover:bg-sky-600 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
               >
                 <Scale className="w-3.5 h-3.5" />
                 Inspect Bid Leveling Matrix
@@ -329,7 +329,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                       <button
                         onClick={() => handleDeduct(clash, targetPkg._id)}
                         disabled={deductingId === clash.id}
-                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                        className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                       >
                         <DollarSign className="w-3.5 h-3.5" />
                         {deductingId === clash.id
@@ -440,7 +440,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                         <button
                           onClick={() => handleAssign(voidItem, elecPkg._id)}
                           disabled={assigningId === voidItem.id}
-                          className="bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                          className="bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                         >
                           <ArrowRight className="w-3.5 h-3.5" />
                           Assign to Div 26 (Electrical)
@@ -495,7 +495,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                 ].filter(Boolean).join(" • ") || "Scope scanned — no resolutions applied yet"})
               </div>
               <div className="text-[11px] text-slate-400">
-                Next Stage: Review and execute the legally binding AIA Document A401 Standard Form Subcontract Agreement.
+                Next Stage: Review and execute the A401-style subcontract draft (external signature required).
               </div>
             </div>
           </div>

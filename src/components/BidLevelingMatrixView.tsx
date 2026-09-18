@@ -1,4 +1,5 @@
 import { getErrorMessage } from "../lib/errors.ts";
+import { buildCsv } from "../lib/csv.ts";
 import React, { useState, useRef } from "react";
 import {
   AlertTriangle,
@@ -32,6 +33,7 @@ import { Bid, TradePackage, Agreement, Contractor, ScopeExclusion, ValueEngineer
 import { extractTextFromPdfStream } from "../standaloneStore.ts";
 import { getDeceptiveBidIds, getSuspiciouslyLowBidIds } from "../leveling.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
 
 interface BidLevelingMatrixViewProps {
   currentPackage: TradePackage | null;
@@ -97,11 +99,23 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   const [isIngesting, setIsIngesting] = useState(false);
   const [isModalDraggingOver, setIsModalDraggingOver] = useState(false);
   const [isEmptyDraggingOver, setIsEmptyDraggingOver] = useState(false);
-  const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
+const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
   const [ingestError, setIngestError] = useState<string | null>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
+  const ingestDialogRef = useDialogFocus<HTMLDivElement>(isIngestModalOpen);
+  useEscapeToClose(
+    isIngestModalOpen,
+    () => {
+      if (!isIngesting) setIsIngestModalOpen(false);
+    },
+    !isIngesting
+  );
+  // A1-01: once a human picks a contractor (or loads a sample), auto-detection
+  // must never silently override that choice or overwrite the typed name.
+  const ingestSelectionTouchedRef = useRef(false);
 
   const autoDetectContractorFromText = (text: string, fileName?: string) => {
+    if (ingestSelectionTouchedRef.current) return;
     const match = text.match(
       /(?:Subcontractor|Sub-contractor|Sub|Bidder|Vendor|Company|Prepared\s*By|Submitted\s*By|Contractor):\s*([A-Za-z0-9\s&.,'-]+?)(?:\r?\n|$)/i
     );
@@ -109,13 +123,15 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
     if (!detectedName && fileName) {
       detectedName = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ").trim();
     }
+    // Require a plausible full name; single-keystroke fragments ("A", "Re") must not stick.
+    if (detectedName && detectedName.length < 4) return;
     if (detectedName) {
       const existing = contractors.find(
         (c) => c.companyName.toLowerCase() === detectedName!.toLowerCase()
       );
       if (existing) {
         setIngestContractorId(existing._id);
-      } else {
+      } else if (!newContractorName.trim()) {
         setIngestContractorId("new_contractor");
         setNewContractorName(detectedName);
       }
@@ -457,7 +473,8 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
           contractorId: effectiveContractorId,
           quoteText: ingestQuoteText,
           fileName: ingestFileName.trim() || undefined,
-          newContractorName: newContractorName.trim() || undefined,
+          newContractorName:
+            effectiveContractorId === "new_contractor" ? newContractorName.trim() || undefined : undefined,
         });
       } else {
         await extractBidAction({
@@ -481,6 +498,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
   };
 
   const populateSampleQuote = (type: "deceptive" | "clean") => {
+    ingestSelectionTouchedRef.current = true;
     setScannedPdfWarning(null);
     const csi = (currentPackage.csiDivision || "").replace(/[^0-9]/g, "");
 
@@ -572,14 +590,11 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
       const totalVeDeduct = alternates.reduce((s, x) => (x.isAccepted ? s + x.costDeduct : s), 0);
       const topCost = sortedBids[0]?.leveledTotalCost ?? bid.leveledTotalCost;
       const variance = index === 0 ? 0 : bid.leveledTotalCost - topCost;
-      const escapedSubName = (bid.subcontractorName || "").replace(/"/g, '""');
-      const escapedTradeName = packageTradeName.replace(/"/g, '""');
-      const escapedCsi = packageCsiDivision.replace(/"/g, '""');
       return [
         `#${index + 1}`,
-        `"${escapedSubName}"`,
-        `"${escapedCsi}"`,
-        `"${escapedTradeName}"`,
+        bid.subcontractorName || "",
+        packageCsiDivision,
+        packageTradeName,
         bid.baseBidAmount,
         exclusions.length,
         totalExclusions,
@@ -587,7 +602,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
         totalVeDeduct,
         bid.longLeadEquipmentWeeks,
         bid.leadTimePenalty,
-        `"${bid.coiComplianceStatus}"`,
+        bid.coiComplianceStatus,
         bid.coiPenalty,
         bid.leveledTotalCost,
         variance,
@@ -595,7 +610,7 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
       ];
     });
 
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const csvContent = buildCsv(headers, rows);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -665,6 +680,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
               return (
                 <button
                   key={pkg._id}
+                  aria-pressed={isSelected}
                   onClick={() => onSelectPackage(pkg._id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition shrink-0 ${
                     isSelected
@@ -701,8 +717,14 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-slate-400">
-                Normalizing contractor quotes to true "apples-to-apples" baselines using{" "}
-                <strong className="text-emerald-300">ADR-0003 Normalization Formula</strong>.
+                Normalizing contractor quotes to true "apples-to-apples" baselines using the{" "}
+                <strong
+                  className="text-emerald-300"
+                  title="Leveled Cost = Base Bid + scope-gap exclusions + lead-time penalty + COI penalty − accepted value-engineering credits. ADR-0003 is the internal name of this normalization formula."
+                >
+                  Leveling Formula (ADR-0003: leveled cost = base + scope gaps + lead-time + COI − accepted VE credits)
+                </strong>
+                .
               </p>
               <button
                 onClick={() => setShowWhyCare(!showWhyCare)}
@@ -826,7 +848,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 transition shadow-md"
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Inspect AIA Document A401 Agreement</span>
+                <span>Inspect Subcontract Draft</span>
                 <span>➔</span>
               </button>
             )}
@@ -881,7 +903,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
               disabled={awardingId === lowestLeveledBid._id}
               onClick={() => handleAwardAndGenerate(lowestLeveledBid._id)}
               className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 shadow transition shrink-0 cursor-pointer active:scale-95"
-              title="Award compliant lowest leveled bidder Rosendin Electric"
+              title={`Award the lowest leveled bidder: ${lowestLeveledBid.subcontractorName} ($${lowestLeveledBid.leveledTotalCost.toLocaleString()} leveled)`}
             >
               <Award className="w-3.5 h-3.5 fill-slate-950" />
               <span>Award Compliant Winner ({lowestLeveledBid.subcontractorName})</span>
@@ -1191,7 +1213,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                             className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-[10px] font-semibold py-1 px-2 rounded flex items-center justify-center gap-1 transition"
                           >
                             <FileText className="w-3 h-3 text-emerald-400" />
-                            Inspect AIA A401
+                            Inspect Draft
                           </button>
                           <button
                             onClick={() => handleUnaward(bid._id)}
@@ -1205,10 +1227,10 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                         <button
                           disabled={awardingId === bid._id}
                           onClick={() => handleAwardAndGenerate(bid._id)}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 px-2 rounded flex items-center justify-center gap-1 transition shadow-sm cursor-pointer active:scale-95"
+                          className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 px-2 rounded flex items-center justify-center gap-1 transition shadow-sm cursor-pointer active:scale-95"
                         >
                           <Award className="w-3 h-3" />
-                          Award & AIA A401
+                          Award & Draft
                         </button>
                       )}
                     </td>
@@ -1461,7 +1483,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                     <div className="space-y-1.5">
                       <div className="w-full bg-emerald-950/60 border border-emerald-800 text-emerald-400 font-bold text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4" />
-                         <span>Contract Awarded • AIA A401 Generated</span>
+                         <span>Contract Awarded • Draft Generated</span>
                          <span className="text-[10px] font-normal text-emerald-300/80">External signature required</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -1470,7 +1492,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                           className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold py-1.5 px-2.5 rounded flex items-center justify-center gap-1 transition"
                         >
                           <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                          Inspect AIA A401
+                          Inspect Draft
                         </button>
                         <button
                           onClick={() => handleUnaward(bid._id)}
@@ -1486,14 +1508,14 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                     <button
                       disabled={awardingId === bid._id}
                       onClick={() => handleAwardAndGenerate(bid._id)}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-lg shadow-emerald-950/20 active:scale-95"
+                      className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition shadow-lg shadow-emerald-950/20 active:scale-95"
                     >
                       <Award className="w-4 h-4" />
                       {awardingId === bid._id
                         ? "Executing Award..."
                         : isWinner
-                        ? "🏆 Award Compliant Winner & Generate AIA A401"
-                        : "Award Subcontract & Generate AIA A401"}
+                        ? "🏆 Award Compliant Winner & Draft Subcontract"
+                        : "Award Subcontract & Draft Agreement"}
                     </button>
                   )}
                 </div>
@@ -1514,7 +1536,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
           </div>
           <p className="text-xs text-slate-400 mt-1 max-w-xl">
             {awardedBid
-              ? `Subcontract awarded to ${awardedBid.subcontractorName}. Proceed to cross-trade scope clash detection or inspect statutory AIA Document A401 terms.`
+              ? `Subcontract awarded to ${awardedBid.subcontractorName}. Proceed to cross-trade scope clash detection or inspect the generated A401-style subcontract draft.`
               : "ADR-0003 leveling normalized base bids against exclusions and penalties. Advance to cross-trade clash coordination or contractual registers."}
           </p>
         </div>
@@ -1542,15 +1564,27 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
 
       {/* Direct Quote / PDF Bid Ingestion Modal */}
       {isIngestModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isIngesting) setIsIngestModalOpen(false);
+          }}
+        >
+          <div
+            ref={ingestDialogRef}
+            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ingest-quote-title"
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-lg bg-sky-950/80 border border-sky-700/60 flex items-center justify-center text-sky-400">
                   <FileUp className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Direct Quote / PDF Bid Ingestion</h3>
+                  <h3 id="ingest-quote-title" className="text-base font-bold text-white">Direct Quote / PDF Bid Ingestion</h3>
                   <p className="text-xs text-slate-400">
                     Extract proposal line items, exclusions, lead times, and COI limits using AI extraction
                   </p>
@@ -1558,6 +1592,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
               </div>
               <button
                 onClick={() => setIsIngestModalOpen(false)}
+                aria-label="Close quote ingestion dialog"
                 className="p-2 text-slate-400 hover:text-white rounded-lg transition"
               >
                 <X className="w-4 h-4" />
@@ -1572,8 +1607,12 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 </label>
                 {contractors.length > 0 ? (
                   <select
+                    aria-label="Subcontractor or bidder for this proposal"
                     value={ingestContractorId}
-                    onChange={(e) => setIngestContractorId(e.target.value)}
+                    onChange={(e) => {
+                      ingestSelectionTouchedRef.current = true;
+                      setIngestContractorId(e.target.value);
+                    }}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-medium focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     required={contractors.length > 0 && ingestContractorId !== "new_contractor"}
                   >
@@ -1594,6 +1633,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   <input
                     type="text"
                     value={newContractorName}
+                    aria-label="New subcontractor company name"
                     onChange={(e) => setNewContractorName(e.target.value)}
                     placeholder="Enter Subcontractor Company Name (e.g. Apex Mechanical Systems)..."
                     className="w-full mt-2 bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-medium focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -1678,6 +1718,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 </label>
                 <input
                   type="text"
+                  aria-label="Document or proposal filename"
                   value={ingestFileName}
                   onChange={(e) => setIngestFileName(e.target.value)}
                   placeholder="e.g. Acme_Electrical_Final_Bid_Revision_2.pdf"
@@ -1715,13 +1756,16 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 </label>
                 <textarea
                   rows={6}
+                  aria-label="Proposal OCR text or pasted quote"
                   value={ingestQuoteText}
                   onChange={(e) => {
                     const val = e.target.value;
                     setIngestQuoteText(val);
-                    if (!newContractorName.trim()) {
-                      autoDetectContractorFromText(val);
-                    }
+                  }}
+                  onBlur={(e) => {
+                    // Detect only after the paste/typing settles, and never when a
+                    // contractor was explicitly chosen.
+                    autoDetectContractorFromText(e.target.value);
                   }}
                   placeholder="Paste raw text or PDF transcript of vendor quote with base price, exclusions, lead time, and insurance details..."
                   className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 font-mono text-slate-200 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none leading-relaxed"
@@ -1761,7 +1805,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                       (contractors.length > 0 && !ingestContractorId) ||
                       ((contractors.length === 0 || ingestContractorId === "new_contractor") && !newContractorName.trim())
                     }
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
                   >
                     <FileUp className="w-4 h-4" />
                     {isIngesting ? "Extracting & Normalizing via AI..." : "Extract & Level Bid"}
@@ -1897,7 +1941,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   <button
                     type="button"
                     onClick={handleAddExclusion}
-                    className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 transition"
+                    className="bg-amber-700 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 transition"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Exclusion
                   </button>
@@ -2031,7 +2075,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   type="button"
                   disabled={isSavingAdjustments}
                   onClick={handleSaveAdjustments}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
                 >
                   <Check className="w-4 h-4" />
                   {isSavingAdjustments ? "Saving Adjustments..." : "Save Leveling Adjustments"}
@@ -2054,7 +2098,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                    AIA Document A401™ Subcontract Agreement
+                    A401-style Subcontract Draft
                     {activeAgreement?.status === "executed" ? (
                       <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">
                         Execution status recorded • external signature required
@@ -2146,7 +2190,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                         </div>
                         <div>
                           <div className="font-bold text-xs tracking-wider uppercase text-emerald-300">
-                            ✓ Execution recorded in TradePulse for AIA Document A401™-2017
+                            ✓ Execution recorded in TradePulse for this A401-style draft
                           </div>
                           <div className="text-[10px] text-emerald-400/80 font-mono">
                             Audit record: {activeAgreement.agreementNumber}-EXE • External signature verification required
@@ -2166,7 +2210,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
               ) : (
                 <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
                   <Clock className="w-4 h-4 animate-spin text-emerald-400" />
-                  Generating AIA Document A401 Standard Subcontract Agreement...
+                  Generating A401-style Subcontract Draft...
                 </div>
               )}
             </div>
@@ -2176,7 +2220,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
               <div className="p-4 border-t border-slate-800 bg-slate-900 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="text-slate-400 text-[11px] flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Official AIA Document A401™ Standard Form • Verified CSI Division {activeAgreement.csiDivision}
+                  Generated A401-style draft — not an AIA-licensed form • Verified CSI Division {activeAgreement.csiDivision}
                 </div>
 
                 <div className="flex items-center gap-2">

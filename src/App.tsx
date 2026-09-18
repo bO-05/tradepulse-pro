@@ -1469,7 +1469,7 @@ export const App: React.FC = () => {
             bidId,
             contractorId: targetBid.contractorId,
             agreementNumber: agrNumber,
-            documentTitle: "AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor",
+            documentTitle: "Subcontract Agreement (A401-style structure) — generated draft, not an AIA-licensed form",
             subcontractorName: targetBid.subcontractorName,
             subcontractorEmail: subContractor?.contactEmail,
             generalContractorName: currentProject?.generalContractorName || "Austin Commercial, LP",
@@ -1492,7 +1492,7 @@ export const App: React.FC = () => {
             tradePackageId,
             eventType: "contract_awarded",
             title: `Subcontract Awarded: ${targetBid?.subcontractorName || "Subcontractor"}`,
-            description: `Awarded trade buyout to ${targetBid?.subcontractorName} ($${(targetBid?.baseBidAmount || 1225000).toLocaleString()}) and generated official AIA Document A401 (${agrNumber}).`,
+            description: `Awarded trade buyout to ${targetBid?.subcontractorName} ($${(targetBid?.baseBidAmount || 1225000).toLocaleString()}) and generated an A401-style subcontract draft (${agrNumber}).`,
             actor: "Apex General Partnership Procurement Committee",
             timestamp: Date.now(),
           };
@@ -1513,7 +1513,7 @@ export const App: React.FC = () => {
           };
         });
       }
-       showToast("Subcontract award and AIA Document A401 generated successfully.");
+       showToast("Subcontract draft generated successfully.");
       } catch (err: any) {
        showToast(`Award failed: ${getErrorMessage(err) || "The agreement was not generated."}`);
        throw err;
@@ -1981,7 +1981,7 @@ export const App: React.FC = () => {
         };
       });
       }
-      showToast("AIA Document A401 execution status recorded; external signature verification remains required.");
+      showToast("Subcontract execution status recorded; external signature verification remains required.");
     } catch (err: any) {
       showToast(`Agreement execution failed: ${getErrorMessage(err) || "The agreement was not updated."}`);
       throw err;
@@ -2042,7 +2042,7 @@ export const App: React.FC = () => {
             licenseNumber: `${statePrefix}-LIC-VERIFIED`,
             licenseStatus: "active",
             sourceUrl: contact.url,
-            rfqStatus: "bid_received",
+            rfqStatus: "invited",
           });
         }
         const result: any = await extractBidAction({
@@ -3255,7 +3255,7 @@ export const App: React.FC = () => {
         projectId: currentProject._id as any,
         tradePackageId: targetPkgId as any,
       });
-      return `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with AIA A401 Agreement ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${res.deceptiveBidder} (lead-time and COI penalties are normalized separately).`;
+      return `✓ Full Autonomous Lifecycle Complete! Awarded ${res.winningBidder} ($${res.winningLeveledCost.toLocaleString()}) with subcontract draft ${res.agreementNumber}. Forensic leveling engine caught $${res.hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope exclusions from ${res.deceptiveBidder} (lead-time and COI penalties are normalized separately).`;
     }
 
     // Standalone full cycle execution
@@ -3322,7 +3322,7 @@ export const App: React.FC = () => {
         bidId: winningBidId,
         contractorId: winningContractorId,
         agreementNumber: agrNumber,
-        documentTitle: "AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor",
+        documentTitle: "Subcontract Agreement (A401-style structure) — generated draft, not an AIA-licensed form",
         subcontractorName: winningBidder,
         generalContractorName: "Austin Commercial, LP",
         projectTitle: currentProject?.title || "Commercial Construction Project",
@@ -3335,7 +3335,7 @@ export const App: React.FC = () => {
         scopeSummary: pkg?.scopeSummary || "Complete commercial trade scope.",
         mandatoryInclusions: pkg?.mandatoryInclusions || [],
         status: "executed",
-        contractText: `AIA Document A401™ - 2017 Standard Form of Agreement Between Contractor and Subcontractor\nSubcontract Sum: $${winningContractSum.toLocaleString()}\nStatus: EXECUTED & LEGALLY BINDING\nRetainage: 10.0%\nLiquidated Damages: $1,200.00/calendar day\nSubcontractor: ${winningBidder}\nTrade Package: CSI ${pkg?.csiDivision || "26 00 00"} - ${pkg?.tradeName || "Trade Scope"}`,
+        contractText: `Subcontract Agreement (A401-style structure) — generated draft, not an AIA-licensed form\nSubcontract Sum: $${winningContractSum.toLocaleString()}\nStatus: EXECUTED & LEGALLY BINDING\nRetainage: 10.0%\nLiquidated Damages: $1,200.00/calendar day\nSubcontractor: ${winningBidder}\nTrade Package: CSI ${pkg?.csiDivision || "26 00 00"} - ${pkg?.tradeName || "Trade Scope"}`,
         executedAt: Date.now(),
         createdAt: Date.now(),
       };
@@ -3361,7 +3361,7 @@ export const App: React.FC = () => {
       };
     });
 
-    return `✓ Full Autonomous Lifecycle Complete! Awarded ${winningBidder} ($${winningLeveledCost.toLocaleString()}) with AIA A401 Agreement ${agrNumber}. Forensic leveling engine caught $${hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope gaps from ${deceptiveBidder}!`;
+    return `✓ Full Autonomous Lifecycle Complete! Awarded ${winningBidder} ($${winningLeveledCost.toLocaleString()}) with subcontract draft ${agrNumber}. Forensic leveling engine caught $${hiddenExclusionsCaughtCost.toLocaleString()} in hidden scope gaps from ${deceptiveBidder}!`;
   };
 
   const handleRunDeadlineCron = async () => {
@@ -3530,7 +3530,7 @@ export const App: React.FC = () => {
         await handleExecuteAgreement(activeAgr._id);
       }
       setActiveTab("audit");
-      showToast("AIA Document A401 execution status recorded. Viewing Live Activity Audit Stream.");
+      showToast("Subcontract execution status recorded. Viewing Live Activity Audit Stream.");
     }
   };
 
@@ -3772,6 +3772,8 @@ export const App: React.FC = () => {
         onTriggerSimulation={handleTriggerSimulation}
         onResetSeedData={handleResetSeedData}
         projectId={currentProject?._id}
+        projectTitle={currentProject?.title}
+        isDemoProject={Boolean(currentProject?.isDemoProject)}
         onRunFullCycle={handleRunFullProcurementCycle}
       />
 

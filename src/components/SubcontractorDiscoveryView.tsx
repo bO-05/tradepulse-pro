@@ -25,6 +25,7 @@ import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Contractor, TradePackage } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
 
 interface SubcontractorDiscoveryViewProps {
   currentPackage: TradePackage | null;
@@ -94,6 +95,8 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
   // Add Contractor Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
+  const addDialogRef = useDialogFocus<HTMLDivElement>(isAddModalOpen);
+  useEscapeToClose(isAddModalOpen, () => setIsAddModalOpen(false), !isSubmittingAdd);
   const [addForm, setAddForm] = useState({
     companyName: "",
     contactEmail: "",
@@ -106,6 +109,8 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
   // Edit Contractor Modal State
   const [editingContractor, setEditingContractor] = useState<Contractor | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const editDialogRef = useDialogFocus<HTMLDivElement>(Boolean(editingContractor));
+  useEscapeToClose(Boolean(editingContractor), () => setEditingContractor(null), !isSubmittingEdit);
   const [editForm, setEditForm] = useState({
     companyName: "",
     contactEmail: "",
@@ -355,6 +360,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
               return (
                 <button
                   key={pkg._id}
+                  aria-pressed={isSelected}
                   onClick={() => onSelectPackage(pkg._id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition shrink-0 ${
                     isSelected
@@ -644,17 +650,24 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
       {/* Add Contractor Manually Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSubmittingAdd) setIsAddModalOpen(false);
+          }}
+        >
+          <div ref={addDialogRef} className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="add-contractor-title">
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-700/60 flex items-center justify-center text-emerald-400">
                   <Plus className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-white">Add Contractor Manually</h3>
+                <h3 id="add-contractor-title" className="text-base font-bold text-white">Add Contractor Manually</h3>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
+                aria-label="Close add contractor dialog"
                 className="p-2 text-slate-400 hover:text-white rounded-lg transition"
               >
                 <X className="w-4 h-4" />
@@ -747,7 +760,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <button
                   type="submit"
                   disabled={isSubmittingAdd}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
                   {isSubmittingAdd ? "Adding..." : "Add to Directory"}
@@ -760,17 +773,24 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
       {/* Edit Contractor Modal */}
       {editingContractor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSubmittingEdit) setEditingContractor(null);
+          }}
+        >
+          <div ref={editDialogRef} className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="edit-contractor-title">
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-sky-950/80 border border-sky-700/60 flex items-center justify-center text-sky-400">
                   <Edit2 className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-white">Edit Contractor Details</h3>
+                <h3 id="edit-contractor-title" className="text-base font-bold text-white">Edit Contractor Details</h3>
               </div>
               <button
                 onClick={() => setEditingContractor(null)}
+                aria-label="Close edit contractor dialog"
                 className="p-2 text-slate-400 hover:text-white rounded-lg transition"
               >
                 <X className="w-4 h-4" />
@@ -858,7 +878,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
                 >
                   <Check className="w-4 h-4" />
                   {isSubmittingEdit ? "Saving..." : "Save Changes"}

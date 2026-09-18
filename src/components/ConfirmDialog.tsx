@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, X } from "lucide-react";
+import { lockBodyScroll } from "../lib/useDialogFocus.ts";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   useEffect(() => {
     if (!open) return;
     restoreFocusRef.current = (document.activeElement as HTMLElement) || null;
+    const releaseScrollLock = lockBodyScroll();
     openDialogCount += 1;
     zIndexRef.current = 70 + openDialogCount;
     isTopmostRef.current = true;
@@ -69,6 +71,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      releaseScrollLock();
       isTopmostRef.current = false;
       openDialogCount = Math.max(0, openDialogCount - 1);
       const restore = restoreFocusRef.current;
@@ -145,7 +148,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             type="button"
             onClick={handleConfirm}
             disabled={isConfirming}
-            className={`rounded-lg px-3.5 py-2 text-xs font-bold text-white transition disabled:opacity-50 ${danger ? "bg-rose-600 hover:bg-rose-500" : "bg-amber-600 hover:bg-amber-500"}`}
+            className={`rounded-lg px-3.5 py-2 text-xs font-bold text-white transition disabled:opacity-50 ${danger ? "bg-rose-600 hover:bg-rose-500" : "bg-amber-700 hover:bg-amber-600"}`}
           >
             {isConfirming ? "Working..." : confirmLabel}
           </button>

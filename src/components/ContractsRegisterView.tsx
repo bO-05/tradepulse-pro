@@ -136,7 +136,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="font-mono text-xs font-bold px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded">
-                AIA Document A401™ Standard
+                A401-style Subcontract Draft
               </span>
               <h2 className="text-lg font-bold text-white tracking-tight">
                 Subcontract Agreements Register
@@ -179,7 +179,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
         {showWhyCare && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 leading-relaxed bg-slate-950/60 rounded-lg p-3 border animate-in fade-in">
             <span className="font-semibold text-emerald-400">Legal Safeguard: </span>
-            Manual subcontract generation takes 2 to 3 weeks of administrative delay, risking jobsite mobilization and material escalation costs. TradePulse Pro instantly generates standardized, 10-article <strong className="text-emerald-300 font-semibold">AIA Document A401 Subcontract Agreements</strong> populated with negotiated contract sums, mandatory inclusions, retainage percentages (10%), and liquidated damages for completion delay ($1,200/calendar day; ADR-0003 lead-time adjustments of $6,000/week are a separate schedule-impact term)—ready for execution and export.
+            Manual subcontract generation takes 2 to 3 weeks of administrative delay, risking jobsite mobilization and material escalation costs. TradePulse Pro instantly generates standardized, 10-article <strong className="text-emerald-300 font-semibold">A401-style subcontract drafts</strong> populated with negotiated contract sums, mandatory inclusions, retainage percentages (10%), and liquidated damages for completion delay ($1,200/calendar day; ADR-0003 lead-time adjustments of $6,000/week are a separate schedule-impact term)—ready for execution and export.
           </div>
         )}
       </div>
@@ -229,7 +229,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
           <h3 className="text-base font-bold text-white">No Subcontract Agreements Found</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
             {agreements.length === 0
-              ? "When you award a leveled bid in the Bid Leveling Matrix, TradePulse Pro automatically generates an authentic AIA Document A401 standard agreement."
+              ? "When you award a leveled bid in the Bid Leveling Matrix, TradePulse Pro automatically generates an A401-style subcontract draft for external execution."
               : "No agreements match your search criteria."}
           </p>
           {onNavigateToLeveling && agreements.length === 0 && (
@@ -305,7 +305,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                         className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 inline-flex items-center gap-1 transition"
                       >
                         <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                        Inspect AIA A401
+                        Inspect Draft
                       </button>
 
                       {agr.status !== "executed" && (
@@ -364,7 +364,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                    AIA Document A401™ Subcontract Agreement
+                    A401-style Subcontract Draft
                     {selectedAgreement.status === "executed" ? (
                       <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">
                          Execution Status Recorded • Signature Verification Required
@@ -451,7 +451,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                       </div>
                       <div>
                         <div className="font-bold text-xs tracking-wider uppercase text-emerald-300">
-                          ✓ Execution recorded in TradePulse for AIA Document A401™-2017
+                          ✓ Execution recorded in TradePulse for this A401-style draft
                         </div>
                         <div className="text-[10px] text-emerald-400/80 font-mono">
                           Audit record: {selectedAgreement.agreementNumber}-EXE • External signature verification required
@@ -474,7 +474,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
             <div className="p-4 border-t border-slate-800 bg-slate-900 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="text-slate-400 text-[11px] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                Official AIA Document A401™ Standard Form of Agreement • Prime Project: {selectedAgreement.projectTitle}
+                Generated A401-style draft — not an AIA-licensed form • Prime Project: {selectedAgreement.projectTitle}
               </div>
 
               <div className="flex items-center gap-2">
