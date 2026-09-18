@@ -29,14 +29,13 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
     awardedPackages,
     totalPackages,
     buyoutProgressPercent,
-    packagesUsingBudget,
+    leveledBuyoutCaption,
+    leveledBuyoutShort,
+    varianceIsLeveled,
   } = metrics;
 
   const [isCompact, setIsCompact] = React.useState(true);
-  const leveledSourceNote =
-    packagesUsingBudget > 0
-      ? `Best leveled bid per package; ${packagesUsingBudget} package${packagesUsingBudget === 1 ? "" : "s"} still using budget estimate`
-      : "Best leveled bid per package";
+  const varianceTone = varianceIsLeveled ? (isSavings ? "text-emerald-400" : "text-rose-400") : "text-slate-300";
 
   if (isCompact) {
     return (
@@ -50,16 +49,28 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
               Budget: <strong className="font-mono text-white font-bold">${totalBudget.toLocaleString()}</strong>
             </span>
             <span className="text-slate-700 hidden sm:inline">•</span>
-            <span className="text-slate-300 font-medium" title={leveledSourceNote}>
+            <span className="text-slate-300 font-medium" title={leveledBuyoutCaption}>
               Leveled Buyout: <strong className={`font-mono font-bold ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>${totalLeveledBuyout.toLocaleString()}</strong>
-              <span className="text-[10px] font-mono text-slate-400 ml-1">(best bid per package)</span>
+              <span className="text-[10px] font-mono text-slate-400 ml-1">({leveledBuyoutShort})</span>
             </span>
             <span className="text-slate-700 hidden sm:inline">•</span>
             <span className="text-slate-300 font-medium">
-              Variance: <strong className={`font-mono font-bold ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>{isSavings ? `+$${variance.toLocaleString()}` : `-$${Math.abs(variance).toLocaleString()}`}</strong>
-              <span className={`text-[10px] font-mono ml-1 font-bold ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>
-                ({variancePercent.toFixed(1)}%)
-              </span>
+              {varianceIsLeveled ? (
+                <>
+                  Variance: <strong className={`font-mono font-bold ${varianceTone}`}>{isSavings ? `+$${variance.toLocaleString()}` : `-$${Math.abs(variance).toLocaleString()}`}</strong>
+                  <span className={`text-[10px] font-mono ml-1 font-bold ${varianceTone}`}>
+                    ({variancePercent.toFixed(1)}%)
+                  </span>
+                </>
+              ) : (
+                <>
+                  Budget vs scope estimate:{" "}
+                  <strong className="font-mono font-bold text-slate-300">
+                    {variance >= 0 ? `+$${variance.toLocaleString()}` : `-$${Math.abs(variance).toLocaleString()}`}
+                  </strong>
+                  <span className="text-[10px] font-mono ml-1 text-slate-400">(not bid-based)</span>
+                </>
+              )}
             </span>
             {deceptiveBidsCount > 0 && (
               <>
@@ -144,8 +155,8 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
             <div className={`text-base sm:text-lg font-black font-mono ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>
               ${totalLeveledBuyout.toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 font-medium" title={leveledSourceNote}>
-              Best leveled bid per package
+            <div className="text-[10px] text-slate-400 font-medium" title={leveledBuyoutCaption}>
+              {leveledBuyoutCaption}
             </div>
           </div>
         </div>
@@ -153,15 +164,21 @@ export const ExecutiveKpiBar: React.FC<ExecutiveKpiBarProps> = ({ metrics, proje
         {/* KPI 3: Buyout Savings / Variance */}
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] uppercase tracking-wider font-semibold">Variance vs Budget</span>
-            <TrendingDown className={`w-3.5 h-3.5 ${isSavings ? "text-emerald-400" : "text-rose-400"}`} />
+            <span className="text-[10px] uppercase tracking-wider font-semibold">
+              {varianceIsLeveled ? "Variance vs Budget" : "Budget vs Scope Estimate"}
+            </span>
+            <TrendingDown className={`w-3.5 h-3.5 ${varianceTone}`} />
           </div>
           <div>
-            <div className={`text-base sm:text-lg font-black font-mono ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>
+            <div className={`text-base sm:text-lg font-black font-mono ${varianceTone}`}>
               {isSavings ? `+$${variance.toLocaleString()}` : `-$${Math.abs(variance).toLocaleString()}`}
             </div>
-            <div className={`text-[10px] font-semibold ${isSavings ? "text-emerald-400" : "text-rose-400"}`}>
-              {isSavings ? `Savings: ${variancePercent.toFixed(1)}%` : `Over Budget: ${Math.abs(variancePercent).toFixed(1)}%`}
+            <div className={`text-[10px] font-semibold ${varianceTone}`}>
+              {varianceIsLeveled
+                ? isSavings
+                  ? `Savings: ${variancePercent.toFixed(1)}%`
+                  : `Over Budget: ${Math.abs(variancePercent).toFixed(1)}%`
+                : "Not a bid-based saving — no proposals leveled yet"}
             </div>
           </div>
         </div>

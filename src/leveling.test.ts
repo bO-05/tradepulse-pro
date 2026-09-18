@@ -115,6 +115,11 @@ test("Headline numbers reconcile with the seeded demo data set", () => {
   // Award count comes from the agreement, so KPI and stepper cannot disagree.
   expect(metrics.awardedPackages).toBe(1);
   expect(metrics.totalPackages).toBe(3);
+  // Every package has a real bid, so the leveled total is bid-based (F2).
+  expect(metrics.leveledBasis).toBe("bids");
+  expect(metrics.varianceIsLeveled).toBe(true);
+  expect(metrics.leveledBuyoutCaption).toBe("Best leveled bid per package");
+  expect(metrics.leveledBuyoutShort).toBe("best bid per package");
 });
 
 test("Superseded agreements do not count as awards", () => {
@@ -131,12 +136,32 @@ test("Packages without bids use their budget estimate and expose no gaps", () =>
   expect(metrics.gapsCaught).toBe(0);
   expect(metrics.packagesUsingBudget).toBe(2);
   expect(metrics.awardedPackages).toBe(0);
+  // F2: zero bids means the figure is a budget estimate, never a bid-based buyout.
+  expect(metrics.leveledBasis).toBe("budget");
+  expect(metrics.varianceIsLeveled).toBe(false);
+  expect(metrics.leveledBuyoutCaption).toContain("Budget estimates only");
+  expect(metrics.leveledBuyoutCaption).not.toContain("Best leveled bid");
+  expect(metrics.leveledBuyoutShort).toBe("budget estimates only");
+});
+
+test("F2: a mixed portfolio reports the budget share and never claims all-bid variance", () => {
+  const packages = [pkg("p26", 1_000_000, "leveling"), pkg("p23", 2_000_000, "draft")];
+  const bids = [bid({ _id: "b1", tradePackageId: "p26", leveledTotalCost: 950_000 })];
+  const metrics = computeProcurementMetrics({ estBudget: 3_500_000 }, packages, bids, []);
+  expect(metrics.totalLeveledBuyout).toBe(2_950_000);
+  expect(metrics.leveledBasis).toBe("mixed");
+  expect(metrics.varianceIsLeveled).toBe(false);
+  expect(metrics.leveledBuyoutShort).toBe("1/2 pkgs on budget estimates");
+  expect(metrics.leveledBuyoutCaption).toContain("still on budget estimates");
 });
 
 test("Buyout equals budget when a project has no packages and no bids", () => {
   const metrics = computeProcurementMetrics({ estBudget: 5_500_000 }, [], [], []);
   expect(metrics.totalLeveledBuyout).toBe(5_500_000);
   expect(metrics.variance).toBe(0);
+  expect(metrics.leveledBasis).toBe("empty");
+  expect(metrics.varianceIsLeveled).toBe(false);
+  expect(metrics.leveledBuyoutShort).toBe("project budget");
 });
 
 test("Out-of-band low bids are flagged below 50% of the package budget", () => {

@@ -98,6 +98,14 @@ export interface ProcurementMetrics {
   variance: number;
   variancePercent: number;
   isSavings: boolean;
+  /** What the leveled total is actually made of, so labels can tell the truth. */
+  leveledBasis: "bids" | "mixed" | "budget" | "empty";
+  /** Full caption for card surfaces. */
+  leveledBuyoutCaption: string;
+  /** Compact caption for the always-visible KPI strip. */
+  leveledBuyoutShort: string;
+  /** True only when every package has a real leveled bid (no budget fallbacks). */
+  varianceIsLeveled: boolean;
   deceptiveBidIds: string[];
   deceptiveBidsCount: number;
   gapsCaught: number;
@@ -152,6 +160,38 @@ export function computeProcurementMetrics(
   const variance = totalBudget - totalLeveledBuyout;
   const variancePercent = totalBudget > 0 ? (variance / totalBudget) * 100 : 0;
 
+  // Basis of the leveled total. Claiming "best bid per package" while any package
+  // is standing on its budget estimate is a false procurement signal (F2).
+  const leveledBasis: ProcurementMetrics["leveledBasis"] =
+    tradePackages.length === 0
+      ? "empty"
+      : packagesUsingBudget === 0
+      ? "bids"
+      : packagesWithBids === 0
+      ? "budget"
+      : "mixed";
+
+  const pkgWord = (n: number) => `${n} package${n === 1 ? "" : "s"}`;
+  const leveledBuyoutCaption =
+    leveledBasis === "bids"
+      ? "Best leveled bid per package"
+      : leveledBasis === "mixed"
+      ? `Best leveled bid where available; ${packagesUsingBudget} of ${tradePackages.length} packages still on budget estimates`
+      : leveledBasis === "budget"
+      ? `Budget estimates only — no bids received yet (${pkgWord(packagesUsingBudget)} pending)`
+      : "Project budget — no trade packages scoped yet";
+
+  const leveledBuyoutShort =
+    leveledBasis === "bids"
+      ? "best bid per package"
+      : leveledBasis === "mixed"
+      ? `${packagesUsingBudget}/${tradePackages.length} pkgs on budget estimates`
+      : leveledBasis === "budget"
+      ? "budget estimates only"
+      : "project budget";
+
+  const varianceIsLeveled = leveledBasis === "bids";
+
   // Award source of truth: a non-superseded subcontract agreement exists,
   // or a bid is explicitly awarded, or the package status says awarded.
   const awardedPkgIds = new Set<string>();
@@ -175,6 +215,10 @@ export function computeProcurementMetrics(
     variance,
     variancePercent,
     isSavings: variance >= 0,
+    leveledBasis,
+    leveledBuyoutCaption,
+    leveledBuyoutShort,
+    varianceIsLeveled,
     deceptiveBidIds: [...deceptiveBidIds],
     deceptiveBidsCount: [...deceptiveBidIds].reduce(
       (count, bidId) => count + allBids.filter((bid) => bid._id === bidId).length,
