@@ -23,6 +23,7 @@ import {
 export const SponsorDiagnosticsView: React.FC = () => {
   // Real-World Chief Estimator Evaluation State & Telemetry
   const latestEvalData = useQuery((api as any).evals.getLatestEvalRun, {});
+  const providerAvailability = useQuery((api as any).llmRouter.getProviderAvailability, {});
   const executeEvalSuiteAction = useAction((api as any).evals.executeEvalSuite);
   const [isRunningEvals, setIsRunningEvals] = useState<boolean>(false);
   const [expandedTraceCaseId, setExpandedTraceCaseId] = useState<string | null>(null);
@@ -72,48 +73,56 @@ export const SponsorDiagnosticsView: React.FC = () => {
     accuracyScore: number | null;
     sampleOutput: string;
     isLive: boolean;
+    unavailable?: boolean;
+    usedFallback?: boolean;
+    requestedProvider?: string;
    } | null>(null);
 
   const modelsConfig = {
     gemini: {
       name: "Gemini 3.8 Flash",
       provider: "Google Cloud Vertex AI / Gemini",
-      role: "High-Throughput Workhorse (300 tok/s)",
-      badge: "Fastest / Low-Cost Workhorse",
+      role: "High-throughput CSI spec breakdown and pre-bid RFI auto-replies",
+      badge: "High-Throughput Route",
       color: "border-blue-500 text-blue-400 bg-blue-950/40",
       activeBg: "bg-blue-900/30 border-blue-500 ring-1 ring-blue-500/50",
-      throughput: 305,
-      latencyBase: 340,
-      inputCostPer1M: 0.75,
-      outputCostPer1M: 3.75,
-      strengths: "Vertex AI REST & AI Studio support: 100+ page CSI spec ingestion, pre-bid RFI auto-replies at 300 tokens/sec.",
+      referenceInputCostPer1M: 0.75,
+      referenceOutputCostPer1M: 3.75,
+      keyEnv: "GEMINI_API_KEY",
+      availabilityKey: "gemini",
+      strengths: "Handles 100+ page CSI specification ingestion and RFI drafting.",
     },
     openai: {
-      name: "OpenAI GPT-4o / GPT-5.6 Luna",
+      name: "OpenAI GPT-4o",
       provider: "OpenAI",
-      role: "Primary Sponsor Pipeline & JSON Extraction",
-      badge: "Sponsor Core Adapter",
+      role: "Structured JSON extraction and proposal normalization (BYOK adapter)",
+      badge: "BYOK Adapter",
       color: "border-emerald-500 text-emerald-400 bg-emerald-950/40",
       activeBg: "bg-emerald-900/30 border-emerald-500 ring-1 ring-emerald-500/50",
-      throughput: 115,
-      latencyBase: 580,
-      inputCostPer1M: 2.50,
-      outputCostPer1M: 10.00,
-      strengths: "Strict JSON schema enforcement, subcontractor quote data normalization.",
+      referenceInputCostPer1M: 2.5,
+      referenceOutputCostPer1M: 10.0,
+      keyEnv: "OPENAI_API_KEY",
+      availabilityKey: "openai",
+      strengths: "Strict JSON schema enforcement for subcontractor quote data.",
     },
     claude: {
       name: "Claude Sonnet 5",
       provider: "Anthropic",
-      role: "Forensic Fine-Print & Scope Reasoner",
+      role: "Forensic fine-print and scope-gap reasoning",
       badge: "Forensic Reasoning",
       color: "border-purple-500 text-purple-400 bg-purple-950/40",
       activeBg: "bg-purple-900/30 border-purple-500 ring-1 ring-purple-500/50",
-      throughput: 88,
-      latencyBase: 760,
-      inputCostPer1M: 3.00,
-      outputCostPer1M: 15.00,
-      strengths: "Deep fine-print contract qualification analysis and liquidated delay risk audit.",
+      referenceInputCostPer1M: 3.0,
+      referenceOutputCostPer1M: 15.0,
+      keyEnv: "ANTHROPIC_API_KEY",
+      availabilityKey: "claude",
+      strengths: "Deep contract qualification analysis and delay-risk audit.",
     },
+  } as const;
+
+  const isProviderConfigured = (key: "gemini" | "openai" | "claude"): boolean | null => {
+    if (!providerAvailability) return null;
+    return Boolean((providerAvailability as any)[key]);
   };
 
   const runDiagnosticAction = useAction((api as any).llmRouter.runModelDiagnostic);
@@ -129,8 +138,8 @@ export const SponsorDiagnosticsView: React.FC = () => {
         });
 
         const totalCostUsd =
-          (res.inputTokens / 1_000_000) * config.inputCostPer1M +
-          (res.outputTokens / 1_000_000) * config.outputCostPer1M;
+          (res.inputTokens / 1_000_000) * config.referenceInputCostPer1M +
+          (res.outputTokens / 1_000_000) * config.referenceOutputCostPer1M;
 
         setBenchmarkResult({
           model: `${config.name} (${res.model})`,
@@ -139,35 +148,33 @@ export const SponsorDiagnosticsView: React.FC = () => {
           throughputTokSec: res.throughputTokSec,
           inputTokens: res.inputTokens,
           outputTokens: res.outputTokens,
-          inputCostPer1M: config.inputCostPer1M,
-          outputCostPer1M: config.outputCostPer1M,
+          inputCostPer1M: config.referenceInputCostPer1M,
+          outputCostPer1M: config.referenceOutputCostPer1M,
           totalCostUsd: Number(totalCostUsd.toFixed(6)),
           accuracyScore: null,
           sampleOutput: res.content.slice(0, 400) + (res.content.length > 400 ? "..." : ""),
-          isLive: true,
+          isLive: res.isLive !== false,
+          unavailable: Boolean(res.unavailable),
+          usedFallback: Boolean(res.usedFallback),
+          requestedProvider: res.requestedProvider,
         });
       }
     } catch (err: any) {
       console.warn("Live model diagnostic invocation error:", err);
-      const fallbackLatency = config.latencyBase;
-      const inputTokens = 1480;
-      const outputTokens = 480;
-      const totalCostUsd =
-        (inputTokens / 1_000_000) * config.inputCostPer1M +
-        (outputTokens / 1_000_000) * config.outputCostPer1M;
       setBenchmarkResult({
         model: config.name,
         provider: config.provider,
-        latencyMs: fallbackLatency,
-        throughputTokSec: config.throughput,
-        inputTokens,
-        outputTokens,
-        inputCostPer1M: config.inputCostPer1M,
-        outputCostPer1M: config.outputCostPer1M,
-        totalCostUsd: Number(totalCostUsd.toFixed(6)),
-          accuracyScore: null,
-          sampleOutput: `[${config.name}] Live diagnostic offline fallback.`,
-          isLive: false,
+        latencyMs: 0,
+        throughputTokSec: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        inputCostPer1M: config.referenceInputCostPer1M,
+        outputCostPer1M: config.referenceOutputCostPer1M,
+        totalCostUsd: 0,
+        accuracyScore: null,
+        sampleOutput: `Diagnostic could not complete: ${String(err?.message || err).slice(0, 240)}`,
+        isLive: false,
+        unavailable: true,
       });
     } finally {
       setIsBenchmarking(false);
@@ -561,6 +568,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
           {(Object.keys(modelsConfig) as Array<keyof typeof modelsConfig>).map((key) => {
             const m = modelsConfig[key];
             const isSelected = selectedModel === key;
+            const configured = isProviderConfigured(m.availabilityKey);
             return (
               <div
                 key={key}
@@ -587,17 +595,19 @@ export const SponsorDiagnosticsView: React.FC = () => {
                   <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">{m.role}</p>
 
                   <div className="space-y-1.5 text-[11px] text-slate-300 border-t border-slate-800/80 pt-2.5">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Throughput:</span>
-                      <span className="font-mono font-bold text-white">{m.throughput} tok/s</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Status:</span>
+                      {configured === null ? (
+                        <span className="font-mono text-slate-400">Checking…</span>
+                      ) : configured ? (
+                        <span className="font-mono font-bold text-emerald-400">Live — key configured</span>
+                      ) : (
+                        <span className="font-mono font-bold text-amber-300">Adapter ready — {m.keyEnv} not set</span>
+                      )}
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Input Cost / 1M:</span>
-                      <span className="font-mono text-emerald-400">${m.inputCostPer1M.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Output Cost / 1M:</span>
-                      <span className="font-mono text-emerald-400">${m.outputCostPer1M.toFixed(2)}</span>
+                      <span className="text-slate-400">Reference price / 1M:</span>
+                      <span className="font-mono text-slate-400">${m.referenceInputCostPer1M.toFixed(2)} in · ${m.referenceOutputCostPer1M.toFixed(2)} out</span>
                     </div>
                   </div>
                 </div>
@@ -610,19 +620,45 @@ export const SponsorDiagnosticsView: React.FC = () => {
           })}
         </div>
 
+        {providerAvailability && !(providerAvailability as any).openai && (
+          <div className="rounded-xl border border-amber-800/60 bg-amber-950/30 p-3 text-[11px] text-amber-200 leading-relaxed">
+            The OpenAI adapter is wired into the router but no key is configured on this deployment (the hackathon
+            provides no OpenAI API credits). Add one with{" "}
+            <span className="font-mono">npx convex env set OPENAI_API_KEY &lt;key&gt;</span> to run it live; until then the
+            pipeline routes to the configured providers.
+          </div>
+        )}
+
         {/* Live Token Economics & Diagnostics Gauges */}
         {benchmarkResult && (
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-800 pb-2">
               <span className="font-bold text-slate-200 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                 {benchmarkResult.isLive ? "Live" : "Offline fallback"} Token Economics & Benchmark Telemetry: {benchmarkResult.model}
+                 {(benchmarkResult as any).unavailable
+                   ? "Diagnostic unavailable"
+                   : benchmarkResult.isLive
+                   ? "Live measurement"
+                   : "Offline fallback"}{" "}
+                — {benchmarkResult.model}
               </span>
               <span className="text-emerald-400 font-mono text-[11px]">
-                 Accuracy: {benchmarkResult.accuracyScore === null ? "Not measured" : `${benchmarkResult.accuracyScore}%`} • Status: {benchmarkResult.isLive ? "Live" : "Fallback; not a production measurement"}
+                 {(benchmarkResult as any).unavailable
+                   ? "No call was made"
+                   : `Accuracy: ${benchmarkResult.accuracyScore === null ? "Not measured" : `${benchmarkResult.accuracyScore}%`} • Status: ${
+                       (benchmarkResult as any).usedFallback
+                         ? `Fallback used (answered by ${benchmarkResult.provider})`
+                         : "Live"
+                     }`}
               </span>
             </div>
 
+            {benchmarkResult.unavailable ? (
+              <div className="p-3 bg-amber-950/30 border border-amber-800/60 rounded-lg text-xs text-amber-200 leading-relaxed">
+                {benchmarkResult.sampleOutput}
+              </div>
+            ) : (
+              <>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
               <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">Throughput</span>
@@ -659,6 +695,8 @@ export const SponsorDiagnosticsView: React.FC = () => {
               <span className="text-[10px] text-slate-400 uppercase block mb-1">Model Inference Output</span>
               {benchmarkResult.sampleOutput}
             </div>
+              </>
+            )}
           </div>
         )}
       </div>

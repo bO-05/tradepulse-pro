@@ -82,3 +82,17 @@ test("Lead-time adjustment copy is not presented as contract liquidated damages"
   expect(docs).not.toContain("liquidated damages at $6,000/week");
   expect(docs).toContain("LEAD-TIME DELAY ADJUSTMENT");
 });
+
+test("Model diagnostics disclose unavailable providers instead of silently grading another one", () => {
+  const router = find("llmRouter.ts", convexSources);
+  expect(router).toContain("getProviderAvailability");
+  expect(router).toContain("No fallback provider was invoked");
+  expect(router).toContain("unavailable: true");
+
+  const diagnostics = find("SponsorDiagnosticsView.tsx", componentSources);
+  expect(diagnostics).toContain("Adapter ready —");
+  expect(diagnostics).toContain("getProviderAvailability");
+  // No implied measured throughput hard-coded on the provider cards.
+  expect(diagnostics).not.toContain("m.throughput");
+  expect(diagnostics).not.toContain("305");
+});

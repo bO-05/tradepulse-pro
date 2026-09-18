@@ -1,4 +1,4 @@
-﻿import { internalAction, action } from "./_generated/server";
+﻿import { internalAction, action, query } from "./_generated/server";
 import { v } from "convex/values";
 import { inflate } from "pako";
 import { internal } from "./_generated/api";
@@ -2005,6 +2005,29 @@ Ensure all cost numbers are pure numeric primitives.`
  * Directly exercises live AI APIs (Claude Sonnet 5, Gemini 3.8 Flash, OpenAI GPT-4o)
  * with authentic round-trip latency and token throughput metrics.
  */
+/**
+ * Reports which model providers are actually configured on this deployment.
+ * The UI uses this to label adapters truthfully (live vs BYOK key required)
+ * instead of implying every sponsor model is active.
+ */
+export const getProviderAvailability = query({
+  args: {},
+  handler: async () => {
+    const hasVertex = Boolean(
+      process.env.VERTEX_API_KEY ||
+        (process.env.VERTEX_PROJECT_ID && process.env.VERTEX_ACCESS_TOKEN)
+    );
+    return {
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      gemini: Boolean(process.env.GEMINI_API_KEY) || hasVertex,
+      claude: Boolean(process.env.ANTHROPIC_API_KEY),
+      openaiModel: process.env.OPENAI_MODEL || "gpt-4o",
+      geminiModel: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+      anthropicModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-5",
+    };
+  },
+});
+
 export const runModelDiagnostic = action({
   args: {
     model: v.string(), // "gemini" | "openai" | "claude"
@@ -2049,6 +2072,34 @@ Scope Qualifications & Exclusions:
 Total Leveled Normalization Target: $908,500.`;
     }
 
+    // A diagnostic run must not silently grade a different provider than the one
+// selected. If the selected adapter has no key on this deployment, say so.
+    const providerKeyEnv: Record<string, string> = {
+      openai: "OPENAI_API_KEY",
+      gemini: "GEMINI_API_KEY (or VERTEX_API_KEY / VERTEX_PROJECT_ID+VERTEX_ACCESS_TOKEN)",
+      claude: "ANTHROPIC_API_KEY",
+    };
+    const availability: Record<string, boolean> = {
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      gemini: Boolean(process.env.GEMINI_API_KEY || process.env.VERTEX_API_KEY || (process.env.VERTEX_PROJECT_ID && process.env.VERTEX_ACCESS_TOKEN)),
+      claude: Boolean(process.env.ANTHROPIC_API_KEY),
+    };
+    if (availability[args.model] === false) {
+      return {
+        provider: "Unavailable",
+        model: args.model,
+        content: `The ${args.model} adapter is wired and ready, but no API key is configured on this deployment. Add one with \`npx convex env set ${providerKeyEnv[args.model]} <key>\` (or \`--prod\` for production) to run live calls. No fallback provider was invoked because this diagnostic grades the selected adapter.`,
+        parsedJson: null,
+        latencyMs: 0,
+        throughputTokSec: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        requestedProvider: args.model,
+        isLive: false,
+        unavailable: true,
+      };
+    }
+
     const result: ReasoningResult = await ctx.runAction(internal.llmRouter.executeReasoning, {
       taskType,
       prompt: samplePrompt,
@@ -2060,6 +2111,13 @@ Total Leveled Normalization Target: $908,500.`;
     const outputTokens = Math.max(1, Math.ceil(result.content.length / 4));
     const throughputTokSec = Math.round((outputTokens / (latencyMs / 1000)));
 
+    // Provider display names returned by the router differ from the selector keys.
+    const providerLabelForKey: Record<string, string> = {
+      openai: "openai",
+      gemini: "gemini",
+      claude: "anthropic",
+    };
+
     return {
       provider: result.provider,
       model: result.model,
@@ -2069,6 +2127,10 @@ Total Leveled Normalization Target: $908,500.`;
       throughputTokSec,
       inputTokens,
       outputTokens,
+      requestedProvider: args.model,
+      isLive: true,
+      unavailable: false,
+      usedFallback: result.provider.toLowerCase() !== providerLabelForKey[args.model],
     };
   },
 });

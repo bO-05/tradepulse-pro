@@ -42,7 +42,7 @@ try {
     out.app.provision = { error: String(e.message || e).slice(0, 300) };
   }
 
-  if (provisioned && !String(provisioned.id).startsWith("inbox_")) {
+  if (provisioned && provisioned.live && !provisioned.shared) {
     await c.mutation("contractors:createContractor", {
       tradePackageId: packageId,
       companyName: "AUDIT Self-Send Recipient",
@@ -74,7 +74,7 @@ try {
   out.error = String(e.stack || e).slice(0, 600);
 } finally {
   if (projectId) { try { await c.mutation("projects:deleteProject", { projectId }); out.app.projectDeleted = true; } catch (e) { out.app.projectDeleteError = String(e.message).slice(0, 160); } }
-  if (provisioned && !String(provisioned.id).startsWith("inbox_")) {
+  if (provisioned && provisioned.live && !provisioned.shared) {
     try {
       const del = await fetch(`https://api.agentmail.to/v0/inboxes/${provisioned.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${env.AGENTMAIL_API_KEY}` } });
       out.app.inboxDeleteStatus = del.status;

@@ -73,14 +73,14 @@ graph TD
 ### 2. OpenAI & Multi-Model Pipeline (`convex/llmRouter.ts`)
 * **GPT-4o Spec Scoping & Pre-Bid RFI Analysis**: Technical inquiry extraction against Division 26/23 specifications.
 * **Structured Bid Parsing**: Extracts line items, quantities, unit prices, exclusions, and VE alternates.
-* **Multi-Model Support**: Integrated with OpenAI GPT-4o, Google Vertex AI REST, Anthropic Claude, and deterministic offline construction intelligence fallback.
+* **Multi-Model Support**: Google Gemini and Anthropic Claude run the live pipeline today; OpenAI GPT-4o is a **BYOK adapter** that activates the moment an `OPENAI_API_KEY` is configured (the hackathon provides no OpenAI API credits). A deterministic offline construction-intelligence fallback keeps the pipeline alive even with no provider keys at all.
 
 ### 3. Firecrawl (`@firecrawl/firecrawl-convex`, `convex/contractorDiscovery.ts`)
 * **Subcontractor Web Discovery**: Autonomous discovery of MEP specialty contractors by location and trade division.
 * **Provenance-First Records**: Scrapes contractor domains for published contacts and license numbers and labels each record with its source. Nothing is presented as state-verified unless a registry page was actually the source.
 
 ### 4. AgentMail (`@agentmail/convex`, `convex/emailActions.ts`, `convex/http.ts`)
-* **Dedicated Stateful Inboxes**: Auto-provisions `@agentmail.to` inboxes per CSI trade package (Div 26 Electrical, Div 23 HVAC, Div 22 Plumbing).
+* **Dedicated Project Inboxes**: Auto-provisions `@agentmail.to` inboxes per CSI trade package (Div 26 Electrical, Div 23 HVAC, Div 22 Plumbing) on the AgentMail free tier. When the plan's inbox limit is reached, new packages reuse an existing inbox and the UI labels it as shared instead of claiming a dedicated address.
 * **Cryptographic Svix Verification**: Validates `svix-id`, `svix-timestamp`, and `svix-signature` on inbound emails at `/agentmail/webhook`.
 * **Two-Way Communication**: Transmits outbound invitations to bid and ingests inbound contractor RFIs and quote proposals directly into the Convex pipeline.
 
