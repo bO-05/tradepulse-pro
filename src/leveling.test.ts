@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { computeProcurementMetrics, getNormalizationBreakdown } from "./leveling.ts";
+import { computeProcurementMetrics, getNormalizationBreakdown, getSuspiciouslyLowBidIds } from "./leveling.ts";
 import type { Agreement, Bid, TradePackage } from "./types.ts";
 
 const pkg = (id: string, budget: number, status: TradePackage["status"] = "leveling"): TradePackage => ({
@@ -137,4 +137,17 @@ test("Buyout equals budget when a project has no packages and no bids", () => {
   const metrics = computeProcurementMetrics({ estBudget: 5_500_000 }, [], [], []);
   expect(metrics.totalLeveledBuyout).toBe(5_500_000);
   expect(metrics.variance).toBe(0);
+});
+
+test("Out-of-band low bids are flagged below 50% of the package budget", () => {
+  const packages = [pkg("p26", 1_250_000, "leveling")];
+  const bids = [
+    bid({ _id: "b1", tradePackageId: "p26", baseBidAmount: 1_225_000, leveledTotalCost: 1_225_000 }),
+    bid({ _id: "b2", tradePackageId: "p26", baseBidAmount: 250_000, leveledTotalCost: 250_000 }),
+  ];
+  const flagged = getSuspiciouslyLowBidIds(bids, packages[0].budgetEstimate);
+  expect(flagged.has("b2")).toBe(true);
+  expect(flagged.has("b1")).toBe(false);
+  // No budget or a zero budget cannot flag anything.
+  expect(getSuspiciouslyLowBidIds(bids, 0).size).toBe(0);
 });

@@ -59,11 +59,11 @@
 <h2>Executive verdict</h2>
 <div class="grid g3">
   <div class="card"><h4>Known-state items re-verified</h4><div class="kpi">27</div><div class="sub">25 fixed-still · 2 clarified method artifacts · 0 regressed</div></div>
-  <div class="card"><h4>New findings</h4><div class="kpi" style="color:var(--am)">3</div><div class="sub">2 claims-integrity (both fixed this pass) · 1 method note</div></div>
-  <div class="card"><h4>Derived numbers reconciled</h4><div class="kpi" style="color:var(--em)">9/9</div><div class="sub">UI vs Convex backend, no mismatches</div></div>
+  <div class="card"><h4>New findings</h4><div class="kpi" style="color:var(--am)">4</div><div class="sub">3 claims/safety (fixed) · 1 clarified as method</div></div>
+  <div class="card"><h4>Deep pass flows exercised</h4><div class="kpi" style="color:var(--em)">8</div><div class="sub">ingest ×3, leveling math, CSV, award, A401 execute, addendum, clash, files, soak</div></div>
   <div class="card"><h4>Fixtures left behind</h4><div class="kpi" style="color:var(--em)">0</div><div class="sub">only the seeded demo project remains</div></div>
 </div>
-<div class="callout good"><b>The product holds up.</b> Every previously fixed behavior is still fixed. Two new claims-integrity defects were found and fixed during the audit: the sponsor status cards overclaimed OpenAI activity and Firecrawl registry verification, and the audit log claimed email dispatch when no email was delivered. Both are now truthful; a source-level test guards them. The agent navigated, read and mutated the app successfully (19 s to create a package through the real UI).</div>
+<div class="callout good"><b>The product holds up.</b> Every previously fixed behavior is still fixed, and the deep pass — which the first pass had skipped — exercised bid ingestion with three bidders, hand-recomputed the ADR-0003 math, validated the CSV, awarded and executed an A401, issued an addendum and resolved the out-of-band-low-bid gap. Three claims/safety defects were found and fixed during the audit: sponsor status overclaims, an audit-log dispatch overclaim, and an unflagged absurd low bid. A source-level honesty test plus a unit test guard the fixes.</div>
 <div class="callout warn"><b>Residual observations (not defects):</b> the package status badge still reads “RFQs Dispatched” after a zero-delivery dispatch even though the toast and audit event now say no email left the system; OpenAI remains a keyless BYOK adapter; AgentMail free-tier inboxes are reused and disclosed.</div>
 </section>
 

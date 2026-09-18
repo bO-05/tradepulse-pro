@@ -30,7 +30,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Bid, TradePackage, Agreement, Contractor, ScopeExclusion, ValueEngineeringAlternate } from "../types.ts";
 import { extractTextFromPdfStream } from "../standaloneStore.ts";
-import { getDeceptiveBidIds } from "../leveling.ts";
+import { getDeceptiveBidIds, getSuspiciouslyLowBidIds } from "../leveling.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface BidLevelingMatrixViewProps {
@@ -643,8 +643,10 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
     null
   );
   const lowestLeveledBid = sortedBids[0] || null;
-  const deceptiveBidIds = getDeceptiveBidIds(bids);
+const deceptiveBidIds = getDeceptiveBidIds(bids);
   const isDeceptiveGap = Boolean(lowestBaseBid && deceptiveBidIds.has(lowestBaseBid._id));
+  const suspiciousLowBidIds = getSuspiciouslyLowBidIds(bids, currentPackage.budgetEstimate);
+  const isSuspiciousLowWinner = Boolean(lowestLeveledBid && suspiciousLowBidIds.has(lowestLeveledBid._id));
 
   const awardedBid = bids.find((b) => b.isAwarded) || null;
 
@@ -842,6 +844,28 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
         </div>
       )}
 
+      {/* Out-of-band low bid warning: flagged for verification, not blocked */}
+      {isSuspiciousLowWinner && lowestLeveledBid && (
+        <div className="bg-gradient-to-r from-rose-950/70 via-slate-900 to-rose-950/70 border border-rose-500/60 rounded-xl p-2.5 sm:px-4 sm:py-2 flex flex-wrap items-center justify-between gap-3 shadow-md animate-in fade-in">
+          <div className="flex items-center gap-2.5 min-w-[280px] flex-1">
+            <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-4 h-4 text-rose-400" />
+            </div>
+            <div className="text-xs">
+              <div className="font-bold text-rose-300 flex items-center gap-2">
+                <span>Out-of-Band Low Bid — Verify Before Awarding</span>
+                <span className="text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 px-1.5 py-0.2 rounded font-bold">
+                  &lt;50% of package budget
+                </span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-tight">
+                <strong className="text-white">{lowestLeveledBid.subcontractorName}</strong>'s leveled cost of <strong className="text-rose-300">${lowestLeveledBid.leveledTotalCost.toLocaleString()}</strong> is far below the ${currentPackage.budgetEstimate.toLocaleString()} package budget. This usually means an omitted scope, a unit error, or a mis-read document — confirm the proposal before awarding.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Deceptive Bid Warning Banner */}
       {isDeceptiveGap && lowestBaseBid && lowestLeveledBid && (
         <div className="bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 border border-amber-500/60 rounded-xl p-2.5 sm:px-4 sm:py-2 flex flex-wrap items-center justify-between gap-3 shadow-md animate-in fade-in">
@@ -977,6 +1001,14 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                         ) : (
                           <span className="text-[10px] font-mono text-amber-400 font-semibold">
                             +${(bid.leveledTotalCost - rank1Cost).toLocaleString()} vs #1
+                          </span>
+                        )}
+                        {suspiciousLowBidIds.has(bid._id) && (
+                          <span
+                            className="text-[10px] bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded font-bold flex items-center gap-1"
+                            title="Leveled cost is below 50% of the package budget. Verify scope and line items before awarding."
+                          >
+                            <AlertTriangle className="w-3 h-3" /> VERIFY LOW
                           </span>
                         )}
                       </div>
@@ -1232,6 +1264,14 @@ export const BidLevelingMatrixView: React.FC<BidLevelingMatrixViewProps> = ({
                       ) : (
                         <span className="text-[11px] font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-800/80 px-2 py-0.5 rounded-full">
                           +${varianceVsRank1.toLocaleString()} vs Rank #1
+                        </span>
+                      )}
+                      {suspiciousLowBidIds.has(bid._id) && (
+                        <span
+                          className="text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded-full flex items-center gap-1"
+                          title="Leveled cost is below 50% of the package budget. Verify scope and line items before awarding."
+                        >
+                          <AlertTriangle className="w-3 h-3" /> Verify — unusually low
                         </span>
                       )}
                     </div>

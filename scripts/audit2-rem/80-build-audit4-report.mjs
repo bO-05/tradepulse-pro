@@ -4,7 +4,7 @@ import path from "node:path";
 const REPO = "D:/Repo/ALL HACKATHONS/Convex/Convex all gas";
 const EV = path.join(REPO, "evidence");
 const T = path.join(REPO, "scripts/audit2-rem/audit4");
-const OUT = path.join(REPO, "TradePulse-Pro-User-Journey-Audit-2026-09-18-0910-UTC.html");
+const OUT = path.join(REPO, "doc/tradepulse audit 3/TradePulse-Pro-User-Journey-Audit-2026-09-18-0910-UTC.html");
 
 const rows = (arr) => arr.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("\n");
 const P = '<span class="pill s-pass">Pass</span>';
@@ -64,6 +64,18 @@ const findings = [
     <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span class="mono" style="font-weight:800">AUD-03</span><span class="pill s-info">Info</span><b>Guarded action failures log a client console error</b></div>
     <p class="sub" style="margin:8px 0 4px"><b>Observation:</b> when a user triggers an action the backend intentionally rejects (zero-recipient dispatch), Convex logs a server error in the browser console while the UI shows the error toast. This is expected for a thrown action but will appear as a console error to anyone auditing. No fix applied; documented so the next auditor does not report it as a new defect.</p>
   </div>`,
+  `
+  <div class="finding high">
+    <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span class="mono" style="font-weight:800">AUD-04</span><span class="pill s-warn">Medium</span><b>An absurd lowball bid was ranked #1 with no sanity warning</b></div>
+    <p class="sub" style="margin:8px 0 4px"><b>Repro (deep pass):</b> on a fresh fixture with a $1,250,000 Division 26 package, ingest a proposal with “Base Bid Price: $250,000.00 — everything included”. The bid is accepted by the plausibility floor, stored at $250,000, ranked <b>#1 “Best Leveled Value”</b>, and the matrix showed no flag or warning. The only guard in place is the &lt;$1,000 / &gt;5× budget rejection.</p>
+    <p class="sub" style="margin:4px 0"><b>Impact:</b> an omitted-scope or mis-read bid can be awarded as the compliant winner with no friction.</p>
+    <p class="sub" style="margin:4px 0"><b>Fix:</b> new <span class="mono">getSuspiciouslyLowBidIds()</span> flags any bid whose leveled cost is below 50% of the package budget. The matrix shows an <b>“Out-of-Band Low Bid — Verify Before Awarding”</b> banner when the leader is flagged and a <b>“Verify — unusually low”</b> chip per card/column. Non-blocking by design; verified live (banner and chip both render) and unit-tested.</p>
+  </div>`,
+  `
+  <div class="finding">
+    <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span class="mono" style="font-weight:800">AUD-05</span><span class="pill s-info">Clarified</span><b>“Adjust Leveling” appeared enabled after execution</b></div>
+    <p class="sub" style="margin:8px 0 4px"><b>Observation that triggered it:</b> after execution, a scan of buttons matching <span class="mono">/Adjust Leveling/</span> found controls that were not disabled. Deeper inspection showed the executed bid's control is relabelled <b>“Leveling Locked”</b> and bound to <span class="mono">disabled={isBidAgreementExecuted(bid._id)}</span>; the matches were the other (non-awarded) bids' controls, which correctly remain adjustable. <b>Not a defect</b> — recorded so the next auditor applies per-card checks rather than a global regex.</p>
+  </div>`,
 ];
 
 const sponsors = [
@@ -100,13 +112,24 @@ const coverage = [
   ["Isolation", '<span class="pill s-pass">Pass</span>', "Two independent contexts and a disposable fixture; stale/foreign IDs previously verified.", P],
   ["Adversarial", '<span class="pill s-pass">Full</span>', "Triple-click create, double-click dispatch, whitespace title, refresh race, Back, two tabs; agent-driven UI mutation.", P],
   ["Discovery provenance", '<span class="pill s-pass">Full</span>', "Live run inspected record-by-record; no fabricated licence/phone/email patterns.", P],
-  ["Bid leveling math &amp; CSV", '<span class="pill s-na">Read-only this pass</span>', "Backend bids reconciled to the KPI; arithmetic hand-verified in previous audits and covered by the derived-number test suite.", NA],
-  ["Contracts &amp; execution", '<span class="pill s-na">Read-only this pass</span>', "Register sum, LD and status reconciled against the backend; execution lock previously verified.", NA],
-  ["Files &amp; download truth", '<span class="pill s-pass">Full</span>', "Upload, listing, stored-byte download, truthful caption all verified on the fixture.", P],
+  ["Bid leveling math &amp; CSV", '<span class="pill s-pass">Full (deep pass)</span>', "Three bidders ingested; hand-recomputed ADR-0003 totals matched the UI, backend and exported CSV to the dollar; absurd-low bid now flagged.", P],
+  ["Contracts &amp; execution", '<span class="pill s-pass">Full (deep pass)</span>', "Award → A401 generated (sum == leveled cost) → execution recorded → lock relabels the executed bid's control; KPI, register and backend agree.", P],
+  ["Addendum &amp; files", '<span class="pill s-pass">Full (deep pass)</span>', "RFI → certification → addendum filing with correct filename and content; upload, stored-byte download, truthful caption and delete path verified.", P],
   ["Evals &amp; claims integrity", '<span class="pill s-pass">Full</span>', "Holdout card, run ID/date, provider labels, sponsor claims, audit delivery log.", P],
   ["Accessibility / responsive", '<span class="pill s-pass">Full</span>', "Keyboard focus trap/restore, overflow matrix, 200% zoom, timestamps.", P],
   ["Performance / network", '<span class="pill s-pass">Pass</span>', "Zero console errors and zero failed requests in clean runs; two contexts held realtime subscriptions without churn.", P],
   ["Backend/data integrity", '<span class="pill s-pass">Full</span>', "9-value reconciliation against Convex reads; fixture cascade delete left only the demo.", P],
+];
+
+const deepRows = [
+  ["Bid ingestion ×3", "Ingested three proposals on a fresh fixture via the real Direct Quote modal: clean, deceptive (crane 45k + firestop 22k + seismic 55k exclusions, 16-week lead, COI deficiency) and absurd ($250k). Backend polling confirmed each stored bid before proceeding.", P],
+  ["Leveling math (hand-recomputed)", "Clean: base 1,225,000 + 0 + 0 + 0 = <b>$1,225,000</b> ✓. Deceptive: 1,100,000 + 122,000 + 24,000 + 15,000 = <b>$1,261,000</b> ✓ (matches backend and CSV to the dollar). Lead penalty uses the 12-week Division 26 baseline.", P],
+  ["CSV export integrity", "16-column CSV opened: correct header (including “Accepted VE Deduct ($)”), quoted subcontractor names, per-bid totals matching the backend, and variance 36,000 for rank #2.", P],
+  ["Award → A401 → execution", "Awarded the clean bid: agreement A401-2026-2600-0873 generated with contract sum 1,225,000 (= leveled cost) and LDs $1,200/day; execution recorded; KPI read <b>1/1 Awarded</b>, contract sum 1,225,000, execution 1/1. Executed bid's control relabels “Leveling Locked”.", P],
+  ["Addendum", "RFI submitted → AI clarification arrived → PM-certified → addendum issued as <span class='mono'>ADDENDUM_NO_01_CLARIFICATIONS.md</span>; the filed content includes the RFI text.", P],
+  ["Scope clash (empty fixture)", "A single-package fixture shows honest zeroes: 0 double-buys, 0 voids, “0 items awaiting resolution”.", P],
+  ["Files", "Upload (spec type) accepted and listed; stored-byte download exact; preview caption truthful; delete path previously verified (cancel keeps, confirm removes).", P],
+  ["Contrast + soak", "Contrast sweep: 0 real AA failures at ≤12.5px. Soak: 3 cycles across all tabs + audit + evals with 0 console errors and no degradation.", P],
 ];
 
 const templates = ["template-1.html", "template-2.html"].map((f) => fs.readFileSync(path.join(T, f), "utf8")).join("\n");
@@ -116,6 +139,7 @@ const withRows = templates
   .replace("{{SPONSOR_ROWS}}", rows(sponsors))
   .replace("{{RECON_ROWS}}", rows(recon))
   .replace("{{AGENT_ROWS}}", rows(agentRows))
+  .replace("{{DEEP_ROWS}}", rows(deepRows))
   .replace("{{COVERAGE_ROWS}}", rows(coverage));
 
 const withImages = withRows.replace(/\{\{IMG:([^|]+)\|([^}]+)\}\}/g, (m, name, caption) => {

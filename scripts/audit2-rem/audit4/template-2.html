@@ -34,6 +34,17 @@
 <div class="callout good"><b>Agent text generation verified:</b> four Claude calls produced <span class="mono">23 00 00</span>, <span class="mono">AUDIT-4 Jev HVAC</span>, <span class="mono">850000</span> and <span class="mono">Adversarial agent-created package.</span> — all correct, ~1.6–2.6 s each. The new package was verified in the backend (CSI 23 00 00, budget 850,000) before cleanup.</div>
 </section>
 
+<section id="deeppass">
+<h2>Deep pass — previously unexercised flows</h2>
+<p class="sub">The first pass was regression-heavy and left several coverage rows unexercised. This pass re-ran them end-to-end on disposable fixtures with backend reads as truth.</p>
+<table><thead><tr><th style="width:210px">Flow</th><th>What was done</th><th style="width:90px">Result</th></tr></thead><tbody>
+{{DEEP_ROWS}}
+</tbody></table>
+{{IMG:audit6-matrix-final.png|Three-bid leveling matrix on a fixture: Clean $1,225,000, Deceptive $1,260,000-ish (base + exclusions + lead + COI), hand-recomputed and matching the backend and CSV.}}
+{{IMG:audit6-executed.png|Award → AIA A401 generated (sum == leveled cost) → execution recorded; KPI reads 1/1 Awarded and the contract sum matches the backend.}}
+{{IMG:audit9-lowbid-flag.png|AUD-04 fixed: a $250,000 bid against a $1,250,000 package budget now shows an “Out-of-Band Low Bid — Verify Before Awarding” banner and a per-card chip.}}
+</section>
+
 <section id="coverage">
 <h2>Coverage matrix</h2>
 <table><thead><tr><th style="width:210px">Area</th><th style="width:90px">Depth</th><th>What was done</th><th style="width:110px">Result</th></tr></thead><tbody>

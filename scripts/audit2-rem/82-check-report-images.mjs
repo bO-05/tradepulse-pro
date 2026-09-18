@@ -4,7 +4,7 @@ const run = async () => {
   const { browser } = await launchBrowser(1440, 900);
   const page = await browser.newPage();
   try {
-    const fileUrl = "file:///D:/Repo/ALL%20HACKATHONS/Convex/Convex%20all%20gas/TradePulse-Pro-User-Journey-Audit-2026-09-18-0910-UTC.html";
+    const fileUrl = "file:///D:/Repo/ALL%20HACKATHONS/Convex/Convex%20all%20gas/doc/tradepulse%20audit%203/TradePulse-Pro-User-Journey-Audit-2026-09-18-0910-UTC.html";
     await page.goto(fileUrl, { waitUntil: "load", timeout: 120000 });
     const total = await page.evaluate(() => document.body.scrollHeight);
     for (let y = 0; y < total; y += 800) { await page.evaluate((yy) => window.scrollTo(0, yy), y); await delay(250); }

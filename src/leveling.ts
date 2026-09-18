@@ -79,6 +79,17 @@ export function getEffectiveBid(bids: Bid[]): Bid | null {
   return [...bids].sort((a, b) => a.leveledTotalCost - b.leveledTotalCost)[0];
 }
 
+/**
+ * Bids whose leveled cost is less than half of the package budget are almost
+ * always scope omissions, unit errors or a mis-read document. They are flagged
+ * for verification rather than blocked, so a GC cannot award one by accident.
+ */
+export function getSuspiciouslyLowBidIds(bids: Bid[], packageBudget: number): Set<string> {
+  if (!Number.isFinite(packageBudget) || packageBudget <= 0) return new Set<string>();
+  const threshold = packageBudget * 0.5;
+  return new Set(bids.filter((bid) => bid.leveledTotalCost > 0 && bid.leveledTotalCost < threshold).map((bid) => bid._id));
+}
+
 export interface ProcurementMetrics {
   totalBudget: number;
   totalLeveledBuyout: number;
