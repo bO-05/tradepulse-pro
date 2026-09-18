@@ -142,6 +142,12 @@ test("F6: the RFI form sends an explicit target trade package", () => {
   expect(qna).toContain("Routing to:");
 });
 
+test("F7: the PM queue button does not use white text on amber-600", () => {
+  const qna = find("PreBidQnAView.tsx", componentSources);
+  expect(qna).not.toMatch(/bg-amber-600[^"]*text-white/);
+  expect(qna).toContain("bg-amber-400 hover:bg-amber-300 text-slate-950");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");

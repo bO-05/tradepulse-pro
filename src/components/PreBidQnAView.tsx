@@ -506,7 +506,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
           </div>
           <button
             onClick={() => setFilterMode("escalated")}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shrink-0 transition"
+            className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg shrink-0 transition"
           >
              Review PM Queue ({escalatedCount})
           </button>
