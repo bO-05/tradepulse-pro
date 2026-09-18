@@ -331,7 +331,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
   const handleAutoScope = async (file: ProjectFile) => {
     if (!currentProject) return;
     setProcessingFileId(file._id);
-    setStatusMsg(`Auto-scoping CSI Trade Packages from '${file.fileName}' via Gemini 3.8 Flash...`);
+    setStatusMsg(`Auto-scoping CSI Trade Packages from '${file.fileName}' via Gemini Flash...`);
     try {
       if (onAutoScopePackageFromFile) {
         await onAutoScopePackageFromFile(file);

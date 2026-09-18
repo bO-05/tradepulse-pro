@@ -186,6 +186,21 @@ test("F12: 'Buyout' means the dollar forecast; award counts use award wording", 
   expect(kpi).toContain("Subcontract Awards");
 });
 
+test("FIX-NEW-02: no UI surface claims a Gemini version that is not configured", () => {
+  for (const [path, source] of Object.entries(componentSources)) {
+    if (path.includes("SponsorDiagnosticsView")) {
+      // The diagnostics view must read the configured model, not hard-code one.
+      expect(source).toContain("Configured model:");
+      continue;
+    }
+    expect(source, `${path} must not claim Gemini 3.8 Flash`).not.toContain("Gemini 3.8 Flash");
+  }
+  const app = find("App.tsx", rootSources);
+  expect(app).not.toContain("Gemini 3.8 Flash");
+  const http = find("http.ts", convexSources);
+  expect(http).not.toContain("Gemini 3.8 Flash");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");

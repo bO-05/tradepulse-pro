@@ -921,8 +921,8 @@ export const App: React.FC = () => {
         tradePackageId: newPkgId,
         eventType: "spec_parsed",
         title: `AI Spec Breakdown: CSI Division ${csiDivision} Generated`,
-        description: `Generated trade package for ${tradeName} from specifications via Gemini 3.8 Flash with AgentMail mailbox provisioned.`,
-        actor: "Gemini 3.8 Flash Spec Reasoner",
+        description: `Generated trade package for ${tradeName} from specifications via Gemini Flash with AgentMail mailbox provisioned.`,
+        actor: "Gemini Flash Spec Reasoner",
         timestamp: Date.now(),
       };
       updateStandaloneAndPersist((prev) => ({
@@ -1297,7 +1297,7 @@ export const App: React.FC = () => {
           description: isEscalation
             ? `Subcontractor inquiry requires PM review (${data.subject}). Escalated to PM review queue.`
             : `Autonomous clarification dispatched with 0.95 confidence score citing Section ${targetPackage.csiDivision}.`,
-          actor: "Gemini 3.8 Flash Spec Reasoner",
+          actor: "Gemini Flash Spec Reasoner",
           timestamp: Date.now(),
         };
         updateStandaloneAndPersist((prev) => ({
@@ -2754,8 +2754,8 @@ export const App: React.FC = () => {
           tradePackageId: newPkgId,
           eventType: "spec_parsed",
           title: `Auto-Scoped Package: CSI ${csiDivision}`,
-          description: `Auto-scoped Division ${csiDivision.slice(0, 2)} ${tradeName} from ${file.fileName} via Gemini 3.8 Flash. Provisioned mailbox ${dynamicMailbox}.`,
-          actor: "Gemini 3.8 Flash Spec Reasoner",
+          description: `Auto-scoped Division ${csiDivision.slice(0, 2)} ${tradeName} from ${file.fileName} via Gemini Flash. Provisioned mailbox ${dynamicMailbox}.`,
+          actor: "Gemini Flash Spec Reasoner",
           timestamp: Date.now(),
         };
         updateStandaloneAndPersist((prev) => ({
@@ -2765,7 +2765,7 @@ export const App: React.FC = () => {
         }));
         setSelectedPackageId(newPkgId);
       }
-      showToast(`Auto-scoped CSI Trade Packages from ${file.fileName} via Gemini 3.8 Flash! Inboxes provisioned.`);
+      showToast(`Auto-scoped CSI Trade Packages from ${file.fileName} via Gemini Flash! Inboxes provisioned.`);
     } catch (err: any) {
       showToast(`Spec parsing failed: ${getErrorMessage(err) || "No trade packages were created."}`);
     }

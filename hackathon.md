@@ -10,7 +10,7 @@
 - **Components:** @convex-dev/static-hosting, @firecrawl/firecrawl-convex, @agentmail/convex
 - **Convex features:** schema, tables, indexes, queries, mutations, actions, HTTP actions, scheduled functions, crons, file storage
 - **Auth:** none
-- **AI models:** gpt-4o, gemini-3.8-flash, claude-sonnet-5
+- **AI models:** gpt-4o (BYOK), gemini-3.6-flash (pinned; gemini-3.8-flash returns 429), claude-sonnet-5
 - **Started:** 2026-09-09T12:41:52Z
 - **Last updated:** 2026-09-18T06:10:00Z
 

@@ -80,7 +80,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
   const modelsConfig = {
     gemini: {
-      name: "Gemini 3.8 Flash",
+      name: "Gemini Flash",
       provider: "Google Cloud Vertex AI / Gemini",
       role: "High-throughput CSI spec breakdown and pre-bid RFI auto-replies",
       badge: "High-Throughput Route",
@@ -551,7 +551,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Dynamically routes tasks across Gemini 3.8 Flash, OpenAI GPT-4o, and Claude Sonnet 5 for maximum throughput and forensic precision.
+                Dynamically routes tasks across Gemini Flash, OpenAI GPT-4o, and Claude Sonnet 5 for maximum throughput and forensic precision.
               </p>
             </div>
           </div>
@@ -612,6 +612,22 @@ export const SponsorDiagnosticsView: React.FC = () => {
 
                   <h4 className="text-sm font-bold text-white mb-1">{m.name}</h4>
                   <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">{m.role}</p>
+
+                  {key === "gemini" && (
+                    <p className="text-[10px] font-mono text-slate-400 mb-2">
+                      Configured model: {(providerAvailability as any)?.geminiModel || "not reported"}
+                    </p>
+                  )}
+                  {key === "openai" && (
+                    <p className="text-[10px] font-mono text-slate-400 mb-2">
+                      Configured model: {(providerAvailability as any)?.openaiModel || "not reported"}
+                    </p>
+                  )}
+                  {key === "claude" && (
+                    <p className="text-[10px] font-mono text-slate-400 mb-2">
+                      Configured model: {(providerAvailability as any)?.anthropicModel || "not reported"}
+                    </p>
+                  )}
 
                   <div className="space-y-1.5 text-[11px] text-slate-300 border-t border-slate-800/80 pt-2.5">
                     <div className="flex justify-between items-center">

@@ -649,7 +649,7 @@ export function sanitizeClashDetectionOutput(parsedJson: any): any {
 /**
  * Enterprise Token-Optimized LLM Router:
  * 1. Primary Sponsor Pipeline: OpenAI (gpt-4o / gpt-5.6-luna)
- * 2. High-Throughput Spec & RFI Agent: Gemini 3.8 Flash
+ * 2. High-Throughput Spec & RFI Agent: Gemini Flash (model pinned via GEMINI_MODEL)
  * 3. Forensic Leveling: Claude Sonnet 5
  * 4. Deterministic Commercial MEP Construction Intelligence Fallback
  */
@@ -784,7 +784,7 @@ Ensure all cost numbers are pure numeric primitives.`
     } else {
       // Default intelligent multi-model routing:
       // Forensic contract reasoning & clash detection -> Claude Sonnet 5
-      // High-throughput specs & RFI auto-reply -> Gemini 3.8 Flash
+      // High-throughput specs & RFI auto-reply -> Gemini Flash (pinned via GEMINI_MODEL)
       if (args.taskType === "bid_leveling" || args.taskType === "clash_detection") {
         providerOrder = ["claude", "gemini", "openai"];
       } else {
@@ -2002,7 +2002,7 @@ Ensure all cost numbers are pure numeric primitives.`
 
 /**
  * Public action for live multi-model diagnostic evaluations in SponsorDiagnosticsView.
- * Directly exercises live AI APIs (Claude Sonnet 5, Gemini 3.8 Flash, OpenAI GPT-4o)
+ * Directly exercises live AI APIs (Claude Sonnet 5, Gemini Flash, OpenAI GPT-4o)
  * with authentic round-trip latency and token throughput metrics.
  */
 /**

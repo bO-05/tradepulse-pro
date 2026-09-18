@@ -31,7 +31,7 @@ def test_hackathon_md():
             "none yet"
         ]),
         ("Auth", "none"),
-        ("AI models", ["gpt-4o, gemini-3.8-flash, claude-sonnet-5", "gpt-4o-mini, gemini-3.8-flash, claude-sonnet-5", "none"]),
+        ("AI models", ["gpt-4o (BYOK), gemini-3.6-flash (pinned; gemini-3.8-flash returns 429), claude-sonnet-5", "gpt-4o-mini, gemini-3.6-flash, claude-sonnet-5", "none"]),
         ("Started", None),
         ("Last updated", None)
     ]
