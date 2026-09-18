@@ -44,6 +44,8 @@ test("F8: live-observed junk titles are rejected (class fix)", () => {
   expect(looksLikeCompanyName("Tampa AC Services, Repair & Installation")).toBe(false);
   expect(sanitizeContractorCompanyName("[Florida Fire Protection Contractor I", "")).toBe("");
   expect(sanitizeContractorCompanyName("Kitchen Hood Cleaning", "")).toBe("");
+  expect(sanitizeContractorCompanyName("Business Categories", "")).toBe("");
+  expect(looksLikeCompanyName("Business Categories")).toBe(false);
   expect(looksLikeCompanyName("[Florida Fire Protection Contractor I")).toBe(false);
   expect(looksLikeCompanyName("Kitchen Hood Cleaning")).toBe(false);
   // Legitimate names with service words still pass.

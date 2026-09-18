@@ -43,6 +43,10 @@ function looksLikeSeoListFragment(title: string): boolean {
   // Markdown-link leftovers / truncated fragments ("[Florida Fire Protection Contractor I").
   if (/^[^A-Za-z0-9]/.test(trimmed)) return true;
   if ((trimmed.match(/\[/g) || []).length !== (trimmed.match(/\]/g) || []).length) return true;
+  // Page navigation / boilerplate headings are never company names.
+  if (/^(?:business categories|menu|resources|sitemap|privacy policy|terms(?: of (?:use|service))?|services|about(?: us)?|contact(?: us)?|home|products|projects|blog|news)\b/i.test(trimmed)) {
+    return true;
+  }
   if (DANGLING_END_RX.test(trimmed)) return true;
   // Phone-book / ad copy, not a company name.
   if (/^(?:get|find|hire|call|need|looking for)\b/i.test(trimmed)) return true;

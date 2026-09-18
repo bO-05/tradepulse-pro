@@ -11,8 +11,8 @@ const run = async () => {
     const fixtureProject = (await http.query("projects:listProjects", {})).find((p) => p.title.includes(FIXTURE));
     const pkgId = await http.mutation("tradePackages:createTradePackage", {
       projectId: fixtureProject._id,
-      csiDivision: "21 00 00",
-      tradeName: "AUDIT F8 Clean Probe Fire",
+      csiDivision: "25 00 00",
+      tradeName: "AUDIT F8 Clean Probe AV",
       budgetEstimate: 100000,
       scopeSummary: "Probe package for the F8 sanitizer live check.",
       mandatoryInclusions: ["None"],
