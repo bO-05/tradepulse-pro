@@ -1,5 +1,5 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { validateEmail, validateProjectText } from "./validation";
 
 export const listByPackage = query({
@@ -174,15 +174,26 @@ export const deleteContractor = mutation({
       .withIndex("by_contractor", (q) => q.eq("contractorId", args.contractorId))
       .collect();
 
-    for (const b of contractorBids) {
-      const agreements = await ctx.db
-        .query("agreements")
-        .withIndex("by_bid", (q) => q.eq("bidId", b._id))
-        .collect();
-      for (const a of agreements) {
-        await ctx.db.delete(a._id);
-      }
-      await ctx.db.delete(b._id);
+    // A1-03/A3-03: never silently destroy proposals or an executed subcontract
+    // through a contractor cleanup action.
+    if (contractorBids.length > 0) {
+      const hasExecuted = (
+        await Promise.all(
+          contractorBids.map((b) =>
+            ctx.db
+              .query("agreements")
+              .withIndex("by_bid", (q) => q.eq("bidId", b._id))
+              .collect()
+          )
+        )
+      )
+        .flat()
+        .some((a) => a.status === "executed");
+      throw new ConvexError(
+        hasExecuted
+          ? "This contractor holds an executed subcontract and cannot be deleted. Void or amend the executed agreement first."
+          : "This contractor has submitted proposal(s) on file. Remove the proposal(s) from Bid Leveling before deleting the contractor."
+      );
     }
 
     // Cascade delete any conversations associated with this contractor

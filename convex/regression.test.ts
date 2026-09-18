@@ -468,3 +468,121 @@ test("F6: an RFI targeting another package is stored on that package, not the ac
   expect(guestContractors.length).toBe(1);
   expect(guestContractors[0].companyName).toContain("Guest");
 });
+
+async function seedAwardedExecuted(t: ReturnType<typeof convexTest>, title: string) {
+  const projectId = await createProject(t, title);
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const bidResult: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  const bidId = bidResult.bidId;
+  const agreement: any = await t.mutation(api.agreements.generateAgreement, { bidId, tradePackageId: packageId });
+  await t.mutation(api.agreements.executeAgreement, { agreementId: agreement._id });
+  return { projectId, packageId, contractorId, bidId, agreementId: agreement._id };
+}
+
+test("A1-02: awarding a different bid cannot silently supersede an executed subcontract", async () => {
+  const t = convexTest(schema, modules);
+  const { packageId } = await seedAwardedExecuted(t, "Executed Guard Project");
+  const secondContractor = await t.mutation(api.contractors.createContractor, {
+    tradePackageId: packageId,
+    companyName: "Second Bidder LLC",
+    contactEmail: "bids@second-bidder.test",
+    phone: "+1 (512) 555-0199",
+    licenseNumber: "TX-REG-0002",
+    licenseStatus: "Active / Verified",
+    sourceUrl: "https://second-bidder.test",
+    rfqStatus: "invited",
+  });
+  const secondBidResult: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId: secondContractor,
+    subcontractorName: "Second Bidder LLC",
+    baseBidAmount: 950_000,
+  });
+  const secondBid = secondBidResult.bidId;
+
+  await expect(
+    t.mutation(api.agreements.generateAgreement, { bidId: secondBid, tradePackageId: packageId })
+  ).rejects.toThrow(/executed subcontract/i);
+
+  await expect(
+    t.mutation(api.bids.awardContract, { bidId: secondBid, tradePackageId: packageId })
+  ).rejects.toThrow(/generate the agreement|executed subcontract/i);
+
+  const agreements = await t.run(async (ctx) =>
+    await ctx.db.query("agreements").withIndex("by_package", (q) => q.eq("tradePackageId", packageId)).collect()
+  );
+  expect(agreements.filter((a) => a.status === "executed").length).toBe(1);
+});
+
+test("A1-03/A3-03: deleting a contractor with bids or an executed subcontract is refused", async () => {
+  const t = convexTest(schema, modules);
+  const { contractorId } = await seedAwardedExecuted(t, "Contractor Guard Project");
+
+  await expect(t.mutation(api.contractors.deleteContractor, { contractorId })).rejects.toThrow(
+    /executed subcontract/i
+  );
+  const bids = await t.run(async (ctx) =>
+    await ctx.db.query("bids").withIndex("by_contractor", (q) => q.eq("contractorId", contractorId)).collect()
+  );
+  expect(bids.length).toBe(1);
+});
+
+test("A3-01: creating a trade package requires an existing project", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Orphan Guard Project");
+  await t.run(async (ctx) => {
+    await ctx.db.delete(projectId);
+  });
+  await expect(
+    t.mutation(api.tradePackages.createTradePackage, {
+      projectId,
+      csiDivision: "28 00 00",
+      tradeName: "Orphan Package",
+      budgetEstimate: 100_000,
+      scopeSummary: "Should not exist.",
+      mandatoryInclusions: ["None"],
+      bidDeadline: "2026-10-31",
+    })
+  ).rejects.toThrow(/project not found/i);
+});
+
+test("A3-03: deleting a package with an executed subcontract is refused", async () => {
+  const t = convexTest(schema, modules);
+  const { packageId } = await seedAwardedExecuted(t, "Package Delete Guard");
+  await expect(t.mutation(api.tradePackages.deleteTradePackage, { tradePackageId: packageId })).rejects.toThrow(
+    /executed subcontract/i
+  );
+});
+
+test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Adjustment Guard Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const bidCreated: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  const bidId = bidCreated.bidId;
+  await expect(
+    t.mutation(api.bids.updateBidAdjustments, {
+      bidId,
+      identifiedExclusions: [],
+      coiComplianceStatus: "totally-fine",
+    })
+  ).rejects.toThrow(/COI status/i);
+  await expect(
+    t.mutation(api.bids.updateBidAdjustments, {
+      bidId,
+      identifiedExclusions: [{ description: "Negative credit", costImpact: -50_000, severity: "critical" }],
+    })
+  ).rejects.toThrow(/zero or positive/i);
+});

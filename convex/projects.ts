@@ -1046,6 +1046,15 @@ export const deleteProject = mutation({
       await ctx.db.delete(l._id);
     }
 
+    // A3-07: clash resolutions belonged to the project and were left orphaned.
+    const clashResolutions = await ctx.db
+      .query("clashResolutions")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    for (const cr of clashResolutions) {
+      await ctx.db.delete(cr._id);
+    }
+
     await ctx.db.delete(args.projectId);
     return { success: true };
   },

@@ -39,6 +39,32 @@ export const monitorBidDeadlines = internalMutation({
       const isOverdue = !isNaN(deadlineTs) ? deadlineTs <= now : pkg.bidDeadline <= today;
 
       if (isOverdue && pkg.status === "rfqs_dispatched") {
+        const pkgBids = await ctx.db
+          .query("bids")
+          .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))
+          .collect();
+        if (pkgBids.length === 0) {
+          // USE-A4-09: do not claim "leveling" progress when no proposal exists.
+          const existing = await ctx.db
+            .query("auditLogs")
+            .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))
+            .collect();
+          const alreadyFlagged = existing.some((l) =>
+            l.title.startsWith("Deadline passed with no bids")
+          );
+          if (!alreadyFlagged) {
+            await ctx.db.insert("auditLogs", {
+              projectId: pkg.projectId,
+              tradePackageId: pkg._id,
+              eventType: "compliance_audit",
+              title: `Deadline passed with no bids: ${pkg.tradeName}`,
+              description: `Bid deadline (${pkg.bidDeadline}) passed with zero proposals on file. The package was left open — extend the deadline or re-solicit subcontractors before leveling.`,
+              actor: "Convex Automated Cron Engine",
+              timestamp: Date.now(),
+            });
+          }
+          continue;
+        }
         await ctx.db.patch(pkg._id, { status: "leveling" });
         transitionedCount++;
 
@@ -47,7 +73,7 @@ export const monitorBidDeadlines = internalMutation({
           tradePackageId: pkg._id,
           eventType: "cron_executed",
           title: `Cron Monitor: Bid Deadline Closed for ${pkg.tradeName}`,
-          description: `Bid deadline (${pkg.bidDeadline}) reached. Auto-transitioned Division ${pkg.csiDivision} to active leveling status.`,
+          description: `Bid deadline (${pkg.bidDeadline}) reached with ${pkgBids.length} proposal(s) on file. Auto-transitioned Division ${pkg.csiDivision} to active leveling status.`,
           actor: "Convex Automated Cron Engine",
           timestamp: Date.now(),
         });
@@ -150,8 +176,14 @@ export const runDeadlineMonitorNow = mutation({
       if (pkg.projectId === args.projectId) {
         monitoredCount++;
         if (pkg.bidDeadline <= today && pkg.status === "rfqs_dispatched") {
-          await ctx.db.patch(pkg._id, { status: "leveling" });
-          transitionedCount++;
+          const pkgBids = await ctx.db
+            .query("bids")
+            .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))
+            .collect();
+          if (pkgBids.length > 0) {
+            await ctx.db.patch(pkg._id, { status: "leveling" });
+            transitionedCount++;
+          }
         }
       }
     }

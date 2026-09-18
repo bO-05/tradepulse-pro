@@ -17,7 +17,7 @@ function assertBidAmountPlausible(tradePkg: any, baseBidAmount: number): void {
   const ceiling = Math.max(budget * 5, 5_000_000);
   if (budget > 0 && baseBidAmount > ceiling) {
     throw new ConvexError(
-      `The proposal amount $${baseBidAmount.toLocaleString()} is more than 5x the $${budget.toLocaleString()} package budget. This looks like a data-entry error — verify the proposal before ingesting.`
+      `The proposal amount $${baseBidAmount.toLocaleString()} exceeds the plausibility ceiling of $${ceiling.toLocaleString()} (5x the $${budget.toLocaleString()} package budget, with a $5,000,000 minimum ceiling). Verify the proposal before ingesting.`
     );
   }
 }
@@ -82,6 +82,19 @@ export const awardContract = mutation({
     if (!existingAgreement || existingAgreement.tradePackageId !== args.tradePackageId) {
       throw new Error("Generate the agreement before changing an award; this prevents an award without a contract record.");
     }
+
+    // Executed subcontracts are immutable: awarding a different bid must not
+    // silently supersede a signed agreement (A1-02).
+    const packageAgreements = await ctx.db
+      .query("agreements")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+      .collect();
+    const executedAgreement = packageAgreements.find((a) => a.status === "executed");
+    if (executedAgreement && executedAgreement.bidId !== args.bidId) {
+      throw new ConvexError(
+        `An executed subcontract (${executedAgreement.agreementNumber}) already exists for this package. Void or amend it explicitly before awarding a different bid.`
+      );
+    }
     // Un-award all other bids in this package first
     const existingBids = await ctx.db
       .query("bids")
@@ -144,7 +157,7 @@ export const unawardContract = mutation({
     for (const a of packageAgreements) {
       if (a.bidId === args.bidId && a.status !== "superseded") {
         if (a.status === "executed") {
-          throw new Error("Executed agreements are immutable and cannot be unawarded.");
+          throw new ConvexError("Executed agreements are immutable and cannot be unawarded. Void the executed subcontract explicitly before changing the award.");
         }
         await ctx.db.patch(a._id, { status: "superseded" });
       }
@@ -183,7 +196,7 @@ export const deleteBid = mutation({
       .collect();
     for (const a of bidAgreements) {
       if (a.status === "executed") {
-        throw new Error("Executed agreements are immutable and cannot be deleted with their bid.");
+        throw new ConvexError("Executed agreements are immutable and cannot be deleted with their bid. Void the executed subcontract first.");
       }
       await ctx.db.delete(a._id);
     }
@@ -327,6 +340,21 @@ export const updateBidAdjustments = mutation({
   handler: async (ctx, args) => {
     const bid = await ctx.db.get(args.bidId);
     if (!bid) throw new Error("Bid not found");
+
+    const allowedCoiStatuses = new Set(["compliant", "deficiency_detected"]);
+    if (args.coiComplianceStatus !== undefined && !allowedCoiStatuses.has(args.coiComplianceStatus)) {
+      throw new ConvexError("COI status must be 'compliant' or 'deficiency_detected'.");
+    }
+    for (const exc of args.identifiedExclusions) {
+      if (!Number.isFinite(exc.costImpact) || exc.costImpact < 0) {
+        throw new ConvexError("Scope exclusion cost impacts must be zero or positive dollar amounts.");
+      }
+    }
+    for (const ve of args.valueEngineeringAlternates ?? []) {
+      if (!Number.isFinite(ve.costDeduct) || ve.costDeduct < 0) {
+        throw new ConvexError("Value-engineering deducts must be zero or positive dollar amounts.");
+      }
+    }
 
     const exclusions = args.identifiedExclusions;
     const veAlternates = args.valueEngineeringAlternates ?? bid.valueEngineeringAlternates ?? [];

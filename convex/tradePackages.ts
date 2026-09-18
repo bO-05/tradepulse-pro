@@ -1,5 +1,5 @@
 import { query, mutation, internalMutation, internalQuery, action } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { api, internal } from "./_generated/api";
 import {
   normalizeCsiDivision,
@@ -46,6 +46,10 @@ export const createTradePackage = mutation({
     agentMailboxId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      throw new ConvexError("Project not found. Create or select a project before adding a trade package.");
+    }
     const csiDivision = validateCsiDivision(args.csiDivision);
     const tradeName = validateProjectText(args.tradeName, "Trade package name");
     const scopeSummary = validateProjectText(args.scopeSummary, "Scope summary");
@@ -56,7 +60,7 @@ export const createTradePackage = mutation({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
     if (existing.some((pkg) => normalizeCsiDivision(pkg.csiDivision) === csiDivision)) {
-      throw new Error(`CSI Division ${csiDivision} already exists in this project. Use the existing package or choose a different division.`);
+      throw new ConvexError(`CSI Division ${csiDivision} already exists in this project. Use the existing package or choose a different division.`);
     }
 
     const pkgId = await ctx.db.insert("tradePackages", {
@@ -324,6 +328,18 @@ export const deleteTradePackage = mutation({
   handler: async (ctx, args) => {
     const pkg = await ctx.db.get(args.tradePackageId);
     if (!pkg) throw new Error("Trade package not found");
+
+    // Executed subcontracts are immutable; deleting the package would destroy them.
+    const executed = await ctx.db
+      .query("agreements")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+      .collect();
+    const executedAgreement = executed.find((a) => a.status === "executed");
+    if (executedAgreement) {
+      throw new ConvexError(
+        `This package has an executed subcontract (${executedAgreement.agreementNumber}) and cannot be deleted. Void or amend the executed agreement first.`
+      );
+    }
 
     // 1. Delete all bids and their agreements
     const bids = await ctx.db

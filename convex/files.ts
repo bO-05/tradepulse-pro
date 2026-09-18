@@ -418,8 +418,21 @@ async function doExtractBid(
     prompt: proposalText,
   });
 
+  // A1-01: when a contractor was explicitly selected, the contractor record's
+// name wins over any client-supplied or model-guessed name.
+  let selectedContractorName: string | undefined;
+  if (args.contractorId) {
+    try {
+      const selectedRecord: any = await ctx.runQuery(internal.contractors.getContractorInternal, {
+        contractorId: args.contractorId,
+      });
+      if (selectedRecord?.companyName) selectedContractorName = selectedRecord.companyName;
+    } catch {
+      // Fall through to the provided name when lookup fails.
+    }
+  }
   const parsed = sanitizeBidLevelingOutput(reasoningResult.parsedJson);
-  let subName = args.contractorName || parsed?.subcontractorName;
+  let subName = selectedContractorName || args.contractorName || parsed?.subcontractorName;
   if (!subName || subName === "Commercial Subcontractor") {
     if (args.contractorId) {
       try {
