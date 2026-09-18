@@ -1,4 +1,5 @@
 import { getErrorMessage } from "../lib/errors.ts";
+import { validateNewProjectFields } from "../lib/newProjectValidation.ts";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useDialogFocus } from "../lib/useDialogFocus.ts";
@@ -73,12 +74,12 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newLocation, setNewLocation] = useState("Austin, TX");
-  const [newType, setNewType] = useState("Class-A Commercial Mixed-Use");
-  const [newBudget, setNewBudget] = useState(5500000);
-  const [newWeeks, setNewWeeks] = useState(52);
+  const [newLocation, setNewLocation] = useState("");
+  const [newType, setNewType] = useState("");
+  const [newBudget, setNewBudget] = useState("");
+  const [newWeeks, setNewWeeks] = useState("");
   const [newSpec, setNewSpec] = useState("");
-  const [newGeneralContractor, setNewGeneralContractor] = useState("Austin Commercial, LP");
+  const [newGeneralContractor, setNewGeneralContractor] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   // Synchronous guard: React's `disabled` prop only applies on the next render,
@@ -184,18 +185,13 @@ export const Header: React.FC<HeaderProps> = ({
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (createInFlightRef.current) return;
-    const parsedBudget = Number(newBudget);
-    const parsedWeeks = Number(newWeeks);
-    if (!Number.isFinite(parsedBudget) || parsedBudget <= 0) {
-      setCreateError("Estimated budget must be a positive number greater than $0.");
+    const validation = validateNewProjectFields({ title: newTitle, budget: newBudget, weeks: newWeeks });
+    if (!validation.ok) {
+      setCreateError(validation.error || "Please check the project fields.");
       return;
     }
-    if (!Number.isFinite(parsedWeeks) || parsedWeeks <= 0 || parsedWeeks > 520) {
-      setCreateError("Duration must be between 1 and 520 weeks.");
-      return;
-    }
-    if (!onCreateProject || !newTitle.trim()) {
-      setCreateError("Project title is required.");
+    if (!onCreateProject) {
+      setCreateError("Project creation is unavailable in this session.");
       return;
     }
     setCreating(true);
@@ -205,17 +201,21 @@ export const Header: React.FC<HeaderProps> = ({
       await onCreateProject({
         title: newTitle.trim(),
         location: newLocation.trim() || "Austin, TX",
-        projectType: newType,
-        estBudget: parsedBudget,
-        targetCompletionWeeks: Math.round(parsedWeeks),
+        projectType: newType.trim() || "Class-A Commercial Mixed-Use",
+        estBudget: validation.budget as number,
+        targetCompletionWeeks: validation.weeks as number,
         specDocumentText: newSpec.trim() || `Project Scope for ${newTitle.trim()}. Standard CSI MasterFormat commercial obligations.`,
         isDemoProject: false,
         generalContractorName: newGeneralContractor.trim() || "Austin Commercial, LP",
       });
       setIsNewProjectModalOpen(false);
       setNewTitle("");
+      setNewLocation("");
+      setNewType("");
+      setNewBudget("");
+      setNewWeeks("");
       setNewSpec("");
-      setNewGeneralContractor("Austin Commercial, LP");
+      setNewGeneralContractor("");
     } catch (err: any) {
       setCreateError(getErrorMessage(err) || "The project could not be created.");
     } finally {
@@ -538,12 +538,12 @@ export const Header: React.FC<HeaderProps> = ({
                   <label className="block text-slate-400 font-medium mb-1">Estimated Budget ($)</label>
 <input
                   type="number"
-                  required
                   min={1}
-                  max={1000000000}
                   step={1}
+                  placeholder="e.g. 5500000"
                   value={newBudget}
-                  onChange={(e) => setNewBudget(Number(e.target.value))}
+                  onChange={(e) => setNewBudget(e.target.value)}
+                  aria-label="Estimated budget in dollars"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono"
                 />
                 </div>
@@ -551,12 +551,12 @@ export const Header: React.FC<HeaderProps> = ({
                   <label className="block text-slate-400 font-medium mb-1">Duration (Weeks)</label>
 <input
                   type="number"
-                  required
                   min={1}
-                  max={520}
                   step={1}
+                  placeholder="e.g. 52"
                   value={newWeeks}
-                  onChange={(e) => setNewWeeks(Number(e.target.value))}
+                  onChange={(e) => setNewWeeks(e.target.value)}
+                  aria-label="Target completion duration in weeks"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono"
                 />
                 </div>

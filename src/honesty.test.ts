@@ -20,6 +20,12 @@ const libSources = import.meta.glob("./lib/*.{ts,tsx}", {
   eager: true,
 }) as Record<string, string>;
 
+const rootSources = import.meta.glob("./*.{ts,tsx}", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
 const convexSources = import.meta.glob("../convex/*.ts", {
   query: "?raw",
   import: "default",
@@ -110,4 +116,25 @@ test("Model diagnostics disclose unavailable providers instead of silently gradi
   // No implied measured throughput hard-coded on the provider cards.
   expect(diagnostics).not.toContain("m.throughput");
   expect(diagnostics).not.toContain("305");
+});
+
+test("F3: the New Project form uses placeholders, not silent prefilled values", () => {
+  const header = find("Header.tsx", componentSources);
+  expect(header).toContain('placeholder="e.g. Austin, TX"');
+  expect(header).toContain('placeholder="e.g. 5500000"');
+  expect(header).not.toContain('useState("Austin, TX")');
+  expect(header).not.toContain('useState("Class-A Commercial Mixed-Use")');
+  expect(header).not.toContain("useState(5500000)");
+  expect(header).not.toContain("useState(52)");
+  expect(header).toContain("validateNewProjectFields");
+});
+
+test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
+  const kpi = find("ExecutiveKpiBar.tsx", componentSources);
+  expect(kpi).not.toContain("(best bid per package)");
+  expect(kpi).toContain("leveledBuyoutShort");
+  expect(kpi).toContain("varianceIsLeveled");
+  const leveling = find("leveling.ts", rootSources);
+  expect(leveling).toContain("leveledBuyoutCaption");
+  expect(leveling).toContain("varianceIsLeveled");
 });
