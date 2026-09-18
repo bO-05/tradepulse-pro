@@ -30,8 +30,9 @@ export interface DiscoveryResult {
 // be stored as a company name.
 const DANGLING_END_RX = /\b(?:and|or|for|in|on|at|to|with|by|from|of|the|a|an|&)\s*[,;]?\s*$/i;
 
-function hasCompanySuffix(title: string): boolean {
-  return /\b(?:inc|llc|l\.l\.c|corp|corporation|co|company|companies|ltd|limited|group|associates|partners|systems?|services?|industries|solutions|technologies|engineering|construction|contractors?|electric(?:al)?|plumbing|mechanical|hvac|supply|supplies)\b/i.test(
+/** Strict legal-entity markers. Trade nouns like "Plumbing" do not qualify. */
+function hasLegalSuffix(title: string): boolean {
+  return /\b(?:inc|llc|l\.l\.c|corp|corporation|co|company|companies|ltd|limited|group|associates|partners)\b/i.test(
     title
   );
 }
@@ -39,10 +40,32 @@ function hasCompanySuffix(title: string): boolean {
 function looksLikeSeoListFragment(title: string): boolean {
   const trimmed = title.trim();
   if (!trimmed) return true;
+  // Markdown-link leftovers / truncated fragments ("[Florida Fire Protection Contractor I").
+  if (/^[^A-Za-z0-9]/.test(trimmed)) return true;
+  if ((trimmed.match(/\[/g) || []).length !== (trimmed.match(/\]/g) || []).length) return true;
   if (DANGLING_END_RX.test(trimmed)) return true;
-  // Comma/semicolon lists with no company suffix and several words are SEO copy,
+  // Phone-book / ad copy, not a company name.
+  if (/^(?:get|find|hire|call|need|looking for)\b/i.test(trimmed)) return true;
+  if (/\b(?:hotline|near me|24\/7|on instagram|on facebook|on linkedin|profile page)\b/i.test(trimmed)) return true;
+  // "... in Tampa" / "... in Tampa, FL" service copy. A legal entity never ends in a city.
+  if (/\bin\s+[A-Z][a-zA-Z]+(?:,\s*[A-Z]{2})?$/.test(trimmed) && !hasLegalSuffix(trimmed)) return true;
+  // Generic service descriptors ("Commercial AC Repair Tampa", "Quality Plumbing and
+  // Commercial HVAC...") without a legal suffix are not company names.
+  if (
+    /^(?:commercial|residential|industrial|quality|affordable|reliable|trusted|local|expert|professional|licensed|insured)\b/i.test(trimmed) &&
+    !hasLegalSuffix(trimmed)
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:licensing|requirements|repair|installation|cleaning|inspection|testing|maintenance)\b/i.test(trimmed) &&
+    !hasLegalSuffix(trimmed)
+  ) {
+    return true;
+  }
+  // Comma/semicolon lists with no legal suffix and several words are SEO copy,
   // not a legal entity name.
-  if (/[,;]/.test(trimmed) && !hasCompanySuffix(trimmed) && trimmed.split(/\s+/).length >= 5) return true;
+  if (/[,;]/.test(trimmed) && !hasLegalSuffix(trimmed) && trimmed.split(/\s+/).length >= 5) return true;
   return false;
 }
 
@@ -99,6 +122,13 @@ const DIRECTORY_HOSTS = [
   "angieslist.com",
   "houzz.com",
   "facebook.com",
+  "instagram.com",
+  "tiktok.com",
+  "twitter.com",
+  "x.com",
+  "youtube.com",
+  "pinterest.com",
+  "nextdoor.com",
   "linkedin.com",
   "indeed.com",
   "ziprecruiter.com",
