@@ -303,7 +303,8 @@ def test_deep_sponsor_integration_boost():
 
     diag_path = Path("src/components/SponsorDiagnosticsView.tsx")
     diag_content = diag_path.read_text(encoding="utf-8")
-    assert "Gemini 3.8 Flash" in diag_content
+    assert "Gemini Flash" in diag_content
+    assert "Configured model:" in diag_content
     assert "Claude Sonnet 5" in diag_content
     assert "OpenAI GPT-4o" in diag_content
     assert "throughputTokSec" in diag_content or "tok/s" in diag_content
@@ -704,7 +705,12 @@ def test_agentmail_spec_alignment_and_security_hardening():
     - package.json includes deploy and deploy:site scripts
     """
     rfq_actions = Path("convex/rfqActions.ts").read_text(encoding="utf-8")
-    assert "inbox_id" in rfq_actions, "rfqActions.ts must extract inbox.inbox_id per AgentMail API specification"
+    # The direct REST client (convex/agentmailApi.ts) normalizes inbox_id/id; the
+    # action consumes the normalized `inbox.id`. Assert the architecture, not a
+    # stale raw-field name.
+    agentmail_api = Path("convex/agentmailApi.ts").read_text(encoding="utf-8")
+    assert "inbox_id" in agentmail_api, "agentmailApi.ts must read inbox.inbox_id per AgentMail API specification"
+    assert "inbox.id" in rfq_actions, "rfqActions.ts must use the normalized inbox id returned by the API client"
 
     http_content = Path("convex/http.ts").read_text(encoding="utf-8")
     assert "Missing required svix headers" in http_content, "http.ts must reject requests missing svix headers when secret is configured"
