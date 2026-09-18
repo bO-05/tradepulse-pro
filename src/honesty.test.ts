@@ -162,6 +162,20 @@ test("F5: each stage exposes one primary next-step CTA and no duplicated empty-s
   expect(packages).toContain("in the header above to get started");
 });
 
+test("F9: inbox copy reflects plan-limit sharing, never a 'dedicated' claim", () => {
+  const tour = find("InvestorDemoTourBar.tsx", componentSources);
+  expect(tour).not.toContain("Dedicated AgentMail Inboxes");
+  expect(tour).not.toMatch(/dedicated programmatic @agentmail\.to inbox/i);
+  expect(tour).toContain("packages share an inbox once the plan limit is reached");
+
+  const http = find("http.ts", convexSources);
+  expect(http).toContain("shared when the free-tier plan limit is reached");
+  expect(http).not.toContain("Dedicated Stateful Project Inboxes");
+
+  const diag = find("SponsorDiagnosticsView.tsx", componentSources);
+  expect(diag).not.toContain("Dedicated Stateful Project Inboxes");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");

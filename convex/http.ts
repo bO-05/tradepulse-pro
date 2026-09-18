@@ -84,9 +84,9 @@ http.route({
 TradePulse Pro automates the $1.8T commercial construction subcontractor procurement workflow:
 1. CSI MasterFormat Trade Scoping (Div 22 Plumbing, Div 23 HVAC, Div 26 Electrical)
 2. Subcontractor Web Discovery with per-record provenance (license data only when published in the source)
-3. Dedicated Stateful Project Inboxes via AgentMail (@agentmail.to)
+3. Programmatic Project Inboxes via AgentMail (@agentmail.to) — shared when the free-tier plan limit is reached, disclosed on each package
 4. Autonomous Pre-Bid RFI Clarifications via OpenAI, Gemini & Claude high-throughput reasoning (OpenAI is a BYOK adapter; Gemini/Claude run when no OpenAI key is configured)
-5. Forensic Bid Leveling & Scope Gap Normalization via Claude & OpenAI
+5. Forensic Bid Leveling & Scope Gap Normalization via Claude & OpenAI (OpenAI is a BYOK adapter)
 
 ## Live Endpoints & Endpoints Specification
 - Web UI: ${siteUrl}

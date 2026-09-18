@@ -94,10 +94,10 @@ export function buildDemoScenes(ctx: TourLiveContext): DemoScene[] {
       title: "The Scope Exclusion Trap & Automated Scoping",
       problemStatement:
         "Commercial GCs lose six figures on MEP buyout to fine-print scope exclusions and trade overlaps hidden in architectural specs.",
-      talkTrack: `"Welcome to TradePulse Pro. TradePulse parses complex CSI specifications into trade packages — each with a dedicated programmatic @agentmail.to inbox for trade communication. The active project currently has ${pkgLabel}."`,
+      talkTrack: `"Welcome to TradePulse Pro. TradePulse parses complex CSI specifications into trade packages — each with a programmatic @agentmail.to inbox for trade communication. On the AgentMail free tier, packages share an inbox once the plan limit is reached, and the package card labels it. The active project currently has ${pkgLabel}."`,
       keyMetric:
         ctx.packagesCount > 0
-          ? `${pkgLabel} • Dedicated AgentMail Inboxes`
+          ? `${pkgLabel} • AgentMail inbox per package`
           : "No packages scoped yet • Run AI Spec Breakdown to create them",
       actionLabel: "Advance to Contractor Sourcing",
       actionDescription: "Inspects scoped packages and transitions to autonomous subcontractor discovery.",

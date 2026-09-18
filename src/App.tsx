@@ -664,7 +664,7 @@ export const App: React.FC = () => {
           tradePackageId: newPkgId,
           eventType: "package_created",
           title: `CSI Division ${pkg.csiDivision} Created`,
-          description: `Created trade package ${pkg.tradeName} with $${pkg.budgetEstimate.toLocaleString()} budget estimate and dedicated AgentMail mailbox.`,
+          description: `Created trade package ${pkg.tradeName} with $${pkg.budgetEstimate.toLocaleString()} budget estimate and AgentMail mailbox.`,
           actor: "Senior Procurement Specialist",
           timestamp: Date.now(),
         };
