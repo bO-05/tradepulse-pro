@@ -25,7 +25,28 @@ export interface DiscoveryResult {
   source: string;
 }
 
-function sanitizeContractorCompanyName(rawTitle: string, fallbackName: string): string {
+// F8: search titles are often mid-sentence SEO fragments once the brand suffix is
+// stripped ("Commercial Electricians, Industrial, and High"). A fragment must never
+// be stored as a company name.
+const DANGLING_END_RX = /\b(?:and|or|for|in|on|at|to|with|by|from|of|the|a|an|&)\s*[,;]?\s*$/i;
+
+function hasCompanySuffix(title: string): boolean {
+  return /\b(?:inc|llc|l\.l\.c|corp|corporation|co|company|companies|ltd|limited|group|associates|partners|systems?|services?|industries|solutions|technologies|engineering|construction|contractors?|electric(?:al)?|plumbing|mechanical|hvac|supply|supplies)\b/i.test(
+    title
+  );
+}
+
+function looksLikeSeoListFragment(title: string): boolean {
+  const trimmed = title.trim();
+  if (!trimmed) return true;
+  if (DANGLING_END_RX.test(trimmed)) return true;
+  // Comma/semicolon lists with no company suffix and several words are SEO copy,
+  // not a legal entity name.
+  if (/[,;]/.test(trimmed) && !hasCompanySuffix(trimmed) && trimmed.split(/\s+/).length >= 5) return true;
+  return false;
+}
+
+export function sanitizeContractorCompanyName(rawTitle: string, fallbackName: string): string {
   if (!rawTitle) return fallbackName;
   const title = rawTitle.replace(/[-|:–—].*$/, "").trim();
   const spammyPrefixes = [
@@ -38,7 +59,12 @@ function sanitizeContractorCompanyName(rawTitle: string, fallbackName: string): 
     /^list of\b/i,
     /^directory of\b/i,
   ];
-  if (spammyPrefixes.some((rx) => rx.test(title)) || title.length > 50 || title.length < 3) {
+  if (
+    spammyPrefixes.some((rx) => rx.test(title)) ||
+    title.length > 50 ||
+    title.length < 3 ||
+    looksLikeSeoListFragment(title)
+  ) {
     return fallbackName;
   }
   return title;
@@ -110,8 +136,9 @@ function isHostIn(url: string | undefined, hosts: string[]): boolean {
 }
 
 /** Heuristic: is this title plausibly a company name rather than SEO copy? */
-function looksLikeCompanyName(title: string): boolean {
+export function looksLikeCompanyName(title: string): boolean {
   if (!title) return false;
+  if (looksLikeSeoListFragment(title)) return false;
   const generic = /^(?:electricians?|plumbers?|contractors?|hvac|mechanical|electrical|commercial)$/i;
   if (generic.test(title.trim())) return false;
   if (/^(?:about|home|contact|welcome|services|products|projects|blog|news)\b/i.test(title.trim())) return false;
