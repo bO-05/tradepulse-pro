@@ -89,8 +89,8 @@ export const dispatchRfqs = mutation({
       projectId: tradePkg.projectId,
       tradePackageId: tradePkg._id,
       eventType: "rfq_dispatched",
-      title: `RFQs Dispatched: Division ${tradePkg.csiDivision} (${tradePkg.tradeName})`,
-      description: `Dispatched invitations to bid to ${totalNotified} commercial contractor(s) via AgentMail (${tradePkg.agentMailbox}).`,
+      title: `RFQ Invitations Recorded: Division ${tradePkg.csiDivision} (${tradePkg.tradeName})`,
+      description: `RFQ invitations recorded for ${totalNotified} contractor(s); AgentMail delivery results are logged by the dispatch action (${tradePkg.agentMailbox}).`,
       actor: "Lead Project Manager",
       timestamp: now,
     });
@@ -145,7 +145,7 @@ export const dispatchRfqsInternal = internalMutation({
       projectId: tradePkg.projectId,
       tradePackageId: tradePkg._id,
       eventType: "rfq_dispatched",
-      title: `RFQs Dispatched: Division ${tradePkg.csiDivision} (${tradePkg.tradeName})`,
+      title: `RFQ Invitations Recorded: Division ${tradePkg.csiDivision} (${tradePkg.tradeName})`,
       description:
         dispatchedCount > 0
           ? `Dispatched invitations to bid to ${dispatchedCount} commercial contractor(s) via AgentMail (${tradePkg.agentMailbox}).`

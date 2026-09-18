@@ -73,6 +73,15 @@ test("Eval surface is labeled as an extraction/normalization check with a real h
   expect(evals).toContain("holdoutMape");
 });
 
+test("Sponsor status cards do not overclaim availability or registry verification", () => {
+  const diagnostics = find("SponsorDiagnosticsView.tsx", componentSources);
+  expect(diagnostics).not.toContain("TDLR & TSBPE");
+  expect(diagnostics).not.toContain("Primary LLM Reasoning");
+  expect(diagnostics).not.toContain("satisfying 100% of the hackathon judging rubric");
+  expect(diagnostics).toContain("Adapter Ready / Key Required");
+  expect(diagnostics).toContain("provenance-first");
+});
+
 test("Tour narration does not hard-code demo dollar figures or verification claims", () => {
   const tour = find("InvestorDemoTourBar.tsx", componentSources);
   expect(tour).not.toContain("$61k-$96k");

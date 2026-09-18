@@ -197,39 +197,39 @@ export const SponsorDiagnosticsView: React.FC = () => {
     },
     {
       name: "OpenAI",
-      role: "Primary LLM Reasoning & Structured Extraction Pipeline",
-      status: "Integrated / Active",
+      role: "BYOK LLM Adapter — Structured Extraction & RFI Reasoning",
+      status: providerAvailability && !(providerAvailability as any).openai ? "Adapter Ready / Key Required" : "Integrated / Active",
       details: [
-        "Structured JSON forensic line-item extraction with response_format",
-        "Autonomous Pre-Bid RFI clarification engine citing CSI MasterFormat specs",
-        "Token-optimized gateway with multi-model routing (Gemini 3.8 Flash + Claude Sonnet 5)",
-        "Deterministic cached fallback for 100% reproducible $0 judge evaluations",
+        "Activated automatically the moment OPENAI_API_KEY is configured on the deployment",
+        "Structured JSON forensic line-item extraction via response_format on OpenAI",
+        "The router falls through to Gemini and Claude while the adapter has no key",
+        "No OpenAI API credits are provided by the hackathon; the adapter is bring-your-own-key",
       ],
       icon: Bot,
       badgeColor: "text-emerald-400 bg-emerald-950/50 border-emerald-800/60",
     },
     {
       name: "Firecrawl",
-      role: "Autonomous Subcontractor Discovery & Licensing SERP",
+      role: "Autonomous Subcontractor Discovery (provenance-first)",
       status: "Connected / Active",
       details: [
-        "Live web search (firecrawl.search & POST /v2/search) finding trade contractors",
-        "FirecrawlClient from @firecrawl/firecrawl-convex with website scraping",
-        "Texas TDLR & TSBPE state contractor licensing registry verification",
-        "Optional FIRECRAWL_API_KEY support in convex.config.ts",
+        "Live web search (firecrawl.search & POST /v2/search) for trade contractors",
+        "Records only published contact and licence data, each with a provenance label",
+        "Directory and aggregator pages are skipped; there is no fabricated fallback directory",
+        "FIRECRAWL_API_KEY is required for live discovery; registry verification only when the source is a registry page",
       ],
       icon: Globe,
       badgeColor: "text-amber-400 bg-amber-950/50 border-amber-800/60",
     },
     {
       name: "AgentMail",
-      role: "Stateful Programmatic Email Inboxes for Subcontractor Bidding",
-      status: "Mounted / Active",
+      role: "Programmatic Email Inboxes for Subcontractor Bidding",
+      status: "Connected / Active",
       details: [
-        "Dynamic mailbox provisioning per CSI package (austin-elec-rfq@agentmail.to)",
-        "Real email dispatch via rfqActions.dispatchRfqsWithNotification",
-        "Svix-verified inbound webhook ingestion at /agentmail/webhook with resilient fallback",
-        "Two-way threaded pre-bid communication preserving contractor audit trail",
+        "Inbox provisioning per CSI package through the AgentMail REST API with the deployment key",
+        "Real outbound dispatch via rfqActions.dispatchRfqsWithNotification, with per-recipient delivery results",
+        "Svix-verified inbound webhook ingestion at /agentmail/webhook",
+        "On the free-tier inbox limit, a package reuses an inbox and the UI discloses it as shared",
       ],
       icon: Mail,
       badgeColor: "text-blue-400 bg-blue-950/50 border-blue-800/60",
@@ -245,7 +245,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
           Sponsor Integration Hub, Multi-Model Router & Diagnostics
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          Audited alignment across Convex, OpenAI, Firecrawl, and AgentMail with multi-model token diagnostics satisfying 100% of the hackathon judging rubric.
+          Live integration status across Convex, OpenAI (BYOK adapter), Firecrawl, AgentMail, and the multi-model router.
         </p>
       </div>
 

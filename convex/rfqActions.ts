@@ -113,6 +113,25 @@ export const dispatchRfqsWithNotification = action({
       deliveryFailures.push("The trade package has no live AgentMail inbox (provisioning failed)");
     }
 
+    const eligibleRecipients = contractors.filter(
+      (c: any) => c.contactEmail && c.contactEmail.includes("@") && !/\.invalid$/i.test(c.contactEmail)
+    ).length;
+    await ctx.runMutation(internal.auditLogs.recordLogInternal, {
+      projectId: tradePkg.projectId,
+      tradePackageId: args.tradePackageId,
+      eventType: "rfq_dispatched",
+      title: `AgentMail Delivery: ${emailsSent} of ${eligibleRecipients} eligible recipient(s)`,
+      description:
+        emailsSent > 0
+          ? `Delivered ${emailsSent} invitation(s) from ${tradePkg.agentMailbox}.${
+              deliveryFailures.length > 0 ? ` Skipped/failed: ${deliveryFailures.slice(0, 3).join("; ")}` : ""
+            }`
+          : `${deliveryConfigured ? "No AgentMail invitation was delivered." : "AgentMail is not configured on this deployment; no email was sent."}${
+              deliveryFailures.length > 0 ? ` Reasons: ${deliveryFailures.slice(0, 3).join("; ")}` : ""
+            }`,
+      actor: "AgentMail Subcontractor Dispatcher",
+    });
+
     return {
       ...result,
       emailsSent,
@@ -173,6 +192,19 @@ export const dispatchSingleRfqWithNotification = action({
         console.warn(`Failed to dispatch single RFQ email to ${contractor.contactEmail}:`, err);
       }
     }
+
+    await ctx.runMutation(internal.auditLogs.recordLogInternal, {
+      projectId: tradePkg.projectId,
+      tradePackageId: tradePkg._id,
+      eventType: "rfq_dispatched",
+      title: `AgentMail Delivery: ${emailSent ? 1 : 0} of 1 eligible recipient(s)`,
+      description: emailSent
+        ? `Delivered invitation to ${contractor.contactEmail} from ${tradePkg.agentMailbox}.`
+        : `No email was delivered to ${contractor.contactEmail}.${
+            !deliveryConfigured ? " AgentMail is not configured on this deployment." : localMailbox ? " The package has no live AgentMail inbox." : ""
+          }`,
+      actor: "AgentMail Subcontractor Dispatcher",
+    });
 
     return {
       success: true,
