@@ -287,19 +287,16 @@ const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
 
   const confirmUnaward = async () => {
     if (!bidToUnaward) return;
-    try {
-      if (onUnawardContract) {
-        await onUnawardContract(bidToUnaward._id, currentPackage._id);
-      } else {
-        await unawardContractMutation({
-          bidId: bidToUnaward._id as any,
-          tradePackageId: currentPackage._id as any,
-        });
-      }
-      setBidToUnaward(null);
-    } catch (err: any) {
-      console.warn("Unaward fallback:", err);
+    // A5-02: let the refusal reach ConfirmDialog so it can show the reason inline.
+    if (onUnawardContract) {
+      await onUnawardContract(bidToUnaward._id, currentPackage._id);
+    } else {
+      await unawardContractMutation({
+        bidId: bidToUnaward._id as any,
+        tradePackageId: currentPackage._id as any,
+      });
     }
+    setBidToUnaward(null);
   };
 
   const handleDeleteBid = async (bidId: string) => {
@@ -308,16 +305,13 @@ const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
 
   const confirmDeleteBid = async () => {
     if (!bidToDelete) return;
-    try {
-      if (onDeleteBid) {
-        await onDeleteBid(bidToDelete._id);
-      } else {
-        await deleteBidMutation({ bidId: bidToDelete._id as any });
-      }
-      setBidToDelete(null);
-    } catch (err: any) {
-      console.warn("Delete bid failed:", err);
+    // A5-02: surface the refusal inline in the confirmation dialog.
+    if (onDeleteBid) {
+      await onDeleteBid(bidToDelete._id);
+    } else {
+      await deleteBidMutation({ bidId: bidToDelete._id as any });
     }
+    setBidToDelete(null);
   };
 
   const handleExecuteAgreement = async (agreementId: string) => {
@@ -637,7 +631,7 @@ const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `${agreement.agreementNumber}_AIA_A401_Subcontract.txt`);
+    link.setAttribute("download", `${agreement.agreementNumber}_A401-style_Subcontract_Draft.txt`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -859,7 +853,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
       {/* Out-of-band low bid warning: flagged for verification, not blocked */}
       {isSuspiciousLowWinner && lowestLeveledBid && (
         <div className="bg-gradient-to-r from-rose-950/70 via-slate-900 to-rose-950/70 border border-rose-500/60 rounded-xl p-2.5 sm:px-4 sm:py-2 flex flex-wrap items-center justify-between gap-3 shadow-md animate-in fade-in">
-          <div className="flex items-center gap-2.5 min-w-[280px] flex-1">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4 text-rose-400" />
             </div>
@@ -881,7 +875,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
       {/* Deceptive Bid Warning Banner */}
       {isDeceptiveGap && lowestBaseBid && lowestLeveledBid && (
         <div className="bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 border border-amber-500/60 rounded-xl p-2.5 sm:px-4 sm:py-2 flex flex-wrap items-center justify-between gap-3 shadow-md animate-in fade-in">
-          <div className="flex items-center gap-2.5 min-w-[280px] flex-1">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4 text-amber-400" />
             </div>
@@ -902,11 +896,11 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
             <button
               disabled={awardingId === lowestLeveledBid._id}
               onClick={() => handleAwardAndGenerate(lowestLeveledBid._id)}
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 shadow transition shrink-0 cursor-pointer active:scale-95"
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-1.5 px-3.5 rounded-lg flex items-center justify-center gap-1.5 shadow transition shrink-0 max-w-full cursor-pointer active:scale-95"
               title={`Award the lowest leveled bidder: ${lowestLeveledBid.subcontractorName} ($${lowestLeveledBid.leveledTotalCost.toLocaleString()} leveled)`}
             >
-              <Award className="w-3.5 h-3.5 fill-slate-950" />
-              <span>Award Compliant Winner ({lowestLeveledBid.subcontractorName})</span>
+              <Award className="w-3.5 h-3.5 fill-slate-950 shrink-0" />
+              <span className="truncate">Award Compliant Winner ({lowestLeveledBid.subcontractorName})</span>
             </button>
           )}
         </div>

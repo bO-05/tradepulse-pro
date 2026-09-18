@@ -1,5 +1,5 @@
 import { query, mutation, internalMutation, internalQuery, action } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 
 export const listConversations = query({
@@ -60,7 +60,7 @@ export const dispatchRfqs = mutation({
       .collect();
 
     if (contractors.length === 0) {
-      throw new Error(
+      throw new ConvexError(
         "No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs."
       );
     }
@@ -116,7 +116,7 @@ export const dispatchRfqsInternal = internalMutation({
       .collect();
 
     if (contractors.length === 0) {
-      throw new Error(
+      throw new ConvexError(
         "No contractors have been discovered for this trade package yet. Run Discovery before dispatching RFQs."
       );
     }

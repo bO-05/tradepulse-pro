@@ -1,5 +1,5 @@
 import { query, mutation, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { generateAiaA401AgreementText } from "./agreements";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 
@@ -983,6 +983,19 @@ export const deleteProject = mutation({
     if (!project) throw new Error("Project not found");
     if (project.isDemoProject) {
       throw new Error("The default demo project cannot be deleted.");
+    }
+
+    // A10-02: deleting the project must not silently destroy an executed
+    // subcontract; the same immutability rule applies as for packages/bids.
+    const executedAgreements = await ctx.db
+      .query("agreements")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const executedAgreement = executedAgreements.find((a) => a.status === "executed");
+    if (executedAgreement) {
+      throw new ConvexError(
+        `This project has an executed subcontract (${executedAgreement.agreementNumber}) and cannot be deleted. Void or amend the executed agreement first.`
+      );
     }
 
     const packages = await ctx.db

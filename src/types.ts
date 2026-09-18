@@ -164,6 +164,8 @@ export interface DoubleBuyClash {
   secondaryCost: number;
   secondaryLineItem: string;
   redundantAmount: number;
+  /** Actual amount credited by the persisted clash resolution, when one exists. */
+  deductedAmount?: number;
   description: string;
   status: "detected" | "deducted";
   resolution?: string;

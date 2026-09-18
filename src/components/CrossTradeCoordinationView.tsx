@@ -58,7 +58,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
   const totalAssignedVoidCost = resolvedVoids.reduce((sum, v) => sum + v.estimatedVoidCost, 0);
   const totalDeductedCredits = doubleBuys
     .filter((d) => d.status === "deducted")
-    .reduce((sum, d) => sum + d.redundantAmount, 0);
+    .reduce((sum, d) => sum + (typeof d.deductedAmount === "number" ? d.deductedAmount : d.redundantAmount), 0);
 
   const handleScan = async () => {
     setScanning(true);

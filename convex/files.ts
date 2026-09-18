@@ -1,5 +1,5 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { sanitizeBidLevelingOutput, extractTextFromPdfStream } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
@@ -233,7 +233,7 @@ export const deleteFile = mutation({
       .withIndex("by_source_file", (q: any) => q.eq("sourceFileId", args.fileId))
       .collect();
     if (linkedBids.length > 0) {
-      throw new Error("This quote file is linked to a bid and cannot be deleted until the bid is removed.");
+      throw new ConvexError("This quote file is linked to a bid and cannot be deleted until the bid is removed.");
     }
 
     try {

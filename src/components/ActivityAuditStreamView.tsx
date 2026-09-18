@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Calendar,
   Layers,
+  AlertTriangle,
 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
@@ -102,6 +103,8 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
         return <Award className="w-4 h-4 text-emerald-400" />;
       case "compliance_audit":
         return <ShieldCheck className="w-4 h-4 text-purple-400" />;
+      case "bid_ingest_failed":
+        return <AlertTriangle className="w-4 h-4 text-rose-400" />;
       case "cron_executed":
         return <Clock className="w-4 h-4 text-amber-300" />;
       case "file_uploaded":
@@ -125,6 +128,8 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
         return "bg-yellow-950/80 text-yellow-300 border-yellow-800/60";
       case "rfq_dispatched":
         return "bg-sky-950/80 text-sky-300 border-sky-800/60";
+      case "bid_ingest_failed":
+        return "bg-rose-950/80 text-rose-300 border-rose-800/60";
       default:
         return "bg-slate-800 text-slate-300 border-slate-700";
     }
@@ -145,7 +150,7 @@ export const ActivityAuditStreamView: React.FC<ActivityAuditStreamViewProps> = (
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Immutable causal audit log tracking all trade RFQs, pre-bid RFI clarifications, forensic bid leveling calculations, AIA subcontract awards, and Convex cron executions.
+            Immutable causal audit log tracking all trade RFQs, pre-bid RFI clarifications, forensic bid leveling calculations, A401-style subcontract drafts, and Convex cron executions.
           </p>
         </div>
 

@@ -188,6 +188,7 @@ export const App: React.FC = () => {
   // Boot gate: show a loading surface until the first project payload arrives from Convex.
   // Only after 8 seconds without a connection do we fall back to the resilient standalone store.
   const [bootTimedOut, setBootTimedOut] = useState(false);
+  const [urlProjectId] = useState<string | null>(() => readUrlState("project"));
   useEffect(() => {
     const timer = window.setTimeout(() => setBootTimedOut(true), 8000);
     return () => window.clearTimeout(timer);
@@ -212,10 +213,13 @@ export const App: React.FC = () => {
     if (isBootLoading) return;
     if (projects.length === 0) return;
     if (!projects.some((project) => project._id === selectedProjectId)) {
+      // A9-03: a shared deep link must survive a slow Convex boot. While the
+      // standalone snapshot is showing, do not override the URL-selected project.
+      if (!isConvexConnected && urlProjectId) return;
       const preferred = projects.find((project) => (project as any).isDemoProject) ?? projects[0];
       setSelectedProjectId(preferred._id);
     }
-  }, [projects, selectedProjectId, isBootLoading]);
+  }, [projects, selectedProjectId, isBootLoading, isConvexConnected, urlProjectId]);
 
   useEffect(() => {
     try {

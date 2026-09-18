@@ -85,7 +85,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `${agr.agreementNumber}_AIA_A401_Agreement.txt`);
+    link.setAttribute("download", `${agr.agreementNumber}_A401-style_Subcontract_Draft.txt`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -24,6 +24,32 @@ function assertBidAmountPlausible(tradePkg: any, baseBidAmount: number): void {
 
 const ALLOWED_COI_STATUSES = new Set(["compliant", "deficiency_detected"]);
 
+/** A10-05: all writers must enforce the same long-lead bounds as insertParsedBid. */
+function validateLongLeadWeeks(value: number): number {
+  if (!Number.isInteger(value) || value < 0 || value > 520) {
+    throw new ConvexError("Long-lead equipment weeks must be a whole number between 0 and 520.");
+  }
+  return value;
+}
+
+/** A10-06: reject non-finite or negative line-item math on public writers. */
+function assertLineItemsNonNegative(
+  items: ReadonlyArray<{ quantity: number; unitCost: number; totalCost: number }> | undefined
+): void {
+  for (const item of items ?? []) {
+    if (
+      !Number.isFinite(item.quantity) ||
+      !Number.isFinite(item.unitCost) ||
+      !Number.isFinite(item.totalCost) ||
+      item.quantity < 0 ||
+      item.unitCost < 0 ||
+      item.totalCost < 0
+    ) {
+      throw new ConvexError("Line items must use non-negative numeric quantity, unit cost, and total cost.");
+    }
+  }
+}
+
 /**
  * A7-01/A7-02: shared validation for every public bid writer so the same bad
  * COI status or negative scope impact cannot slip through a sibling mutation.
@@ -295,6 +321,10 @@ export const updateBidLeveling = mutation({
     assertBidLevelingInputs(exclusions, veAlternates, args.coiComplianceStatus);
     const leadTimePenalty = validateNonNegativeAmount(args.leadTimePenalty !== undefined ? args.leadTimePenalty : bid.leadTimePenalty, "Lead time penalty");
     const coiPenalty = validateNonNegativeAmount(args.coiPenalty !== undefined ? args.coiPenalty : bid.coiPenalty, "COI penalty");
+    const longLeadEquipmentWeeks =
+      args.longLeadEquipmentWeeks !== undefined
+        ? validateLongLeadWeeks(args.longLeadEquipmentWeeks)
+        : bid.longLeadEquipmentWeeks;
 
     // ADR-0003 Formula:
     // Leveled Cost = Base Bid + Sum(Un-waived Exclusions) + Lead Time Penalty + COI Penalty - Sum(Accepted Alternates)
@@ -307,7 +337,7 @@ export const updateBidLeveling = mutation({
       identifiedExclusions: exclusions,
       valueEngineeringAlternates: veAlternates,
       leadTimePenalty,
-      longLeadEquipmentWeeks: args.longLeadEquipmentWeeks ?? bid.longLeadEquipmentWeeks,
+      longLeadEquipmentWeeks,
       coiPenalty,
       coiComplianceStatus: args.coiComplianceStatus ?? bid.coiComplianceStatus,
       leveledTotalCost,
@@ -374,6 +404,10 @@ export const updateBidAdjustments = mutation({
     const veAlternates = args.valueEngineeringAlternates ?? bid.valueEngineeringAlternates ?? [];
     const leadTimePenalty = validateNonNegativeAmount(args.leadTimePenalty !== undefined ? args.leadTimePenalty : bid.leadTimePenalty, "Lead time penalty");
     const coiPenalty = validateNonNegativeAmount(args.coiPenalty !== undefined ? args.coiPenalty : bid.coiPenalty, "COI penalty");
+    const longLeadEquipmentWeeks =
+      args.longLeadEquipmentWeeks !== undefined
+        ? validateLongLeadWeeks(args.longLeadEquipmentWeeks)
+        : bid.longLeadEquipmentWeeks;
 
     const activeExclusionsCost = exclusions.reduce((sum, exc) => (exc.isWaived ? sum : sum + (exc.costImpact || 0)), 0);
     const acceptedAlternatesDeduct = veAlternates.reduce((sum, ve) => (ve.isAccepted ? sum + (ve.costDeduct || 0) : sum), 0);
@@ -383,7 +417,7 @@ export const updateBidAdjustments = mutation({
       identifiedExclusions: exclusions,
       valueEngineeringAlternates: veAlternates,
       leadTimePenalty,
-      longLeadEquipmentWeeks: args.longLeadEquipmentWeeks ?? bid.longLeadEquipmentWeeks,
+      longLeadEquipmentWeeks,
       coiPenalty,
       coiComplianceStatus: args.coiComplianceStatus ?? bid.coiComplianceStatus,
       leveledTotalCost,
@@ -469,6 +503,7 @@ export const submitDirectBid = mutation({
     const baseBidAmount = validatePositiveAmount(args.baseBidAmount, "Base bid amount");
     assertBidAmountPlausible(tradePkg, baseBidAmount);
     assertBidLevelingInputs(args.identifiedExclusions ?? [], args.valueEngineeringAlternates ?? [], args.coiComplianceStatus);
+    assertLineItemsNonNegative(args.lineItems);
     const subcontractorName = validateProjectText(args.subcontractorName, "Subcontractor name");
     // 1. Mark contractor as bid_received
     await ctx.db.patch(args.contractorId, { rfqStatus: "bid_received" });
@@ -644,9 +679,14 @@ export const insertParsedBid = internalMutation({
     assertBidAmountPlausible(tradePkg, baseBidAmount);
     const leadTimePenalty = validateNonNegativeAmount(args.leadTimePenalty, "Lead time penalty");
     const coiPenalty = validateNonNegativeAmount(args.coiPenalty, "COI penalty");
-    if (!Number.isInteger(args.longLeadEquipmentWeeks) || args.longLeadEquipmentWeeks < 0 || args.longLeadEquipmentWeeks > 520) {
-      throw new Error("Long-lead equipment weeks must be a whole number between 0 and 520.");
-    }
+    const longLeadEquipmentWeeks = validateLongLeadWeeks(args.longLeadEquipmentWeeks);
+    // A10-06: normalize model-extracted line items instead of persisting negative math.
+    const safeLineItems = args.lineItems.map((item) => ({
+      ...item,
+      quantity: Math.max(0, Number(item.quantity) || 0),
+      unitCost: Math.max(0, Number(item.unitCost) || 0),
+      totalCost: Math.max(0, Number(item.totalCost) || 0),
+    }));
     // 1. Mark contractor as bid_received
     await ctx.db.patch(args.contractorId, { rfqStatus: "bid_received" });
 
@@ -701,10 +741,10 @@ export const insertParsedBid = internalMutation({
       await ctx.db.patch(existing._id, {
         subcontractorName: args.subcontractorName,
         baseBidAmount,
-        lineItems: args.lineItems,
+        lineItems: safeLineItems,
         identifiedExclusions: safeExclusions,
         valueEngineeringAlternates: safeVeAlternates,
-        longLeadEquipmentWeeks: args.longLeadEquipmentWeeks,
+        longLeadEquipmentWeeks,
         leadTimePenalty,
         coiComplianceStatus: safeCoiStatus,
         coiPenalty,
@@ -723,10 +763,10 @@ export const insertParsedBid = internalMutation({
         contractorId: args.contractorId,
         subcontractorName: args.subcontractorName,
         baseBidAmount,
-        lineItems: args.lineItems,
+        lineItems: safeLineItems,
         identifiedExclusions: safeExclusions,
         valueEngineeringAlternates: safeVeAlternates,
-        longLeadEquipmentWeeks: args.longLeadEquipmentWeeks,
+        longLeadEquipmentWeeks,
         leadTimePenalty,
         coiComplianceStatus: safeCoiStatus,
         coiPenalty,

@@ -1,5 +1,5 @@
 import { query, mutation, action } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { syncAgreementForBid } from "./agreements";
 import { validateNonNegativeAmount, validateProjectText } from "./validation";
@@ -16,6 +16,8 @@ export interface DoubleBuyClash {
   secondaryCost: number;
   secondaryLineItem: string;
   redundantAmount: number;
+  /** Actual amount credited by the persisted clash resolution, when one exists. */
+  deductedAmount?: number;
   description: string;
   status: "detected" | "deducted";
   resolution?: string;
@@ -264,7 +266,11 @@ export const detectCrossTradeClashes = query({
     for (const resolution of resolutions) {
       if (resolution.kind === "double_buy") {
         const match = doubleBuys.find((d) => d.id === resolution.clashId);
-        if (match) match.status = "deducted";
+        if (match) {
+          match.status = "deducted";
+          // A10-07: show the credit actually applied, not the static benchmark.
+          match.deductedAmount = resolution.amount;
+        }
       } else {
         const match = scopeVoids.find((v) => v.id === resolution.clashId);
         if (match) match.status = "assigned";
@@ -321,6 +327,18 @@ export const deductDoubleBuyCredit = mutation({
     }
     const deductAmount = validateNonNegativeAmount(args.deductAmount, "Double-buy credit");
     const description = validateProjectText(args.description, "Double-buy description");
+
+    // A8-03/A10-04: one persisted credit per clash. Without this a public caller
+    // could stack unbounded "credits" on the same clash under new descriptions.
+    const existingResolutions = await ctx.db
+      .query("clashResolutions")
+      .withIndex("by_project_and_clash", (q) =>
+        q.eq("projectId", args.projectId).eq("clashId", args.clashId)
+      )
+      .collect();
+    if (existingResolutions.some((r) => r.status === "deducted")) {
+      throw new ConvexError("A buyout credit has already been applied for this clash. Reverse the existing credit before applying another.");
+    }
 
     // Locate single target bid: explicitly passed, or awarded bid, or best leveled bid
     let targetBid: any = null;

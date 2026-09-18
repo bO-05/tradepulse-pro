@@ -560,6 +560,93 @@ test("A3-03: deleting a package with an executed subcontract is refused", async 
   );
 });
 
+test("A10-05/A10-06: long-lead and line-item bounds are enforced on every writer", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Bounds Guard Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const created: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  const bidId = created.bidId;
+
+  await expect(
+    t.mutation(api.bids.submitDirectBid, {
+      tradePackageId: packageId,
+      contractorId,
+      subcontractorName: "Regression Electric LLC",
+      baseBidAmount: 1_100_000,
+      lineItems: [{ item: "Bad", unit: "LS", quantity: -5, unitCost: 100, totalCost: -500 }],
+    })
+  ).rejects.toThrow(/non-negative/i);
+
+  await expect(
+    t.mutation(api.bids.updateBidLeveling, { bidId, longLeadEquipmentWeeks: -9 })
+  ).rejects.toThrow(/0 and 520/);
+  await expect(
+    t.mutation(api.bids.updateBidAdjustments, { bidId, identifiedExclusions: [], longLeadEquipmentWeeks: 3.7 })
+  ).rejects.toThrow(/whole number/);
+});
+
+test("A8-03/A10-04: a clash can only be credited once", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Clash Guard Project");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const created: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  await t.mutation(api.coordination.deductDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: packageId,
+    deductAmount: 38_500,
+    description: "VFD double buy",
+    bidId: created.bidId,
+  });
+  await expect(
+    t.mutation(api.coordination.deductDoubleBuyCredit, {
+      projectId,
+      clashId: "clash-vfd-01",
+      tradePackageId: packageId,
+      deductAmount: 1_000,
+      description: "VFD double buy again",
+      bidId: created.bidId,
+    })
+  ).rejects.toThrow(/already been applied/i);
+});
+
+test("A10-01/A10-02: full-cycle simulation and project delete refuse executed subcontracts", async () => {
+  const t = convexTest(schema, modules);
+  const { projectId, packageId } = await seedAwardedExecuted(t, "Executed Simulation Guard");
+
+  await expect(
+    t.mutation(api.simulation.runFullProcurementCycle, { projectId, tradePackageId: packageId })
+  ).rejects.toThrow(/executed subcontract/i);
+
+  await expect(t.mutation(api.projects.deleteProject, { projectId })).rejects.toThrow(/executed subcontract/i);
+
+  const agreements: any[] = await t.run(async (ctx) =>
+    await ctx.db.query("agreements").withIndex("by_package" as any, (q: any) => q.eq("tradePackageId", packageId)).collect()
+  );
+  expect(agreements.filter((a: any) => a.status === "executed").length).toBe(1);
+});
+
+test("RFQ dispatch without contractors returns a readable error", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Readable Dispatch Error");
+  const packageId = await createPackage(t, projectId);
+  await expect(t.mutation(api.rfq.dispatchRfqs, { tradePackageId: packageId })).rejects.toThrow(
+    /Run Discovery before dispatching RFQs/i
+  );
+});
+
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
   const t = convexTest(schema, modules);
   const projectId = await createProject(t, "Adjustment Guard Project");

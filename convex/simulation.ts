@@ -793,11 +793,21 @@ export const runFullProcurementCycle = mutation({
       bidDeadline: tradePkg.bidDeadline || "2026-09-30",
     });
 
-    // Clear old agreements for package
-    const oldAgreements = await ctx.db
+    // A10-01: an executed subcontract is immutable; the full-cycle simulation must
+    // never delete it. Refuse before any destructive work happens for this package.
+    const packageAgreementsBefore = await ctx.db
       .query("agreements")
       .withIndex("by_package", (q) => q.eq("tradePackageId", packageId))
       .collect();
+    const executedAgreement = packageAgreementsBefore.find((a) => a.status === "executed");
+    if (executedAgreement) {
+      throw new ConvexError(
+        `This package has an executed subcontract (${executedAgreement.agreementNumber}). The full-cycle simulation cannot run here — choose a package without an executed contract.`
+      );
+    }
+
+    // Clear old agreements for package
+    const oldAgreements = packageAgreementsBefore;
     for (const oa of oldAgreements) {
       await ctx.db.delete(oa._id);
     }
@@ -808,7 +818,7 @@ export const runFullProcurementCycle = mutation({
       bidId: bid1Id,
       contractorId: c1!._id,
       agreementNumber,
-      documentTitle: "AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor",
+      documentTitle: "Subcontract Agreement (A401-style structure) — generated draft, not an AIA-licensed form",
       subcontractorName: c1Name,
       generalContractorName: "Austin Commercial, LP",
       projectTitle: project?.title || "The Domain Tower B - Commercial MEP",
@@ -830,7 +840,7 @@ export const runFullProcurementCycle = mutation({
       tradePackageId: packageId,
       eventType: "contract_awarded",
       title: `Subcontract Awarded: ${c1Name}`,
-      description: `Awarded Division ${tradePkg.csiDivision} to ${c1Name} at $${winningCost.toLocaleString()} leveled cost. AIA Document A401 generated.`,
+      description: `Awarded Division ${tradePkg.csiDivision} to ${c1Name} at $${winningCost.toLocaleString()} leveled cost. A401-style subcontract draft generated (not an AIA-licensed form).`,
       actor: "Autonomous Procurement Engine (ADR-0003)",
       timestamp: now + 2000,
     });
