@@ -75,6 +75,10 @@ export function useDialogFocus<T extends HTMLElement>(open: boolean) {
       if (event.key !== "Tab") return;
       const node = containerRef.current;
       if (!node) return;
+      // A6-01: when a ConfirmDialog (alertdialog) is stacked above this dialog,
+      // its own trap owns Tab; this trap must stand down or focus escapes.
+      const topmostConfirm = document.querySelector('[role="alertdialog"][aria-modal="true"]');
+      if (topmostConfirm && !node.contains(topmostConfirm)) return;
       const items = focusables();
       if (items.length === 0) {
         event.preventDefault();

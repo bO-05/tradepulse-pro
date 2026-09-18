@@ -727,6 +727,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <div>
                   <label className="block font-semibold text-slate-300 mb-1">License Verification Status</label>
                   <select
+                    aria-label="License verification status"
                     value={addForm.licenseStatus}
                     onChange={(e) => setAddForm({ ...addForm, licenseStatus: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -803,6 +804,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <input
                   type="text"
                   required
+                  aria-label="Company name"
                   value={editForm.companyName}
                   onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -815,6 +817,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   <input
                     type="email"
                     required
+                    aria-label="Contact email"
                     value={editForm.contactEmail}
                     onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -825,6 +828,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   <label className="block font-semibold text-slate-300 mb-1">Phone Number</label>
                   <input
                     type="text"
+                    aria-label="Phone number"
                     value={editForm.phone}
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -837,6 +841,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   <label className="block font-semibold text-slate-300 mb-1">State License</label>
                   <input
                     type="text"
+                    aria-label="State license or registration"
                     value={editForm.licenseNumber}
                     onChange={(e) => setEditForm({ ...editForm, licenseNumber: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -846,6 +851,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <div>
                   <label className="block font-semibold text-slate-300 mb-1">License Verification Status</label>
                   <select
+                    aria-label="License verification status"
                     value={editForm.licenseStatus}
                     onChange={(e) => setEditForm({ ...editForm, licenseStatus: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -861,7 +867,8 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                 <label className="block font-semibold text-slate-300 mb-1">Website URL</label>
                 <input
                   type="url"
-                  value={editForm.sourceUrl}
+                  aria-label="Website or portfolio URL"
+                    value={editForm.sourceUrl}
                   onChange={(e) => setEditForm({ ...editForm, sourceUrl: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 />

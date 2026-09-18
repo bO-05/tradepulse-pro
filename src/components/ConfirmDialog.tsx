@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, X } from "lucide-react";
 import { lockBodyScroll } from "../lib/useDialogFocus.ts";
+import { getErrorMessage } from "../lib/errors.ts";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   danger = true,
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -37,6 +39,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   useEffect(() => {
     if (!open) return;
+    setConfirmError(null);
     restoreFocusRef.current = (document.activeElement as HTMLElement) || null;
     const releaseScrollLock = lockBodyScroll();
     openDialogCount += 1;
@@ -85,8 +88,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   const handleConfirm = async () => {
     setIsConfirming(true);
+    setConfirmError(null);
     try {
       await onConfirm();
+    } catch (err) {
+      // A5-02: a refused action must explain itself inside the dialog, not only
+      // in a transient toast.
+      setConfirmError(getErrorMessage(err) || "The action could not be completed.");
     } finally {
       setIsConfirming(false);
     }
@@ -132,6 +140,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             <p id={descriptionId} className="mt-2 text-xs leading-relaxed text-slate-300">
               {description}
             </p>
+            {confirmError && (
+              <p role="alert" className="mt-3 rounded-lg border border-rose-800/80 bg-rose-950/40 px-3 py-2 text-xs text-rose-200">
+                {confirmError}
+              </p>
+            )}
           </div>
         </div>
         <div className="mt-5 flex justify-end gap-2 border-t border-slate-800 pt-4">

@@ -451,7 +451,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                         <button
                           onClick={() => handleAssign(voidItem, hvacPkg._id)}
                           disabled={assigningId === voidItem.id}
-                          className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
+                          className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
                         >
                           <ArrowRight className="w-3.5 h-3.5" />
                           Assign to Div 23 (HVAC)

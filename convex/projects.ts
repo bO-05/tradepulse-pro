@@ -467,7 +467,10 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       coiComplianceStatus: "compliant",
       coiPenalty: 0,
       leveledTotalCost: 1225000, // True leveled cost matches base
-      isAwarded: false,
+      // A7-04/A1-06: the seeded agreement below belongs to this bid, so the bid
+      // must carry the award flag; otherwise the matrix shows 0 AWARDED while
+      // the KPI/register count 1/3 awarded.
+      isAwarded: true,
       receivedAt: Date.now() - 3600000 * 18,
     });
 
@@ -782,7 +785,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       tradePackageId: elecPackageId,
       eventType: "contractor_invited",
       title: "RFQ Dispatched: Division 26 Electrical Systems",
-      description: "Autonomous RFQ invitations dispatched to verified regional commercial contractors via AgentMail and TDLR registry.",
+      description: "RFQ invitations dispatched to the recorded regional commercial contractors via AgentMail (license status shown as recorded; no registry lookup performed).",
       actor: "TradePulse AI Agent",
       timestamp: Date.now() - 86400000 * 2,
     });
@@ -940,7 +943,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       bidId: b1,
       contractorId: c1,
       agreementNumber,
-      documentTitle: "AIA Document A401™ – 2017 Standard Form of Agreement Between Contractor and Subcontractor",
+      documentTitle: "Subcontract Agreement (A401-style structure) — generated draft, not an AIA-licensed form",
       subcontractorName: "Rosendin Electric, Inc.",
       generalContractorName: DEFAULT_GENERAL_CONTRACTOR,
       subcontractorEmail: "estimating@rosendin.com",

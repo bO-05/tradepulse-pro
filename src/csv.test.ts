@@ -18,6 +18,7 @@ test("A3-02: CSV cells neutralize spreadsheet formula injection", () => {
 
 test("A3-02: buildCsv emits CRLF rows with a BOM and never splits a cell on embedded commas", () => {
   const csv = buildCsv(["Name", "COI"], [['Evil "Co", Inc.', 'compliant" =1+1']]);
+  expect(csv[0]).toBe("\uFEFF");
   const lines = csv.replace(/^\uFEFF/, "").trimEnd().split("\r\n");
   expect(lines.length).toBe(2);
   expect(lines[0]).toBe('"Name","COI"');

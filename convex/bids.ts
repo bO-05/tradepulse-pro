@@ -22,6 +22,32 @@ function assertBidAmountPlausible(tradePkg: any, baseBidAmount: number): void {
   }
 }
 
+const ALLOWED_COI_STATUSES = new Set(["compliant", "deficiency_detected"]);
+
+/**
+ * A7-01/A7-02: shared validation for every public bid writer so the same bad
+ * COI status or negative scope impact cannot slip through a sibling mutation.
+ */
+function assertBidLevelingInputs(
+  exclusions: ReadonlyArray<{ costImpact: number }>,
+  veAlternates: ReadonlyArray<{ costDeduct: number }>,
+  coiComplianceStatus?: string
+): void {
+  if (coiComplianceStatus !== undefined && !ALLOWED_COI_STATUSES.has(coiComplianceStatus)) {
+    throw new ConvexError("COI status must be 'compliant' or 'deficiency_detected'.");
+  }
+  for (const exc of exclusions) {
+    if (!Number.isFinite(exc.costImpact) || exc.costImpact < 0) {
+      throw new ConvexError("Scope exclusion cost impacts must be zero or positive dollar amounts.");
+    }
+  }
+  for (const ve of veAlternates) {
+    if (!Number.isFinite(ve.costDeduct) || ve.costDeduct < 0) {
+      throw new ConvexError("Value-engineering deducts must be zero or positive dollar amounts.");
+    }
+  }
+}
+
 export const listByPackage = query({
   args: { tradePackageId: v.id("tradePackages") },
   handler: async (ctx, args) => {
@@ -266,6 +292,7 @@ export const updateBidLeveling = mutation({
     const baseBidAmount = validatePositiveAmount(args.baseBidAmount ?? bid.baseBidAmount, "Base bid amount");
     const exclusions = args.identifiedExclusions ?? bid.identifiedExclusions;
     const veAlternates = args.valueEngineeringAlternates ?? bid.valueEngineeringAlternates ?? [];
+    assertBidLevelingInputs(exclusions, veAlternates, args.coiComplianceStatus);
     const leadTimePenalty = validateNonNegativeAmount(args.leadTimePenalty !== undefined ? args.leadTimePenalty : bid.leadTimePenalty, "Lead time penalty");
     const coiPenalty = validateNonNegativeAmount(args.coiPenalty !== undefined ? args.coiPenalty : bid.coiPenalty, "COI penalty");
 
@@ -341,20 +368,7 @@ export const updateBidAdjustments = mutation({
     const bid = await ctx.db.get(args.bidId);
     if (!bid) throw new Error("Bid not found");
 
-    const allowedCoiStatuses = new Set(["compliant", "deficiency_detected"]);
-    if (args.coiComplianceStatus !== undefined && !allowedCoiStatuses.has(args.coiComplianceStatus)) {
-      throw new ConvexError("COI status must be 'compliant' or 'deficiency_detected'.");
-    }
-    for (const exc of args.identifiedExclusions) {
-      if (!Number.isFinite(exc.costImpact) || exc.costImpact < 0) {
-        throw new ConvexError("Scope exclusion cost impacts must be zero or positive dollar amounts.");
-      }
-    }
-    for (const ve of args.valueEngineeringAlternates ?? []) {
-      if (!Number.isFinite(ve.costDeduct) || ve.costDeduct < 0) {
-        throw new ConvexError("Value-engineering deducts must be zero or positive dollar amounts.");
-      }
-    }
+    assertBidLevelingInputs(args.identifiedExclusions, args.valueEngineeringAlternates ?? [], args.coiComplianceStatus);
 
     const exclusions = args.identifiedExclusions;
     const veAlternates = args.valueEngineeringAlternates ?? bid.valueEngineeringAlternates ?? [];
@@ -454,6 +468,7 @@ export const submitDirectBid = mutation({
     }
     const baseBidAmount = validatePositiveAmount(args.baseBidAmount, "Base bid amount");
     assertBidAmountPlausible(tradePkg, baseBidAmount);
+    assertBidLevelingInputs(args.identifiedExclusions ?? [], args.valueEngineeringAlternates ?? [], args.coiComplianceStatus);
     const subcontractorName = validateProjectText(args.subcontractorName, "Subcontractor name");
     // 1. Mark contractor as bid_received
     await ctx.db.patch(args.contractorId, { rfqStatus: "bid_received" });
@@ -650,12 +665,23 @@ export const insertParsedBid = internalMutation({
       throw new Error("This quote file is already linked to a different contractor or trade package.");
     }
 
-    // 4. Calculate deterministic leveled cost with VE alternates & waived exclusions
-    const activeExclusionsCost = args.identifiedExclusions.reduce(
+    // 4. Calculate deterministic leveled cost with VE alternates & waived exclusions.
+    // A7-03: normalize model output here so an invalid COI string or negative
+    // impact can never reach storage even from the internal ingestion path.
+    const safeCoiStatus = ALLOWED_COI_STATUSES.has(args.coiComplianceStatus) ? args.coiComplianceStatus : "compliant";
+    const safeExclusions = args.identifiedExclusions.map((exc) => ({
+      ...exc,
+      costImpact: Math.max(0, Number(exc.costImpact) || 0),
+    }));
+    const safeVeAlternates = (args.valueEngineeringAlternates || []).map((ve) => ({
+      ...ve,
+      costDeduct: Math.max(0, Number(ve.costDeduct) || 0),
+    }));
+    const activeExclusionsCost = safeExclusions.reduce(
       (sum, exc) => (exc.isWaived ? sum : sum + exc.costImpact),
       0
     );
-    const acceptedVeDeduct = (args.valueEngineeringAlternates || []).reduce(
+    const acceptedVeDeduct = safeVeAlternates.reduce(
       (sum, ve) => (ve.isAccepted ? sum + ve.costDeduct : sum),
       0
     );
@@ -676,11 +702,11 @@ export const insertParsedBid = internalMutation({
         subcontractorName: args.subcontractorName,
         baseBidAmount,
         lineItems: args.lineItems,
-        identifiedExclusions: args.identifiedExclusions,
-        valueEngineeringAlternates: args.valueEngineeringAlternates ?? [],
+        identifiedExclusions: safeExclusions,
+        valueEngineeringAlternates: safeVeAlternates,
         longLeadEquipmentWeeks: args.longLeadEquipmentWeeks,
         leadTimePenalty,
-        coiComplianceStatus: args.coiComplianceStatus,
+        coiComplianceStatus: safeCoiStatus,
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
         ...(args.sourceFileId ? { sourceFileId: args.sourceFileId } : {}),
@@ -698,11 +724,11 @@ export const insertParsedBid = internalMutation({
         subcontractorName: args.subcontractorName,
         baseBidAmount,
         lineItems: args.lineItems,
-        identifiedExclusions: args.identifiedExclusions,
-        valueEngineeringAlternates: args.valueEngineeringAlternates ?? [],
+        identifiedExclusions: safeExclusions,
+        valueEngineeringAlternates: safeVeAlternates,
         longLeadEquipmentWeeks: args.longLeadEquipmentWeeks,
         leadTimePenalty,
-        coiComplianceStatus: args.coiComplianceStatus,
+        coiComplianceStatus: safeCoiStatus,
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
         isAwarded: false,

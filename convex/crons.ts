@@ -143,7 +143,7 @@ export const auditContractorCompliance = internalMutation({
         await ctx.db.insert("auditLogs", {
           projectId: project._id,
           eventType: "compliance_audit",
-          title: `Cron Audit: TDLR & ACORD 25 Compliance Sweep - ${project.title}`,
+          title: `Cron Audit: Recorded License Status & ACORD 25 Sweep - ${project.title}`,
           description: `Audited ${projectContractors.length} trade contractors (${pVerified} verified active, ${pFlagged} flagged). Detected ${pCoiDeficiencies} active COI insurance deficiency riders.`,
           actor: "Convex Compliance Auditor Cron",
           timestamp: Date.now(),
@@ -262,7 +262,7 @@ export const getCronStatus = query({
         {
           name: "audit-contractor-compliance",
           schedule: "Every 6 hours",
-          description: "Audits TDLR license status and ACORD 25 insurance compliance",
+          description: "Sweeps recorded contractor license statuses and ACORD 25 insurance flags (no registry lookup is performed)",
         },
       ],
       engine: "Convex Native cronJobs()",

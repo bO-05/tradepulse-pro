@@ -72,7 +72,7 @@ export const generateAgreement = mutation({
 
     if (existing) {
       if (existing.status === "executed") {
-        throw new Error("Executed agreements are immutable. Create a formal amendment instead of regenerating this agreement.");
+        throw new ConvexError("Executed agreements are immutable. Create a formal amendment instead of regenerating this agreement.");
       }
       // Re-award this bid and package, supersede other agreements
       const packageBids = await ctx.db
@@ -457,7 +457,7 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
 
   if (!existingAgreement) return null;
   if (existingAgreement.status === "executed") {
-    throw new Error("Executed agreements are immutable. Create a formal amendment instead of changing the bid.");
+    throw new ConvexError("Executed agreements are immutable. Create a formal amendment instead of changing the bid.");
   }
 
   const tradePkg = await ctx.db.get(bid.tradePackageId);
@@ -636,7 +636,7 @@ ARTICLE 10  ATTESTATION & FORMAL EXECUTION
 ARTICLE 1 - THE SUBCONTRACT DOCUMENTS
 --------------------------------------------------------------------------------
 § 1.1 The Subcontract Documents consist of:
-  (1) this AIA Document A401 Agreement;
+  (1) this A401-style Subcontract Agreement draft;
   (2) the Prime Agreement between Contractor and Owner;
   (3) the Conditions of the Subcontract (General, Supplementary, and Special);
   (4) CSI MasterFormat Division ${params.csiDivision} (${params.tradeName}) Drawings and Specifications;
