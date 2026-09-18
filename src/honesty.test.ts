@@ -178,7 +178,10 @@ test("F9: inbox copy reflects plan-limit sharing, never a 'dedicated' claim", ()
 
 test("F12: 'Buyout' means the dollar forecast; award counts use award wording", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
-  expect(kpi).not.toContain("Buyout: <strong");
+  // "Buyout" may only appear as "Leveled Buyout" (the dollar figure), never as a bare award counter.
+  const buyoutOccurrences = (kpi.match(/Buyout: <strong/g) || []).length;
+  const leveledBuyoutOccurrences = (kpi.match(/Leveled Buyout: <strong/g) || []).length;
+  expect(buyoutOccurrences).toBe(leveledBuyoutOccurrences);
   expect(kpi).toContain("Subcontracts: <strong");
   expect(kpi).toContain("Subcontract Awards");
 });
