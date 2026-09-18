@@ -129,6 +129,13 @@ test("F3: the New Project form uses placeholders, not silent prefilled values", 
   expect(header).toContain("validateNewProjectFields");
 });
 
+test("F4: the leveling simulate control's label matches what it opens", () => {
+  const levelingView = find("BidLevelingMatrixView.tsx", componentSources);
+  expect(levelingView).not.toContain("Simulate Inbound Bid…");
+  expect(levelingView).toContain("Open Demo Simulation…");
+  expect(levelingView).toContain("Scenario B (deceptive bid)");
+});
+
 test("F2: no surface hard-codes the bid-based buyout label or a budget savings percent", () => {
   const kpi = find("ExecutiveKpiBar.tsx", componentSources);
   expect(kpi).not.toContain("(best bid per package)");

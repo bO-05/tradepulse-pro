@@ -781,10 +781,10 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
             <button
               onClick={onOpenSimulation}
               className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
-              title="Opens the simulation dock; Scenario B/C ingest a simulated inbound proposal for the active package"
+              title="Opens the 60-second demo dock. Scenario B (deceptive bid) and Scenario C (compliant bid) ingest a simulated proposal for the active package."
             >
               <Zap className="w-3.5 h-3.5 fill-slate-950" />
-              Simulate Inbound Bid…
+              Open Demo Simulation…
             </button>
           </div>
         </div>
@@ -961,7 +961,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
             </div>
             <p className="text-[11px] text-slate-400 text-center">
               Bids are also ingested by the AI from uploaded quote files on the CSI Scoping tab, or simulated from the
-              «Simulate Inbound Bid…» control in the toolbar above.
+              «Open Demo Simulation…» control in the toolbar above (Scenario B or C ingests a proposal).
             </p>
           </div>
         </div>
