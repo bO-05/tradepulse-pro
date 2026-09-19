@@ -338,7 +338,19 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                         No remaining redundancy — an accepted alternate already covers this double-buy.
                       </span>
                     ) : (
-                      <span>Standard GC buyout recommends deducting redundant equipment from secondary trade proposal.</span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span>Standard GC buyout recommends deducting redundant equipment from secondary trade proposal.</span>
+                        {clash.staleResolution && onReverseCredit && targetPkg && (
+                          <button
+                            type="button"
+                            onClick={() => onReverseCredit(clash.id, targetPkg._id)}
+                            className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 transition"
+                            title="A stale credit record blocks re-applying; clear it to restore the deduct action"
+                          >
+                            Clear stale credit record
+                          </button>
+                        )}
+                      </span>
                     )}
                   </div>
 

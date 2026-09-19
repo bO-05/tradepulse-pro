@@ -1634,7 +1634,6 @@ export const App: React.FC = () => {
       );
     } catch (err: any) {
       showToast(`Deduct credit failed: ${getErrorMessage(err) || "The credit was not applied."}`);
-      throw err;
     }
   };
 
@@ -1673,7 +1672,6 @@ export const App: React.FC = () => {
       showToast("Cross-trade credit reversed; leveled cost restored.");
     } catch (err: any) {
       showToast(`Credit reversal failed: ${getErrorMessage(err) || "The credit was not reversed."}`);
-      throw err;
     }
   };
 

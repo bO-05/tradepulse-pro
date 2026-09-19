@@ -18,6 +18,8 @@ export interface DoubleBuyClash {
   redundantAmount: number;
   /** Actual amount credited by the persisted clash resolution, when one exists. */
   deductedAmount?: number;
+  /** A persisted credit exists but no proposal currently carries it (A32-02). */
+  staleResolution?: boolean;
   description: string;
   status: "detected" | "deducted";
   resolution?: string;
@@ -277,6 +279,10 @@ export const detectCrossTradeClashes = query({
             match.status = "deducted";
             match.deductedAmount = resolution.amount;
             match.resolution = undefined;
+          } else {
+            // A32-02: a resolution with no matching credit is stale; surface that
+            // so the UI can offer an explicit "clear stale credit" action.
+            match.staleResolution = true;
           }
         }
       } else {
@@ -519,11 +525,28 @@ export const reverseDoubleBuyCredit = mutation({
       .query("bids")
       .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
       .collect();
-    const targetBid = bids.find((b) => b.isAwarded) || [...bids].sort((a, b) => a.leveledTotalCost - b.leveledTotalCost)[0];
+    // A32-01: find the bid that actually carries the matching credit alternate,
+    // not merely the currently awarded/cheapest bid.
+    const targetBid = bids.find((b) =>
+      (b.valueEngineeringAlternates || []).some(
+        (v: any) =>
+          v.description.startsWith("Cross-Trade Clash Credit:") && (v.costDeduct || 0) === resolution.amount
+      )
+    );
     if (!targetBid) {
-      // No proposal to clean up: just clear the stale resolution.
+      // Stale resolution: nothing carried it. Clear it with an audit record so
+      // the state is explainable and re-applicable.
       await ctx.db.delete(resolution._id);
-      return { success: true, note: "Stale credit record cleared; no proposal was modified." };
+      await ctx.db.insert("auditLogs", {
+        projectId: args.projectId,
+        tradePackageId: args.tradePackageId,
+        eventType: "bid_leveled",
+        title: `Double-Buy Credit Record Cleared: ${args.clashId}`,
+        description: `A stale $${resolution.amount.toLocaleString()} credit record existed for ${args.clashId} but no proposal carried the credit. The record was cleared; the credit can be applied again.`,
+        actor: "Cross-Trade Clash Coordination Engine",
+        timestamp: Date.now(),
+      });
+      return { success: true, note: "Stale credit record cleared; the proposal no longer carried it." };
     }
 
     const currentAlternates = targetBid.valueEngineeringAlternates || [];
@@ -531,10 +554,6 @@ export const reverseDoubleBuyCredit = mutation({
       (a: any) =>
         a.description.startsWith("Cross-Trade Clash Credit:") && (a.costDeduct || 0) === resolution.amount
     );
-    if (matchingCredits.length === 0) {
-      await ctx.db.delete(resolution._id);
-      return { success: true, note: "Stale credit record cleared; the proposal no longer carried it." };
-    }
 
     const updatedAlternates = currentAlternates.filter((a: any) => !matchingCredits.includes(a));
     const acceptedVeDeduct = updatedAlternates.reduce(

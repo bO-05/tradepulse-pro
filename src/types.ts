@@ -167,6 +167,8 @@ export interface DoubleBuyClash {
   redundantAmount: number;
   /** Actual amount credited by the persisted clash resolution, when one exists. */
   deductedAmount?: number;
+  /** A persisted credit exists but no proposal currently carries it. */
+  staleResolution?: boolean;
   description: string;
   status: "detected" | "deducted";
   resolution?: string;
