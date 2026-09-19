@@ -37,7 +37,7 @@ Environment overrides: `QA_BACKEND_URL`, `REM_BASE_URL` (site), `REM_EVIDENCE_DI
 
 - `check-docs-links.mjs` — fails on any broken relative link in shipped docs (`node scripts/tools/check-docs-links.mjs docs README.md`).
 - `compress-report-images.ps1` — shrinks self-contained audit HTMLs (embedded PNG → resized JPEG) and standalone screenshot folders for repo-friendly reports.
-- `reorder-hackathon-log.mjs` — keeps `hackathon.md` entries strictly newest-first; run with `--check` in CI/verification.
+- `reorder-hackathon-log.mjs` — keeps `hackathon.md` strictly chronological (oldest first, newest appended last, per the project log-format reference); run with `--check` in CI/verification.
 
 ## Fixture policy
 

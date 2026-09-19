@@ -2,7 +2,7 @@
 /**
  * QA7 independent verification harness (deterministic, no network).
  * Covers the guard fixes deployed to brainy-skunk-440; live HTTP runs are
- * executed separately by scripts/audit2-rem/qa7-*.mjs.
+ * executed separately by the portable QA harness (scripts/qa/) as well as the local raw harness.
  */
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
