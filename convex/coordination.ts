@@ -2,7 +2,7 @@ import { query, mutation, action } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { syncAgreementForBid } from "./agreements";
-import { validateNonNegativeAmount, validateProjectText } from "./validation";
+import { validateNonNegativeAmount, validatePositiveAmount, validateProjectText } from "./validation";
 
 export interface DoubleBuyClash {
   id: string;
@@ -152,23 +152,24 @@ export const detectCrossTradeClashes = query({
     const allHvacVe = hvacBids.flatMap((b) => b.valueEngineeringAlternates || []);
     const allVe = [...allElecVe, ...allHvacVe];
 
-    const isVfdDeducted = allVe.some(
-      (v) => (v.description.includes("VFD") || v.description.includes("Variable Frequency")) && v.isAccepted
-    );
-    const isDisconnectDeducted = allVe.some(
-      (v) => (v.description.includes("Disconnect") || v.description.includes("Switch")) && v.isAccepted
-    );
+    // A28-02: accepted alternates entered manually reduce the remaining
+    // redundancy but do NOT mean the 1-click credit was applied. Track the
+    // actual covered amount instead of flipping the card to "deducted".
+    const manualCoverageFor = (rx: RegExp) =>
+      allVe
+        .filter((v) => v.isAccepted && rx.test(v.description))
+        .reduce((sum, v) => sum + (v.costDeduct || 0), 0);
+    const vfdManualCoverage = manualCoverageFor(/VFD|Variable Frequency/i);
+    const disconnectManualCoverage = manualCoverageFor(/Disconnect|Switch/i);
 
     // Check if scope voids have been assigned to mandatoryInclusions
     const elecInclusions = elecPkg?.mandatoryInclusions || [];
     const hvacInclusions = hvacPkg?.mandatoryInclusions || [];
 
-    const isBasWiringInElec = elecInclusions.some(
-      (i) => i.toLowerCase().includes("bas") || i.toLowerCase().includes("control wiring")
-    );
-    const isBasWiringInHvac = hvacInclusions.some(
-      (i) => i.toLowerCase().includes("bas") || i.toLowerCase().includes("control wiring")
-    );
+    // A28-01: match the acronym, not any word containing "bas" ("base building").
+    const BAS_RX = /\bbas\b|building automation|bms\b|control wiring/i;
+    const isBasWiringInElec = elecInclusions.some((i) => BAS_RX.test(i));
+    const isBasWiringInHvac = hvacInclusions.some((i) => BAS_RX.test(i));
     const isBasWiringAssigned = isBasWiringInElec || isBasWiringInHvac;
 
     const isSmokeDetectorInElec = elecInclusions.some(
@@ -191,13 +192,10 @@ export const detectCrossTradeClashes = query({
         secondaryTradeName: "Heating, Ventilating & Air Conditioning",
         secondaryCost: 38500,
         secondaryLineItem: "Factory-Mounted VFD units on Chilled Water AHUs",
-        redundantAmount: 38500,
+        redundantAmount: Math.max(0, 38500 - vfdManualCoverage),
         description:
           "Both Division 26 Electrical and Division 23 HVAC include furnishing VFDs for mechanical fans. Without deduplication, the GC will pay twice for 12 identical drives.",
-        status: isVfdDeducted ? "deducted" : "detected",
-        resolution: isVfdDeducted
-          ? "Deducted $38,500 credit alternate from Division 23 HVAC proposal."
-          : undefined,
+        status: "detected" as const,
       },
       {
         id: "clash-disconnect-02",
@@ -210,13 +208,10 @@ export const detectCrossTradeClashes = query({
         secondaryTradeName: "Heating, Ventilating & Air Conditioning",
         secondaryCost: 12000,
         secondaryLineItem: "Unit-mounted weatherproof disconnect switches",
-        redundantAmount: 12000,
+        redundantAmount: Math.max(0, 12000 - disconnectManualCoverage),
         description:
           "Both electrical and HVAC trades priced local disconnect switches for chiller and cooling tower motors. Standard practice assigns to Electrical.",
-        status: isDisconnectDeducted ? "deducted" : "detected",
-        resolution: isDisconnectDeducted
-          ? "Deducted $12,000 redundant switch buyout from Division 23 HVAC proposal."
-          : undefined,
+        status: "detected" as const,
       },
     ];
 
@@ -357,7 +352,7 @@ export const deductDoubleBuyCredit = mutation({
     if (tradePkg.projectId !== args.projectId) {
       throw new Error("The trade package does not belong to the selected project.");
     }
-    const deductAmount = validateNonNegativeAmount(args.deductAmount, "Double-buy credit");
+    const deductAmount = validatePositiveAmount(args.deductAmount, "Double-buy credit");
     const description = validateProjectText(args.description, "Double-buy description");
     await assertCrossTradeEvidence(ctx, args.projectId);
     if (!KNOWN_DOUBLE_BUY_IDS.has(args.clashId)) {
@@ -410,6 +405,13 @@ export const deductDoubleBuyCredit = mutation({
     }
 
     const veDescription = `Cross-Trade Clash Credit: Deduct redundant ${description}`;
+    // A28-04: a credit can never exceed the proposal's leveled cost; an oversized
+    // credit overstated the recovery and wrote an impossible audit value.
+    if (deductAmount > targetBid.leveledTotalCost) {
+      throw new ConvexError(
+        `The credit $${deductAmount.toLocaleString()} exceeds the proposal's leveled cost of $${targetBid.leveledTotalCost.toLocaleString()}. Reduce the credit before applying it.`
+      );
+    }
     const currentAlternates = targetBid.valueEngineeringAlternates || [];
     const updatedAlternates = [
       ...currentAlternates.filter((a: any) => !a.description.includes(description)),

@@ -319,12 +319,16 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                         <Check className="w-3.5 h-3.5" />
                         {clash.resolution || `Deducted $${(typeof clash.deductedAmount === "number" ? clash.deductedAmount : clash.redundantAmount).toLocaleString("en-US")} credit from proposal`}
                       </span>
+                    ) : clash.redundantAmount <= 0 ? (
+                      <span className="text-emerald-400/90 font-medium">
+                        No remaining redundancy — an accepted alternate already covers this double-buy.
+                      </span>
                     ) : (
                       <span>Standard GC buyout recommends deducting redundant equipment from secondary trade proposal.</span>
                     )}
                   </div>
 
-                  {!isDeducted && targetPkg && (
+                  {!isDeducted && targetPkg && clash.redundantAmount > 0 && (
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleDeduct(clash, targetPkg._id)}

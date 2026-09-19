@@ -925,6 +925,100 @@ test("A21-01: cross-trade clashes and credits require priced evidence on both si
   expect(clashesAfter.doubleBuys.length).toBeGreaterThan(0);
 });
 
+test("A28-01/02/03/04: clash truth, manual-VE coverage, and credit bounds", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Clash Truth Guard");
+  const elecId = await createPackage(t, projectId);
+  const hvacId = await t.mutation(api.tradePackages.createTradePackage, {
+    projectId,
+    csiDivision: "23 00 00",
+    tradeName: "HVAC Systems",
+    budgetEstimate: 1_200_000,
+    scopeSummary: "Rooftop units and hydronic piping.",
+    mandatoryInclusions: ["Crane pick"],
+    bidDeadline: "2026-10-31",
+  });
+  const elecContractor = await createContractor(t, elecId);
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: elecId,
+    contractorId: elecContractor,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  const hvacContractor = await t.mutation(api.contractors.createContractor, {
+    tradePackageId: hvacId,
+    companyName: "Regression Mechanical LLC",
+    contactEmail: "bids@regression-mech.test",
+    licenseNumber: "TX-REG-0006",
+    licenseStatus: "Active / Verified",
+    sourceUrl: "https://regression-mech.test",
+    rfqStatus: "invited",
+  });
+  const hvacBid: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: hvacId,
+    contractorId: hvacContractor,
+    subcontractorName: "Regression Mechanical LLC",
+    baseBidAmount: 1_150_000,
+  });
+
+  // A28-01: a "base building ..." inclusion must not count as BAS coverage.
+  await t.run(async (ctx) => {
+    const pkg: any = await ctx.db.get(elecId);
+    await ctx.db.patch(elecId, {
+      mandatoryInclusions: [...pkg.mandatoryInclusions, "Base building general conditions allowance"],
+    });
+  });
+  const before: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(before.scopeVoids.find((v: any) => v.id === "void-bas-wiring-01")?.status).toBe("open");
+
+  // A28-02: a manual accepted VE reduces exposure but does not mark the credit deducted.
+  await t.mutation(api.bids.updateBidAdjustments, {
+    bidId: hvacBid.bidId,
+    identifiedExclusions: [],
+    valueEngineeringAlternates: [{ description: "Manual VFD starter credit", costDeduct: 1_000, isAccepted: true }],
+  });
+  const after: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  const vfd = after.doubleBuys.find((d: any) => d.id === "clash-vfd-01");
+  expect(vfd.status).toBe("detected");
+  expect(vfd.redundantAmount).toBe(37_500);
+
+  // A28-03: a zero credit is refused and cannot consume the clash.
+  await expect(
+    t.mutation(api.coordination.deductDoubleBuyCredit, {
+      projectId,
+      clashId: "clash-vfd-01",
+      tradePackageId: hvacId,
+      deductAmount: 0,
+      description: "Zero credit",
+      bidId: hvacBid.bidId,
+    })
+  ).rejects.toThrow(/greater than zero/i);
+
+  // A28-04: a credit larger than the proposal's leveled cost is refused.
+  await expect(
+    t.mutation(api.coordination.deductDoubleBuyCredit, {
+      projectId,
+      clashId: "clash-vfd-01",
+      tradePackageId: hvacId,
+      deductAmount: 5_000_000,
+      description: "Oversized credit",
+      bidId: hvacBid.bidId,
+    })
+  ).rejects.toThrow(/exceeds the proposal/i);
+
+  // The sanctioned credit still applies and only then marks the clash deducted.
+  await t.mutation(api.coordination.deductDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+    deductAmount: 37_500,
+    description: "VFD double buy",
+    bidId: hvacBid.bidId,
+  });
+  const final: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(final.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.status).toBe("deducted");
+});
+
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
   const t = convexTest(schema, modules);
   const projectId = await createProject(t, "Adjustment Guard Project");
