@@ -222,10 +222,42 @@ test("Clash guard: both packages but zero bids return no clashes (no priced evid
   expect(zeroBid.summary.activeClashesCount).toBe(0);
 });
 
-test("B1: clash credit before bids is persisted as a resolution", async () => {
+test("B1/A24-01: clash credit is persisted as a resolution once both trades are priced", async () => {
   const t = convexTest(schema, modules);
   const projectId = await createProject(t, "Clash Resolution Project");
   const packageId = await createPackage(t, projectId);
+  // A24-01: credits require priced evidence on both sides.
+  const hvacId = await t.mutation(api.tradePackages.createTradePackage, {
+    projectId,
+    csiDivision: "23 00 00",
+    tradeName: "HVAC Systems",
+    budgetEstimate: 1_200_000,
+    scopeSummary: "Rooftop units and hydronic piping.",
+    mandatoryInclusions: ["Crane pick"],
+    bidDeadline: "2026-10-31",
+  });
+  const elecContractor = await createContractor(t, packageId);
+  const hvacContractor = await t.mutation(api.contractors.createContractor, {
+    tradePackageId: hvacId,
+    companyName: "Regression Mechanical LLC",
+    contactEmail: "bids@regression-mech.test",
+    licenseNumber: "TX-REG-0005",
+    licenseStatus: "Active / Verified",
+    sourceUrl: "https://regression-mech.test",
+    rfqStatus: "invited",
+  });
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId: elecContractor,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: hvacId,
+    contractorId: hvacContractor,
+    subcontractorName: "Regression Mechanical LLC",
+    baseBidAmount: 1_150_000,
+  });
   const result = await t.mutation(api.coordination.deductDoubleBuyCredit, {
     projectId,
     clashId: "clash-vfd-01",

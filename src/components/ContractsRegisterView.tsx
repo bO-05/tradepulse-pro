@@ -201,7 +201,7 @@ const handlePrint = (agr: Agreement) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-slate-400 mr-1">Status:</span>
           {[
             { id: "all", label: "Active Contracts" },
@@ -294,6 +294,10 @@ const handlePrint = (agr: Agreement) => {
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
                            <CheckCircle2 className="w-3 h-3" /> Execution Status Recorded
                         </span>
+                      ) : agr.status === "superseded" ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-600">
+                          Superseded — read-only
+                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400 border border-amber-800">
                           <Clock className="w-3 h-3" /> Pending Execution
@@ -310,7 +314,7 @@ const handlePrint = (agr: Agreement) => {
                         Inspect Draft
                       </button>
 
-                      {agr.status !== "executed" && (
+                      {agr.status === "generated" && (
                         <button
                           onClick={() => handleExecute(agr._id)}
                           className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 transition shadow-sm"

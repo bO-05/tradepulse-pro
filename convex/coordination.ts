@@ -326,12 +326,11 @@ async function assertCrossTradeEvidence(ctx: any, projectId: any): Promise<void>
       : 0;
   const elecPriced = (await countBids(elec?._id)) > 0;
   const hvacPriced = (await countBids(hvac?._id)) > 0;
-  // No priced proposals on either side is allowed (intent logging before bids
-  // arrive). Priced on only one side is the fabricated-clash case: the other
-  // trade never bid, so no credit may touch a real proposal.
-  if (elecPriced !== hvacPriced) {
+  // A24-01: a credit without priced proposals on BOTH sides becomes a phantom
+  // deducted record once bids arrive, with no reversal path. Require evidence.
+  if (!elecPriced || !hvacPriced) {
     throw new ConvexError(
-      "Cross-trade credits require priced proposals on both Division 26 (Electrical) and Division 23 (HVAC) before a credit can be applied."
+      "Cross-trade credits require at least one priced proposal in both Division 26 (Electrical) and Division 23 (HVAC)."
     );
   }
 }
