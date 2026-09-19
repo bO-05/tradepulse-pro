@@ -1,0 +1,192 @@
+<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>TradePulse Pro - Human-Operator UI Audit</title>
+<style>
+body{background:#0b1020;color:#e8edf7;font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;max-width:980px;margin:0 auto;padding:28px 20px 64px}
+h1{font-size:28px;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:20px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #28324a}
+h3{font-size:16px;margin:22px 0 6px;color:#fff}
+p,li,td,th{color:#cdd7e8}
+strong{color:#fff}
+em{color:#e8edf7}
+hr{border:none;border-top:1px solid #28324a;margin:24px 0}
+a{color:#60a5fa}
+code{background:#1b2439;border:1px solid #28324a;border-radius:4px;padding:1px 5px;font-size:12.5px;color:#7dd3fc}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #28324a;vertical-align:top}
+th{color:#9aa7be;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+ul{margin:10px 0 10px 20px}
+li{margin:5px 0}
+.sub{color:#9aa7be;font-size:13px;margin-bottom:14px}
+</style></head><body>
+<h1>TradePulse Pro — Human-Operator UI Audit</h1>
+<p><strong>Question asked:</strong> Does this app have an intuitive and meaningful UI, if operated by a human as described (GC estimator, subcontractor bidder, second GC admin, adversarial tester, a11y/craft reviewer)?</p>
+<p><strong>Answer:</strong> <strong>Partly.</strong> It is <em>easy to operate</em> and <em>easy to understand on the happy path</em>. It is <strong>not yet reliable enough for a human to trust the numbers</strong>, and a few controls do something other than what their label says. This document is written so a coding agent can act on it directly: every finding has severity, repro steps, root cause with <code>file:line</code>, and a definition of done.</p>
+<ul>
+<li><strong>Audited:</strong> live deployment <code>brainy-skunk-440.convex.site</code> + repo <code>github.com/bO-05/tradepulse-pro</code> @ <code>4c9366a</code> (2026-09-18).</li>
+<li><strong>Method:</strong> real mouse/keyboard via Chrome DevTools Protocol (not DOM-only), two independent browser tabs, Console + Network + HAR-class instrumentation throughout, project create → scope → discover → invite → Q&amp;A → submit/revise → level → isolate. Responsive (375px, 200%), keyboard-only, dark theme, empty/loading/error states.</li>
+<li><strong>Reproduced:</strong> every reported bug at least twice, or explicitly marked flaky.</li>
+<li><strong>Scope:</strong> UI/UX + meaning + craft. Server/security items are marked out of scope where relevant.</li>
+</ul>
+<hr>
+<h2>0. TL;DR for the coding agent</h2>
+<p>Fix these six things and the product becomes trustworthy to a human operator. Ordered by user harm per unit of effort.</p>
+<table><thead><tr><th>#</th><th>Finding</th><th>Severity</th><th>Effort</th><th>File</th></tr></thead><tbody>
+<tr><td><strong>F1</strong></td><td>RFI submissions are silently lost (no error, no retry, no draft)</td><td><strong>High</strong></td><td>M</td><td><code>convex/simulation.ts:319</code>, <code>convex/emailActions.ts</code> <code>handleRfiProcessing</code></td></tr>
+<tr><td><strong>F2</strong></td><td>&quot;Leveled Buyout&quot; mixes real bids with budget estimates but is labelled &quot;best bid per package&quot;</td><td><strong>High</strong></td><td>S</td><td><code>src/leveling.ts:117-120</code>, <code>src/components/ExecutiveKpiBar.tsx:55</code></td></tr>
+<tr><td><strong>F3</strong></td><td>New Project form pre-fills 5 fields; typing appends → silent $550B budgets</td><td><strong>Medium</strong></td><td>S</td><td><code>src/components/Header.tsx:76-81</code></td></tr>
+<tr><td><strong>F4</strong></td><td>&quot;Simulate Inbound Bid…&quot; opens a demo dock, ingests nothing</td><td><strong>Medium</strong></td><td>S</td><td><code>src/components/BidLevelingMatrixView.tsx:779-786</code></td></tr>
+<tr><td><strong>F5</strong></td><td>Up to 4 competing &quot;next&quot; CTAs per screen; two disagree</td><td><strong>Medium</strong></td><td>M</td><td>multiple (see F5)</td></tr>
+<tr><td><strong>F6</strong></td><td>RFI form has no trade/division selector; defaults to wrong package</td><td><strong>Medium</strong></td><td>S</td><td><code>src/components/PreBidQnAView.tsx:739-800</code></td></tr>
+</tbody></table>
+<p>Positives worth protecting (do not regress): dishonest-claim fixes in Discovery and Evals, the Bid Leveling card pair, the ConfirmDialog focus/stacking work, and the dynamic tour copy.</p>
+<hr>
+<h2>1. What is genuinely intuitive (protect this)</h2>
+<p><strong>1.1 The pipeline reads as a left-to-right story.</strong> Six numbered stages, each with a live count (3 Pkgs → 4 Subs → 3 RFIs → 2 Bids → 4 Clashes → 1/3 Awarded). A first-timer can predict what happens next and where they are. This is the single strongest UX decision in the app.</p>
+<p><strong>1.2 Bid Leveling is the hero screen.</strong> The two-column card pair (Rank #1 Rosendin, paper $1,225,000 / TRUE LEVELED COST $1,225,000 vs Rank #2 Alterman, paper $1,100,000 / true $1,286,000) with each exclusion priced on its own line makes the product&#x27;s whole thesis legible in about five seconds. A GC instantly sees <em>why the cheapest paper bid is not the cheapest real bid.</em></p>
+<p><strong>1.3 Destructive and legal actions are described honestly.</strong> Recording contract execution states &quot;TradePulse does not provide a signature service.&quot; Upload errors name the file and the allowed extensions. Addendum issuance is gated and explains <em>which</em> RFIs are uncertified. &quot;Reset&quot; explains exactly what it clears.</p>
+<p><strong>1.4 Realtime works.</strong> An RFI submitted from an independent browser tab appeared in the other tab with no refresh. Deduct credits and scope assignments propagate. Deep-linking (<code>?project=…&amp;tab=…</code>) and the Back/Forward buttons work correctly because tab state is URL-synced (<code>src/App.tsx:232-255</code>).</p>
+<p><strong>1.5 Mobile, zoom, and keyboard are real.</strong> At 375px everything stacks with <strong>zero horizontal overflow</strong>; at 200% zoom the stepper collapses to a &quot;Stage&quot; dropdown; keyboard Tab visits every control <strong>with a visible focus ring</strong>; the project <code>&lt;select&gt;</code> responds to arrow keys.</p>
+<p><strong>1.6 The <code>ConfirmDialog</code> rework is excellent.</strong> Monotonic z-index so stacked dialogs cannot both react; Escape closes; focus is trapped and restored (<code>src/components/ConfirmDialog.tsx:17-70</code>). Verified live: Escape closed the Delete-project confirm and the project survived.</p>
+<hr>
+<h2>2. Findings that make a human mistrust or mis-operate the app</h2>
+<h3>F1 — RFI submissions are silently lost — <strong>High</strong></h3>
+<p><strong>Expected:</strong> I type a detailed RFI, hit submit, and it eventually appears (or I get an error).</p>
+<p><strong>Saw:</strong> The submit button disables and shows a spinner, then either appears after ~13–50 s <strong>or vanishes forever</strong> with no error. The form is already cleared, so the text is gone too.</p>
+<p><strong>Why it is high:</strong> This is a subcontractor&#x27;s formal question to a GC about scope and money. Losing it silently risks a bid built on the wrong assumption, and the bidder has no signal to retry.</p>
+<p><strong>Reproduced twice, and it is flaky — that is the worst kind:</strong></p>
+<ul>
+<li>Attempt 1 (<code>REFRESH-MIDFLOW TEST</code>): submitted, refreshed during analysis → RFI never created; count stayed 1.</li>
+<li>Attempt 2 (<code>&lt;img src=x…&gt; XSS TEST</code>): submitted → RFI never created; count stayed 1.</li>
+<li>Attempt 3 (<code>REPRO2 refresh loss</code>): submitted, refreshed → <strong>appeared</strong>; count 2 → 3.</li>
+<li>Control (<code>CONTROL RFI no refresh</code>): submitted, left open → appeared in ~13 s; count 1 → 2.</li>
+</ul>
+<p>So the loss is not caused by the refresh per se; it correlates with the analysis step failing.</p>
+<p><strong>Root cause (<code>file:line</code>):</strong></p>
+<ul>
+<li><code>convex/simulation.ts:319</code> — <code>submitCustomRfi</code> returns <code>{success:true}</code> immediately and only <em>schedules</em> the work: <code>await ctx.scheduler.runAfter(0, internal.emailActions.processSimulatedInbound, {...})</code>.</li>
+<li><code>convex/emailActions.ts</code> <code>handleRfiProcessing</code> — awaits <code>internal.llmRouter.executeReasoning</code> <strong>with no try/catch</strong>. If the LLM call throws (rate limit, timeout, transient network), the action aborts before <code>internal.rfq.recordInboundRfi</code> is ever called. Nothing is written and nothing is reported.</li>
+<li>Client (<code>src/components/PreBidQnAView.tsx:150-182</code>) clears subject+question on submit and shows a spinner; <code>pendingRfiSince</code> is only cleared when a new conversation appears, so on failure it spins indefinitely.</li>
+</ul>
+<p><strong>Definition of done:</strong></p>
+<p>1. Wrap the LLM call and the record write in <code>handleRfiProcessing</code> so a failure is caught and the RFI is still persisted with status <code>pending_analysis</code> (or <code>failed_analysis</code>) plus the original text.</p>
+<p>2. On failure, surface a visible error to the client with a <strong>Retry</strong> action; never leave the spinner running forever.</p>
+<p>3. Persist the submitted RFI text <em>before</em> the LLM step so a refresh cannot lose it.</p>
+<p>4. Test: force <code>executeReasoning</code> to throw, submit, assert an RFI row exists and the user sees an error with retry.</p>
+<hr>
+<h3>F2 — &quot;Leveled Buyout&quot; mixes bids with budget estimates — <strong>High (meaning)</strong></h3>
+<p><strong>Expected:</strong> A figure labelled &quot;Leveled Buyout — best bid per package&quot; reflects actual bids.</p>
+<p><strong>Saw:</strong> On a project with 3 packages and <strong>zero bids</strong>, the KPI reads <code>Leveled Buyout: $2,920,000 (best bid per package)</code> and <code>Variance: +$11,280,000 (79.4%)</code> &quot;savings&quot;. Those are just the package budgets summed (850k + 1,450k + 620k = 2,920k). A GC sees a 79% &quot;saving&quot; before a single quote exists.</p>
+<p><strong>Root cause:</strong></p>
+<ul>
+<li><code>src/leveling.ts:117-120</code> — for any package with no bids: <code>totalLeveledBuyout += pkg.budgetEstimate || 0; packagesUsingBudget += 1;</code>.</li>
+<li><code>src/components/ExecutiveKpiBar.tsx:55</code> — the compact strip renders the literal footnote <code>(best bid per package)</code> regardless of <code>packagesUsingBudget</code>.</li>
+</ul>
+<p><strong>Nuance (be fair when fixing):</strong> the <em>expanded</em> 6-card view is more honest — it shows &quot;0 proposals&quot;, &quot;Hidden gaps exposed $0&quot;. The defect is the always-visible compact strip&#x27;s label/meaning, which is what most users read.</p>
+<p><strong>Definition of done:</strong></p>
+<p>1. When <code>packagesUsingBudget &gt; 0</code>, the compact strip must not claim &quot;best bid per package&quot;. Show e.g. <code>Leveled Buyout: $2,920,000 — 3 of 3 packages using budget estimates (no bids yet)</code>.</p>
+<p>2. Do not show a &quot;Variance/Savings %&quot; derived purely from budgets; label it &quot;Budget vs scope estimate&quot; or hide it until ≥1 bid exists.</p>
+<p>3. Test: project with 0 bids shows no &quot;savings&quot; claim; project with real bids shows the true leveled figure.</p>
+<hr>
+<h3>F3 — New Project form pre-fills fields; typing appends — <strong>Medium</strong></h3>
+<p><strong>Expected:</strong> Click &quot;Project Title&quot;, type a name.</p>
+<p><strong>Saw:</strong> 5 of 7 fields start pre-filled (&quot;Austin, TX&quot;, &quot;Class-A Commercial Mixed-Use&quot;, &quot;Austin Commercial, LP&quot;, <code>5500000</code>, <code>52</code>). Clicking places the caret at the end, so typing <strong>appends</strong>: my <code>Dallas, TX</code> became <code>Austin, TXDallas, TX</code>, and my budget <code>14200000</code> became <code>550000014200000</code> — a <strong>$550 billion</strong> budget, silently accepted. I only caught it by reading the DOM.</p>
+<p><strong>Recovery:</strong> triple-click selects all, so a careful user can recover — but nothing signals that the field was pre-filled.</p>
+<p><strong>Root cause:</strong> <code>src/components/Header.tsx:76-81</code> — <code>useState(&quot;Austin, TX&quot;)</code>, <code>useState(&quot;Class-A Commercial Mixed-Use&quot;)</code>, <code>useState(5500000)</code>, <code>useState(52)</code>, <code>useState(&quot;Austin Commercial, LP&quot;)</code>. These are initialized as <em>values</em>, not placeholders.</p>
+<p><strong>Definition of done:</strong></p>
+<p>1. Use <code>placeholder</code> for hints; initialize the values empty (except where a default is genuinely intended).</p>
+<p>2. If a default is intended, select-all on focus so typing replaces it, and/or show a &quot;clear&quot; affordance.</p>
+<p>3. Validate budget on submit (e.g. reject &gt; some sane ceiling) with a visible message.</p>
+<p>4. Test: type a full project without clearing anything; assert the saved values equal what was typed.</p>
+<hr>
+<h3>F4 — &quot;Simulate Inbound Bid…&quot; opens a demo dock, ingests nothing — <strong>Medium</strong></h3>
+<p><strong>Expected:</strong> From Bid Leveling, clicking &quot;Simulate Inbound Bid…&quot; ingests an inbound quote so I can see leveling.</p>
+<p><strong>Saw:</strong> It opens the &quot;60-Second Executive Demo &amp; Simulation Engine&quot; dock. Bid count stayed 0. The dock&#x27;s scenarios (A/B/C) have their own labels and none is called &quot;Simulate Inbound Bid&quot;.</p>
+<p><strong>Root cause:</strong> <code>src/components/BidLevelingMatrixView.tsx:779-786</code> — <code>onClick={onOpenSimulation}</code>. A <code>title</code> tooltip explains the indirection, but the visible label does not.</p>
+<p><strong>Definition of done (pick one):</strong></p>
+<p>1. Rename the button to &quot;Open Demo Simulation…&quot;, <strong>or</strong></p>
+<p>2. Make it actually ingest a simulated proposal for the active package (Scenario B/C behaviour) and rename to &quot;Simulate Inbound Bid&quot;.</p>
+<p>3. Test: the control&#x27;s visible label matches the primary resulting action.</p>
+<hr>
+<h3>F5 — Too many competing &quot;next&quot; CTAs, and they disagree — <strong>Medium</strong></h3>
+<p><strong>Expected:</strong> One obvious way to move forward.</p>
+<p><strong>Saw:</strong> On Bid Leveling simultaneously: the tour bar &quot;Advance to Scope Clash Engine&quot;, the in-page footer &quot;Advance to Scope Clash Engine ➔&quot;, a &quot;Skip ahead: Contracts Register →&quot; link, plus the toolbar &quot;Scope Clash Engine&quot;. Two of these advance a different number of stages.</p>
+<p><strong>Also duplicated:</strong> empty-state CTA == header CTA (&quot;Run AI Spec Breakdown&quot; at <code>src/components/TradePackagesView.tsx:273</code> vs &quot;⚡ AI Spec Breakdown (Auto-Scope)&quot; at <code>:229</code>); and the demo-tour controls appear on multiple host screens.</p>
+<p><strong>Root cause (pointers):</strong> <code>src/components/BidLevelingMatrixView.tsx:1498</code> (&quot;Advance…&quot;), <code>:1508</code> (&quot;Skip ahead…&quot;), <code>src/components/InvestorDemoTourBar.tsx:144</code>, <code>src/components/TradePackagesView.tsx:229,273</code>.</p>
+<p><strong>Definition of done:</strong></p>
+<p>1. Exactly one primary CTA per screen. Secondary navigation (skip-ahead) becomes a quiet text link, not a second button.</p>
+<p>2. Remove the empty-state CTA when the header already exposes the same action.</p>
+<p>3. Test: count same-destination controls on each stage; must be 1 primary + optional 1 tertiary link.</p>
+<hr>
+<h3>F6 — RFI form has no trade selector and defaults to the wrong package — <strong>Medium</strong></h3>
+<p><strong>Expected:</strong> As a plumbing bidder, my medical-gas question is recorded against Div 22.</p>
+<p><strong>Saw:</strong> The Manual Subcontractor RFI form has only <em>Contractor</em>, <em>Subject</em>, <em>Question</em>. The division is inherited from the page-level trade selector, which defaults to <code>26 00 00 Electrical</code>. My Div 22 medical-gas question was answered under &quot;PACKAGE: CSI Division 26 00 00 – Electrical&quot;.</p>
+<p><strong>Credit where due:</strong> the AI&#x27;s body text correctly reasoned that medical gas is <em>excluded</em> from Div 26 and belongs to Div 22 — so the answer was substantively right, but the package attribution is wrong and the user has no way to correct it in the form.</p>
+<p><strong>Root cause:</strong> <code>src/components/PreBidQnAView.tsx:739-800</code> — form fields are contractor/subject/question only; division comes from the active package.</p>
+<p><strong>Definition of done:</strong></p>
+<p>1. Add a trade/division selector to the form (defaulted to the active package, changeable).</p>
+<p>2. Show the target package next to the submit button so the bidder confirms routing before submitting.</p>
+<p>3. Test: submit a Div 22 question while Div 26 is selected; assert the RFI is stored against Div 22 (or the user was required to choose).</p>
+<hr>
+<h2>3. Lower-severity findings (fix when convenient)</h2>
+<table><thead><tr><th>ID</th><th>Finding</th><th>Sev</th><th>Root cause / note</th></tr></thead><tbody>
+<tr><td>F7</td><td>&quot;Review PM Queue (3)&quot; is white on amber <code>rgb(217,119,6)</code> = <strong>3.19:1</strong> at 12px, below WCAG AA 4.5:1</td><td>Low</td><td><code>PreBidQnAView</code> banner button. Darken bg or use dark text.</td></tr>
+<tr><td>F8</td><td>Long SEO page titles become company names: &quot;Commercial Electricians, Industrial, and High&quot;</td><td>Low</td><td>Title sanitizer in <code>convex/contractorDiscovery.ts:151-175</code> (<code>sanitizeContractorCompanyName</code>). Truncate/reject mid-word sentence fragments.</td></tr>
+<tr><td>F9</td><td>Tour/nav copy calls inboxes &quot;dedicated&quot; while 3 packages share one inbox (<code>boldlevel182@agentmail.to</code>)</td><td>Low (claims)</td><td>UI <em>does</em> warn per-card (&quot;Shared inbox — AgentMail plan inbox limit reached&quot;) — good. Fix the marketing line in <code>src/components/InvestorDemoTourBar.tsx</code> to reflect the plan limit.</td></tr>
+<tr><td>F10</td><td>RFI AI body uses uppercase plain-text labels (&quot;RFI SUBJECT:&quot;, &quot;PACKAGE:&quot;) that read as unrendered markdown</td><td>Info</td><td>Not a rendering bug — <code>MarkdownLite</code> handles <code>#</code>/<code>**</code>. These are plain strings from the model. Optionally prompt for real markdown.</td></tr>
+<tr><td>F11</td><td>Two trade selectors in the same viewport (page-level &quot;SELECT TRADE&quot; chips + per-package chips elsewhere)</td><td>Low</td><td>Redundant controls; consolidate.</td></tr>
+<tr><td>F12</td><td>&quot;Buyout&quot; means both a dollar total and an award counter (&quot;0/3 Awarded&quot;) in nearby copy</td><td>Low</td><td>Terminology; pick one meaning.</td></tr>
+</tbody></table>
+<p><strong>Verified NOT bugs (do not &quot;fix&quot;):</strong></p>
+<ul>
+<li>Shared-inbox warning — correct, honest surfacing of an AgentMail plan limit.</li>
+<li>XSS in RFI subject/question — safely rendered; <code>MarkdownLite</code> never uses <code>dangerouslySetInnerHTML</code> (<code>src/lib/markdown.tsx:36</code>).</li>
+<li>Whitespace-only subject — correctly disables submit.</li>
+<li>Empty auto-scope submit — button is correctly <code>disabled</code> (fixed since the prior audit).</li>
+<li>Confirm dialog stacking/clipping — correctly fixed (monotonic z-index, focus trap).</li>
+<li>Back button — works; tab state is URL-synced.</li>
+</ul>
+<hr>
+<h2>4. Issues present in the 2026-09-17 audit that are now FIXED (verified live)</h2>
+<p>This matters for the coding agent: do not re-fix these.</p>
+<p>1. <strong>New Project modal off-screen</strong> — now correctly centered (measured dialog at x=461,y=188, 512×524, all fields on-screen and mouse-reachable).</p>
+<p>2. <strong>Hard-coded demo-tour counts</strong> — now dynamic: &quot;The active project currently has 0 CSI Trade Packages.&quot;</p>
+<p>3. <strong>Fabricated &quot;TDLR Validated&quot; contractor data</strong> — Discovery now labels records <strong>&quot;Unverified — from web search result&quot;</strong> with an amber provenance banner and &quot;Contact not published&quot;; plausible real companies (FSG, Clark Electric). <code>convex/contractorDiscovery.ts:145-192</code>.</p>
+<p>4. <strong>Evals over-claiming</strong> — now states &quot;Prompt-grounded extraction check&quot;, counts a 3-case <strong>holdout</strong> where the answer is absent from the prompt, and shows &quot;AIA A401 CONFORMITY: <strong>N/A</strong> — Not covered by this suite&quot;.</p>
+<p>5. <strong>Silent empty auto-scope submit</strong> — button now <code>disabled</code> until text is present.</p>
+<p>6. <strong>No in-flight indicator on RFI submit</strong> — now a spinner + &quot;Analyzing Specifications…&quot; + an explanatory status panel (but see F1: the failure path is still silent).</p>
+<p>7. <strong>Stacked/clipped confirm dialogs</strong> — <code>ConfirmDialog</code> reworked with monotonic z-index, topmost-only key handling, focus trap and restore.</p>
+<p>8. <strong>RFI markdown rendering</strong> — now via <code>MarkdownLite</code>.</p>
+<p>9. <strong>Timestamps</strong> — now rendered with date + timezone (&quot;Sep 18, 2026, 07:15:33 AM EDT&quot;), not a bare drifting clock.</p>
+<p>10. <strong>LD figure inconsistency</strong> — the leveling rationale now explicitly distinguishes &quot;$6,000/wk schedule-impact rate, distinct from the contract&#x27;s $1,200/day liquidated damages&quot; (<code>BidLevelingMatrixView.tsx:794</code>).</p>
+<hr>
+<h2>5. Suggested fix order (one PR each)</h2>
+<p>1. <strong>F1</strong> — persist RFI before the LLM call + error/retry. (Data loss; highest harm.)</p>
+<p>2. <strong>F2</strong> — correct the compact KPI label/logic. (Prevents a GC trusting a fake saving.)</p>
+<p>3. <strong>F3</strong> — placeholder-not-value on New Project fields + budget sanity check.</p>
+<p>4. <strong>F4</strong> — rename or rewire &quot;Simulate Inbound Bid…&quot;.</p>
+<p>5. <strong>F6</strong> — add the trade selector to the RFI form.</p>
+<p>6. <strong>F5</strong> — collapse duplicate CTAs.</p>
+<p>7. <strong>F7–F12</strong> — polish pass.</p>
+<hr>
+<h2>6. How this was verified (so a reviewer can trust it)</h2>
+<ul>
+<li>Real <code>Input.dispatchMouseEvent</code> / <code>Input.insertText</code> interactions only; no clicking via <code>element.click()</code> for user actions.</li>
+<li>Two independent browser tabs on the same project to test realtime; Convex websocket propagation observed.</li>
+<li>Project A (<code>GC-AUDIT Riverside Medical Tower</code>, 3 Pkgs / 3 Subs / 3 RFIs) created through the real UI; demo project used for comparison; isolation verified by switching projects and comparing all counts and dollar figures (no leakage).</li>
+<li>Network instrumentation recorded <strong>0 outbound requests</strong> during discovery, confirming the provenance labels reflect a server-side directory, not a client fetch.</li>
+<li>Console: <strong>0 errors / 0 rejections</strong> on cold load; ~1.0 s load, 244 KB transfer, 850 DOM nodes.</li>
+<li>Adversarial passes: double-click on Delete (guarded by <code>createInFlightRef</code> / dialog focus trap), Escape cancellation, Back/Forward, whitespace + XSS + RTL/emoji input, mid-flight refresh, multi-tab.</li>
+<li>Responsive: 375×812 (no overflow), 200% zoom (no overflow), keyboard-only Tab (all stops visible).</li>
+<li>Automated contrast scan across all visible text: 3 hits, 2 false positives (gradient buttons), 1 real (F7).</li>
+</ul>
+<p><strong>Limitations:</strong> one auditor, ~30 minutes of live session; hydration/timing on a cold Convex deploy could not be stress-tested; the flaky RFI loss (F1) was reproduced 3/5 times, which is enough to report but its exact trigger (LLM error vs other) is inferred from source, not from server logs.</p>
+<hr>
+<h2>7. Artifacts</h2>
+<ul>
+<li><code>evidence/01-newproject-kpi-no-bids.png</code> — F2: &quot;Leveled Buyout $2,920,000 (best bid per package)&quot; and &quot;+$11,280,000 (79.4%)&quot; with zero bids.</li>
+<li><code>evidence/02-discovery-unverified-provenance.png</code> — fixed: &quot;Unverified — from web search result&quot; provenance.</li>
+<li><code>evidence/03-qna-rfi.png</code> — RFI card, and F6 (Div 26 attribution for a Div 22 question).</li>
+<li><code>TradePulse-UI-Intuitiveness-Review.html</code> — earlier one-page visual summary (2026-09-18 morning).</li>
+</ul>
+</body></html>

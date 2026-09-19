@@ -1,0 +1,26 @@
+# Audit archive (curated)
+
+These are the human-readable audit and remediation artifacts for TradePulse Pro, kept
+in-repo so judges can read them without cloning the raw evidence tree. Every HTML file is
+**self-contained** (screenshots embedded; no network needed) and opens by double-click.
+
+| Artifact | Date | What it is |
+|---|---|---|
+| [`DEMO-SCRIPT.md`](./DEMO-SCRIPT.md) | 2026-09-17 | Three-minute demo/video script with a shot list. |
+| [`audit-1-ux.html`](./audit-1-ux.html) | 2026-09-12 | First UX audit of the deployed app. |
+| [`audit-2-user-journey.html`](./audit-2-user-journey.html) | 2026-09-17 | Five-persona user-journey audit (BUG-01…BUG-36 + observations). Screenshots under [`images/`](./images). |
+| [`audit-3-adversarial.html`](./audit-3-adversarial.html) | 2026-09-18 | Independent audit v3 (AUD-01…AUD-05) with adversarial passes. |
+| [`audit-4-ui.html`](./audit-4-ui.html) / [`audit-4-ui.md`](./audit-4-ui.md) | 2026-09-18 | Human-operator UI audit (F1…F12) — the input to the pass-2 remediation. The Markdown copy is the machine-readable version. |
+| [`audit-5-remediation.html`](./audit-5-remediation.html) | 2026-09-19 | Remediation report, pass 2: verification table for F1–F12, new findings, claim-change decisions, convergence log, before/after evidence. |
+
+## Where the raw evidence lives
+
+Full-resolution screenshots, HAR-class network/console dumps, JSON result sets and the
+independent QA-round scripts stay in the local working tree (`evidence/`, `doc/`), which is
+intentionally git-ignored. Nothing in this folder links to those paths, so no link here can
+break. The curated reports above embed the before/after images they reference.
+
+## Reproducing the checks
+
+- App test suites: `npx tsc -b`, `npx vitest run`, `python tests/test_tradepulse.py`, `python tests/verify_setup.py`.
+- Live verification harness: [`../../scripts/qa/`](../../scripts/qa/) (requires Chrome/Edge and the live deployment; see its README).

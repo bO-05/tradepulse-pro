@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>TradePulse Pro — User-Journey Audit (2026-09-17 09:00 UTC)</title>
+<style>
+  :root {
+    --bg:#0b1020; --panel:#131a2e; --panel2:#0f1626; --line:#26304a;
+    --ink:#e8edf7; --mut:#9aa7c2; --dim:#6b7893;
+    --em:#34d399; --am:#fbbf24; --rd:#fb7185; --bl:#7dd3fc; --vi:#c4b5fd;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  a { color:var(--bl); }
+  .wrap { max-width:1180px; margin:0 auto; padding:32px 20px 96px; }
+  header.top { border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:28px; }
+  .eyebrow { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--em); font-weight:700; }
+  h1 { font-size:34px; line-height:1.15; margin:10px 0 8px; letter-spacing:-.02em; }
+  h2 { font-size:22px; margin:44px 0 12px; padding-top:16px; border-top:1px solid var(--line); letter-spacing:-.01em; }
+  h3 { font-size:16px; margin:22px 0 8px; }
+  .sub { color:var(--mut); font-size:14px; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:14px; font-size:13px; color:var(--mut); }
+  .meta b { color:var(--ink); font-weight:600; }
+  .grid { display:grid; gap:14px; }
+  .g2 { grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+  .g3 { grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+  .card h4 { margin:0 0 6px; font-size:13px; letter-spacing:.03em; text-transform:uppercase; color:var(--mut); }
+  .kpi { font-size:26px; font-weight:800; letter-spacing:-.02em; }
+  .kpi.sm { font-size:20px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin:10px 0 4px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; }
+  .pill { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    padding:2px 8px; border-radius:999px; border:1px solid; white-space:nowrap; }
+  .s-crit { color:#fecdd3; background:#4c0519; border-color:#9f1239; }
+  .s-high { color:#fed7aa; background:#431407; border-color:#c2410c; }
+  .s-med  { color:#fde68a; background:#422006; border-color:#a16207; }
+  .s-low  { color:#bae6fd; background:#082f49; border-color:#0369a1; }
+  .s-info { color:#ddd6fe; background:#2e1065; border-color:#6d28d9; }
+  .s-pass { color:#bbf7d0; background:#052e16; border-color:#15803d; }
+  .s-fail { color:#fecdd3; background:#4c0519; border-color:#9f1239; }
+  .s-warn { color:#fde68a; background:#422006; border-color:#a16207; }
+  .s-na   { color:#cbd5e1; background:#1e293b; border-color:#475569; }
+  .finding { background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--rd);
+    border-radius:12px; padding:14px 16px; margin:14px 0; }
+  .finding.high { border-left-color:#fb923c; }
+  .finding.med  { border-left-color:#fbbf24; }
+  .finding.low  { border-left-color:#38bdf8; }
+  .finding.info { border-left-color:#a78bfa; }
+  .finding.pass { border-left-color:#34d399; }
+  .frow { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .fid { font-family:ui-monospace,monospace; font-weight:800; color:var(--ink); }
+  .ftitle { font-weight:700; font-size:15.5px; }
+  .fline { margin:8px 0 0; font-size:13.5px; color:var(--mut); }
+  .fline b { color:var(--ink); font-weight:600; }
+  figure { margin:14px 0; }
+  figure img { width:100%; border:1px solid var(--line); border-radius:10px; display:block; background:#000; }
+  figcaption { font-size:12.5px; color:var(--mut); margin-top:7px; }
+  .fname { display:inline-block; font-family:ui-monospace,monospace; font-size:11px; color:var(--dim);
+    background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 6px; margin-right:8px; }
+  .callout { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:14px 0; }
+  .callout.good { border-left:4px solid var(--em); }
+  .callout.bad { border-left:4px solid var(--rd); }
+  ul { margin:8px 0; padding-left:22px; }
+  li { margin:4px 0; }
+  .muted { color:var(--mut); }
+  .dim { color:var(--dim); font-size:12.5px; }
+  details { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:10px 0; }
+  summary { cursor:pointer; font-weight:600; }
+  .verdict { font-size:17px; line-height:1.6; }
+  .stamp { font-size:12px; color:var(--dim); }
+  .toc a { display:inline-block; margin:0 14px 6px 0; font-size:13.5px; }
+  .bar { height:8px; border-radius:6px; background:#1e293b; overflow:hidden; }
+  .bar > i { display:block; height:100%; }
+  footer { margin-top:56px; padding-top:18px; border-top:1px solid var(--line); color:var(--dim); font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Independent User-Journey Audit</div>
+  <h1>TradePulse Pro — GC Procurement Journey</h1>
+  <p class="sub">A first-time general contractor's end-to-end walkthrough of the live app, treated purely as a user: no source-map hints, no privileged access. Every claim below is reproduced in the browser and captured as evidence.</p>
+  <div class="meta">
+    <span>Live app: <b><a href="https://brainy-skunk-440.convex.site/">https://brainy-skunk-440.convex.site/</a></b></span>
+    <span>Repository: <b><a href="https://github.com/bO-05/tradepulse-pro">https://github.com/bO-05/tradepulse-pro</a></b></span>
+    <span>Audit completed: <b>2026-09-17 09:00 UTC</b></span>
+    <span>Browser: <b>Chrome 151.0.7922.108 (cloud, US proxy)</b></span>
+    <span>Method: <b>real mouse &amp; keyboard over CDP, two live sessions</b></span>
+  </div>
+</header>
+<div class="card toc">
+  <b>Jump to:</b>
+  <div style="margin-top:6px">
+    <a href="#verdict">Executive verdict</a>
+    <a href="#top10">Top 10 findings</a>
+    <a href="#coverage">Coverage matrix</a>
+    <a href="#scorecards">Journey scorecards</a>
+    <a href="#findings">All findings</a>
+    <a href="#redundancy">Redundancy register</a>
+    <a href="#consistency">Consistency ledger</a>
+    <a href="#ux">UX &amp; visual</a>
+    <a href="#a11y">Accessibility</a>
+    <a href="#perf">Performance</a>
+    <a href="#backend">Data integrity &amp; Auth-readiness</a>
+    <a href="#blocked">Blocked / not tested</a>
+    <a href="#recs">Recommendations</a>
+    <a href="#log">Audit log</a>
+    <a href="#selfint">Self-interrogation</a>
+  </div>
+</div>
+
+<section id="verdict">
+<h2>Executive verdict</h2>
+<div class="card">
+<p class="verdict"><b>TradePulse Pro is an impressive, fast, genuinely reactive demo whose core mechanics work — and whose trust surface repeatedly lies.</b> The Convex-backed realtime loop, the ADR-0003 leveling arithmetic, deduct/void propagation, the audit stream and the AIA A401 lifecycle all behave correctly and survive real user actions. But on the surfaces a GC would rely on to <em>trust</em> the output — discovery provenance, "TDLR verified" badges, leveling savings, eval scores, tour narration and the download button — the product presents fabricated or stale data as verified fact.</p>
+<p class="sub" style="margin-top:12px">Nothing found causes data loss or cross-project leakage. The failures are <b>claims-integrity</b> and <b>presentational-sync</b> failures, which for a procurement tool is the more commercially dangerous class: a GC acting on the numbers would be misled, not just annoyed.</p>
+</div>
+
+<div class="grid g3" style="margin-top:16px">
+  <div class="card"><h4>Findings reported</h4><div class="kpi">25</div><div class="sub">2 High · 9 Medium · 7 Low · 7 Info</div></div>
+  <div class="card"><h4>Journeys walked to completion</h4><div class="kpi">6<span style="font-size:15px;color:var(--mut)">/6</span></div><div class="sub">Scoping → Discovery → Pre-Bid → Leveling → Clash → Contracts</div></div>
+  <div class="card"><h4>Core mechanics verified working</h4><div class="kpi" style="color:var(--em)">9</div><div class="sub">incl. realtime, math, persistence, exports</div></div>
+  <div class="card"><h4>Claims that don't hold up</h4><div class="kpi" style="color:var(--rd)">7</div><div class="sub">discovery, evals, download, tour, gaps, award, LD</div></div>
+</div>
+
+<div class="callout bad" style="margin-top:18px">
+<b>The one-line version.</b> Fix the <b>fiction-as-verification</b> surfaces — fabricated "TDLR Verified" contractors, the canned-document Download, the self-graded eval suite and the stale tour script — and this becomes a credible product. Leave them and the demo actively teaches users to trust data that was never sourced.
+</div>
+</section>
+
+<section id="top10">
+<h2>Top 10 findings</h2>
+<p class="sub">Ranked by user harm. Full detail, reproduction steps and screenshots are in <a href="#findings">All findings</a>.</p>
+<table>
+<thead><tr><th style="width:62px">ID</th><th style="width:88px">Severity</th><th>Finding</th><th style="width:190px">Why it matters</th></tr></thead>
+<tbody>
+<tr><td class="mono">BUG-16</td><td><span class="pill s-high">High</span></td><td><b>Fabricated contractors presented as "Active / Verified (TDLR)".</b> Any project a real user creates gets placeholder names, sequential phone numbers and sequential licence numbers, one of them <span class="mono">estimating@facebook.com</span> — all badged as state-verified.</td><td>A GC could source a sub from fake compliance data.</td></tr>
+<tr><td class="mono">BUG-12</td><td><span class="pill s-high">High</span></td><td><b>Download and Preview show different documents.</b> Preview serves the true stored bytes; Download synthesises canned text chosen by filename from a dictionary shipped in the bundle.</td><td>The exported record can be legally wrong.</td></tr>
+<tr><td class="mono">BUG-30/31</td><td><span class="pill s-high">High</span></td><td><b>The eval suite grades itself by asking a model to copy numbers already printed in the prompt.</b> Headline "100% / 0.00% MAPE / Zero Cheating" overstates it; the same Run ID returns on re-run.</td><td>Validation evidence is not validation.</td></tr>
+<tr><td class="mono">BUG-36</td><td><span class="pill s-med">Medium</span></td><td><b>The guided tour is a fixed script, not reactive.</b> After a normal award it still narrates "$61,000 cheaper" while the live screen shows "+$33,000 True Variance" at $1,253,000.</td><td>The narrator contradicts the screen.</td></tr>
+<tr><td class="mono">BUG-26</td><td><span class="pill s-med">Medium</span></td><td><b>"Buyout: 0/3 Awarded" while an agreement is executed.</b> The stepper says "1 Award", the register says Execution 1/1, the KPI band says zero.</td><td>Award state is unreadable at a glance.</td></tr>
+<tr><td class="mono">BUG-06</td><td><span class="pill s-med">Medium</span></td><td><b>"Leveled Buyout (Normalized)" is the sum of package budgets, not any bid.</b> It is labelled as a normalized bid figure but no bids are involved.</td><td>A headline number that means something else.</td></tr>
+<tr><td class="mono">BUG-18</td><td><span class="pill s-med">Medium</span></td><td><b>"Gaps Plugged: +$169,500" ≠ the $186,000 shown on the same screen</b> (147k exclusions + 24k lead + 15k COI). The backend narrative uses 186k.</td><td>Two totals for one gap figure.</td></tr>
+<tr><td class="mono">BUG-34</td><td><span class="pill s-med">Medium</span></td><td><b>Horizontal page overflow between ~640 and ~1210px.</b> The nav stepper never shrinks, so laptops, tablets and 200%-zoom users must scroll sideways to read step one.</td><td>Layout breaks on common widths.</td></tr>
+<tr><td class="mono">BUG-33</td><td><span class="pill s-med">Medium</span></td><td><b>The Judge Dock declares <span class="mono">aria-modal="true"</span> but does not trap focus, and ESC does not restore focus.</b> Keyboard users tab into the obscured page behind the dialog.</td><td>Modal contract is only half-implemented.</td></tr>
+<tr><td class="mono">BUG-01</td><td><span class="pill s-med">Medium</span></td><td><b>The New Project modal renders inside the sticky header</b>, clipping 3 of 7 fields off-screen with no way to scroll to them.</td><td>The primary create flow is hard to complete.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="coverage">
+<h2>Coverage matrix</h2>
+<p class="sub">What was actually exercised, versus what is present but was not testable or is out of scope.</p>
+<table>
+<thead><tr><th>Area</th><th style="width:120px">Depth</th><th>What was done</th><th style="width:120px">Result</th></tr></thead>
+<tbody>
+<tr><td>Project creation (New Project modal)</td><td>Full</td><td>Created 3 projects via real mouse/keyboard; adversarial titles (HTML, RTL, emoji, 300 chars), negative/huge budgets</td><td><span class="pill s-warn">Issues</span></td></tr>
+<tr><td>CSI Scoping / Auto-Scope</td><td>Full</td><td>AI spec breakdown on a 3-division spec (28.1s, 3 packages); empty-spec path</td><td><span class="pill s-warn">Issues</span></td></tr>
+<tr><td>Contractor Discovery</td><td>Full</td><td>Ran discovery twice (demo + user project); inspected all contacts, licences, provenance; watched network</td><td><span class="pill s-fail">Fails</span></td></tr>
+<tr><td>Pre-Bid Q&amp;A / RFI + addendum</td><td>Full</td><td>Issued RFI, received AI reply, PM certification, addendum issuance and approval</td><td><span class="pill s-warn">Issues</span></td></tr>
+<tr><td>Bid Leveling (ADR-0003)</td><td>Full</td><td>Per-bid normalisation recomputed by hand; deduct-credit and accepted-alternate paths; CSV export</td><td><span class="pill s-pass">Strong</span></td></tr>
+<tr><td>Scope Clash / coordination</td><td>Full</td><td>Deducted a double-buy credit, assigned a scope void, verified persistence &amp; realtime</td><td><span class="pill s-pass">Strong</span></td></tr>
+<tr><td>Subcontracts / AIA A401</td><td>Full</td><td>Generated agreement, recorded execution, verified lock + e-signature disclaimer, inspected contract text</td><td><span class="pill s-warn">Issues</span></td></tr>
+<tr><td>Live Activity Audit / crons</td><td>Full</td><td>Verified every logged action and amount; triggered both scheduled crons</td><td><span class="pill s-pass">Strong</span></td></tr>
+<tr><td>Evals &amp; Architecture</td><td>Full</td><td>Ran the suite, captured the raw prompt, model response and trace; re-ran to compare Run ID</td><td><span class="pill s-fail">Fails</span></td></tr>
+<tr><td>File upload / preview / download / delete</td><td>Full</td><td>Uploaded zero-byte, renamed-PNG, oversized, .exe, collision fixtures; previewed, downloaded, deleted</td><td><span class="pill s-fail">Fails</span></td></tr>
+<tr><td>Realtime (two live sessions)</td><td>Full</td><td>Two independent browser contexts; bidirectional push measured</td><td><span class="pill s-pass">Strong</span></td></tr>
+<tr><td>Cross-project isolation</td><td>Full</td><td>Injected a stale/non-Convex project id in the URL</td><td><span class="pill s-pass">Pass</span></td></tr>
+<tr><td>Responsive 375 / 768 / 1024 / 1440 + zoom</td><td>Full</td><td>Measured overflow and off-screen controls at each width and at 200% zoom</td><td><span class="pill s-warn">One bug</span></td></tr>
+<tr><td>Keyboard &amp; screen-reader semantics</td><td>Full</td><td>18 tab stops, focus-ring visibility, dialog focus trap, accessible names, contrast</td><td><span class="pill s-warn">Issues</span></td></tr>
+<tr><td>Performance &amp; network</td><td>Full</td><td>Cold load timing, transfer size, console cleanliness, websocket behaviour</td><td><span class="pill s-pass">Pass</span></td></tr>
+<tr><td>Auth / multi-user identity</td><td>N/A</td><td>No authentication exists; identity is implicit. Audited as "Auth-readiness"</td><td><span class="pill s-na">Out of scope</span></td></tr>
+<tr><td>Email delivery (AgentMail) external send</td><td>Partial</td><td>Inboxes and addressing verified; true external mail delivery not asserted from inside the demo</td><td><span class="pill s-na">Not asserted</span></td></tr>
+<tr><td>Mobile native / install (PWA)</td><td>None</td><td>Not applicable to this audit</td><td><span class="pill s-na">Not tested</span></td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="scorecards">
+<h2>Journey scorecards</h2>
+<p class="sub">Each stage scored 1–5 for the four things a first-time GC actually feels. 5 = trustworthy and effortless; 3 = works but rough; 1 = broken or misleading.</p>
+<table>
+<thead><tr><th>Stage</th><th style="width:80px">Works</th><th style="width:88px">Clarity</th><th style="width:88px">Trust</th><th style="width:88px">Polish</th><th>One-line summary</th></tr></thead>
+<tbody>
+<tr><td><b>1. Scoping</b></td><td><span class="pill s-pass">5</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-warn">3</span></td><td>AI breakdown is fast and structured; the empty-spec path fails silently and the create modal is clipped.</td></tr>
+<tr><td><b>2. Discovery</b></td><td><span class="pill s-warn">3</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-fail">1</span></td><td><span class="pill s-pass">4</span></td><td>Runs instantly and looks authoritative — but the contacts and "TDLR verified" badges are fabricated.</td></tr>
+<tr><td><b>3. Pre-Bid Q&amp;A</b></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-warn">3</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-warn">3</span></td><td>End-to-end RFI→addendum works; a ~14s silent delay and raw-markdown bodies hurt the feel.</td></tr>
+<tr><td><b>4. Bid Leveling</b></td><td><span class="pill s-pass">5</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-warn">3</span></td><td><span class="pill s-pass">4</span></td><td>The ADR-0003 maths is exact and beautiful; the headline "Normalized Buyout" is mislabelled and the gaps total disagrees.</td></tr>
+<tr><td><b>5. Scope Clash</b></td><td><span class="pill s-pass">5</span></td><td><span class="pill s-warn">3</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-warn">3</span></td><td>Deduct and assign actions are correct and reactive; the vocabulary changes between cards.</td></tr>
+<tr><td><b>6. Contracts</b></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-pass">4</span></td><td><span class="pill s-warn">3</span></td><td><span class="pill s-pass">4</span></td><td>Agreement generation, lock and honest e-signature disclaimer are solid; the award counter never updates and the LD rate disagrees with the leveling copy.</td></tr>
+</tbody>
+</table>
+
+<h3>What worked especially well</h3>
+<div class="callout good">
+<ul>
+<li><b>ADR-0003 normalisation is exactly right.</b> For both bidders I recomputed Base + Scope Gaps + Lead-Time Penalty + COI Penalty − Accepted Alternates by hand and matched the UI and the CSV to the dollar (Alterman 1,100,000 + 147,000 + 24,000 + 15,000 = 1,286,000).</li>
+<li><b>Realtime is real.</b> Two independent sessions saw a deduct-credit and a void-assignment propagate in under three seconds, and a full RFI round-trip in ~23.6s end-to-end. No polling.</li>
+<li><b>The audit stream tells the truth.</b> Every action I took appeared with the correct amount, including the $1,746,500 Brandt leveling decomposition (1,650,000 + 108,000 + 12,000 + 15,000 − 38,500).</li>
+<li><b>The execution lock is honest.</b> After recording A401 execution the record locks and explicitly disclaims being an e-signature rather than pretending to be one.</li>
+<li><b>Exports and uploads are sound.</b> The 16-column leveling CSV quotes and sums correctly; upload validation rejects bad types; Preview serves the true stored bytes.</li>
+<li><b>Isolation holds.</b> A stale/non-Convex project id in the URL was rejected and the app fell back safely with no cross-project leakage.</li>
+</ul>
+</div>
+</section>
+
+<section id="findings">
+<h2>All findings</h2>
+<p class="sub">Every finding is reproduced in a real browser; the "Reproduction" line is the shortest reliable path. Screenshots are the raw captures from the audit, embedded below. Severity scale: <b>Critical</b> = data loss / isolation breach / core flow dead · <b>High</b> = materially misleads or blocks · <b>Medium</b> = wrong or broken but workable · <b>Low</b> = polish · <b>Info</b> = observation.</p>
+
+<div class="finding high">
+<div class="frow"><span class="fid">BUG-16</span><span class="pill s-high">High</span><span class="ftitle">Fabricated contractors are presented as "Active / Verified (TDLR)"</span></div>
+<p class="fline"><b>What I saw.</b> On any project a real user creates, Discovery returns fabricated companies and labels them as state-verified. In my project the five "contractors" were named <span class="mono">Austin Commercial Electric Contractors</span>, <span class="mono">Commercial Electrical Contractor in Austin, TX</span>, <span class="mono">Austin Commercial Electrical Services 3</span>, <span class="mono">… Services 4</span>, <span class="mono">… Services 5</span>. Their phone numbers ran <span class="mono">(512) 835-2410 … 2414</span> (each +1), and their licence numbers ran <span class="mono">TX-26-20000, TX-26-20142, TX-26-20284, TX-26-20426, TX-26-20568</span> (each +142). One email was <span class="mono">estimating@facebook.com</span>. Every row carried a green <b>REGISTRY VERIFICATION: Active / Verified (TDLR)</b> badge under the banner <b>"4 Verified Specialty Contractors • 100% TDLR Validated"</b>.</p>
+<p class="fline"><b>Why it matters.</b> A GC is invited to trust compliance provenance for subcontractor sourcing. Here the "verified" data was generated by arithmetic, and one contact belongs to a social network. This is the most commercially dangerous surface in the product.</p>
+<p class="fline"><b>Evidence for the root cause.</b> No network request left the origin during discovery (I watched the CDP network log across two runs), and the repo's <span class="mono">convex/contractorDiscovery.ts</span> synthesises the email domain, licence number and phone deterministically. The seeded demo project, by contrast, shows plausible identities (Rosendin / Alterman / Prism / Bergelectric with real-looking domains and <span class="mono">TX-TECL-#####</span> licences) — so the fabrication is specific to user-created projects.</p>
+<p class="fline"><b>Reproduction.</b> New Project → give it any title → open Discovery → click "Discover Trade Contractors". Inspect the five rows.</p>
+<p class="fline"><b>Also inconsistent here:</b> the banner says "4 Verified … Contractors" while the same screen's own counter reads "Trade Directory (5 of 5)".</p>
+<figure><img src="images/audit3-j51-fake-discovery-audit.jpg" alt="BUG-16 (strongest finding): a user-created project gets fabricated contractors with sequential phone/licence numbers, one 'estimating@facebo" loading="lazy"/><figcaption><span class="fname">audit3-j51-fake-discovery-audit.png</span>BUG-16 (strongest finding): a user-created project gets fabricated contractors with sequential phone/licence numbers, one 'estimating@facebook.com', all badged 'Active / Verified (TDLR)'.</figcaption></figure>
+</div>
+
+<div class="finding high">
+<div class="frow"><span class="fid">BUG-12</span><span class="pill s-high">High</span><span class="ftitle">Download synthesises canned text chosen by filename; Preview serves the truth</span></div>
+<p class="fline"><b>What I saw.</b> Preview and Download of the same file disagree. Preview renders the file's actual stored bytes. Download builds a document from a hard-coded dictionary keyed on the filename, so a 43-byte file named to collide with a specification downloads a full multi-page canned spec instead.</p>
+<p class="fline"><b>Why it matters.</b> The download is the artifact a GC files. If Preview is honest and Download is not, the exported record can materially misstate what was submitted.</p>
+<p class="fline"><b>Evidence for the root cause.</b> I proved the collision with a 43-byte probe file: Download returned a canned "26 00 00" specification, not the 43 bytes. The canned dictionary ships in the production bundle <span class="mono">/assets/index-CuseCck9.js</span> (and repo <span class="mono">convex/realDocuments.ts</span>; UI path <span class="mono">ProjectFilesView.tsx handleDownloadFile</span>).</p>
+<p class="fline"><b>Reproduction.</b> Upload a small file whose name matches a known spec pattern → Preview it (true bytes) → Download it (canned text).</p>
+<figure><img src="images/audit3-j16-files-addendum.jpg" alt="BUG-12 context: the uploaded 43-byte collision file and the real addendum in the document register." loading="lazy"/><figcaption><span class="fname">audit3-j16-files-addendum.png</span>BUG-12 context: the uploaded 43-byte collision file and the real addendum in the document register.</figcaption></figure>
+<figure><img src="images/audit3-j18-collision-uploaded.jpg" alt="BUG-12: a file named like a canned spec downloads bundled authoring text, while Preview shows the true bytes." loading="lazy"/><figcaption><span class="fname">audit3-j18-collision-uploaded.png</span>BUG-12: a file named like a canned spec downloads bundled authoring text, while Preview shows the true bytes.</figcaption></figure>
+</div>
+
+<div class="finding high">
+<div class="frow"><span class="fid">BUG-30 / BUG-31</span><span class="pill s-high">High</span><span class="ftitle">The eval suite grades the model on copying numbers it was already given</span></div>
+<p class="fline"><b>What I saw.</b> The Evals &amp; Architecture tab advertises a headline of 100% recall, 0.00% MAPE and "PARITY ACHIEVED / Zero Cheating". Opening a single trace shows the raw prompt already contains the answer: the proposal text states the figures in plain English, and the prompt includes an "EXPERT GROUND TRUTH VERIFICATION: Expected Base: $1,820,000" line. The model's raw response simply restates those figures, and the extracted JSON then matches the ground truth exactly. Re-running returns the same Run ID.</p>
+<p class="fline"><b>Why it matters.</b> This is a parsing/extraction check presented as evidence that estimating is validated. A "0.00% error, 10/10" headline over it materially overstates the product's validation. It is the single most misleading validation surface.</p>
+<p class="fline"><b>Evidence for the root cause.</b> Repo <span class="mono">convex/evals.ts</span> hard-codes the ground truth; the proposal strings spell out the same numbers; and the demo's live bids reuse the same constants (Alterman 1,286,000, the 50,500 double-buy, the 46,500 voids all appear in both the eval table and the seeded demo).</p>
+<p class="fline"><b>Reproduction.</b> Evals &amp; Architecture → run the suite → open any case → compare the prompt's "Expected" figure with the model response and the ground-truth table.</p>
+<figure><img src="images/audit3-j33-evals-run.jpg" alt="BUG-30/31: Eval suite reports 100% / 0.00% MAPE but the trace shows the model copying figures already present in the prompt." loading="lazy"/><figcaption><span class="fname">audit3-j33-evals-run.png</span>BUG-30/31: Eval suite reports 100% / 0.00% MAPE but the trace shows the model copying figures already present in the prompt.</figcaption></figure>
+<figure><img src="images/audit3-j34-trace.jpg" alt="BUG-30: the raw prompt contains the exact 'expected base' figure, so the eval validates extraction, not estimating." loading="lazy"/><figcaption><span class="fname">audit3-j34-trace.png</span>BUG-30: the raw prompt contains the exact 'expected base' figure, so the eval validates extraction, not estimating.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-36</span><span class="pill s-med">Medium</span><span class="ftitle">The guided tour is a fixed script and drifts out of sync with live data</span></div>
+<p class="fline"><b>What I saw.</b> After I awarded the leveling winner and recorded execution — exactly the first thing a judge or user does — the Scene 04 teleprompter still narrated: "Alterman … true leveled cost is $1.286M—making Rosendin Electric <b>$61,000 cheaper</b>!", and the scene banner still read "<b>$61k-$96k Net GC Savings</b>". The live matrix directly below showed Rosendin at <b>$1,253,000</b> versus Alterman at <b>$1,286,000</b> with a banner reading "<b>+$33,000 True Variance</b>". The string "$1,225,000" no longer appeared anywhere on the tab; "$1,253,000" appeared three times.</p>
+<p class="fline"><b>Why it matters.</b> For a demo-led product the narration is the product. It confidently states a savings figure the screen has already contradicted, which undermines every other number shown.</p>
+<p class="fline"><b>Related.</b> This is the same class as the tour's hard-coded counts (it announces demo counts that no longer match a project the user has edited). The tour should read live data or be labelled as a canned recording.</p>
+<p class="fline"><b>Reproduction.</b> On the demo project, award a bid / record execution, then reopen the Demo Tour and compare Scene 04's cue with the leveling matrix.</p>
+<figure><img src="images/audit3-j50-leveling-tour-mismatch.jpg" alt="BUG-36: the tour banner still claims '$61k-$96k Net GC Savings' and '$61,000 cheaper' while the live matrix below shows '+$33,000 True Varia" loading="lazy"/><figcaption><span class="fname">audit3-j50-leveling-tour-mismatch.png</span>BUG-36: the tour banner still claims '$61k-$96k Net GC Savings' and '$61,000 cheaper' while the live matrix below shows '+$33,000 True Variance' at $1,253,000.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-26</span><span class="pill s-med">Medium</span><span class="ftitle">"Buyout: 0/3 Awarded" while an agreement is fully executed</span></div>
+<p class="fline"><b>What I saw.</b> Simultaneously: the KPI band said <b>"Buyout: 0/3 Awarded"</b>; the header stepper said <b>"✓ Subcontracts 1 Award"</b>; and the Contracts tab held one active agreement with <b>EXECUTION STATUS RECORDED 1 / 1</b>. The award counter never increments even after a full execution.</p>
+<p class="fline"><b>Why it matters.</b> A GC scanning the KPI band would conclude nothing has been awarded and may re-award or duplicate work.</p>
+<p class="fline"><b>Reproduction.</b> Generate and execute an A401, then read the KPI band and the stepper together.</p>
+<figure><img src="images/audit3-j21-leveled.jpg" alt="BUG-06/18/24/26: KPI band, leveling matrix and gaps figures that do not reconcile on one screen." loading="lazy"/><figcaption><span class="fname">audit3-j21-leveled.png</span>BUG-06/18/24/26: KPI band, leveling matrix and gaps figures that do not reconcile on one screen.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-06</span><span class="pill s-med">Medium</span><span class="ftitle">"Leveled Buyout (Normalized)" is the sum of package budgets, not any normalized bid</span></div>
+<p class="fline"><b>What I saw.</b> The KPI band presents "Leveled Buyout (Normalized)" as though it is the post-leveling bid total. It is in fact the sum of the packages' budget estimates and involves no bids at all. It appears on a screen that simultaneously shows a real leveling matrix with entirely different numbers.</p>
+<p class="fline"><b>Why it matters.</b> It is the headline number on every tab and it means something other than its label says.</p>
+<p class="fline"><b>Reproduction.</b> Compare the KPI band's "Leveled Buyout" with the sum of the package budget cards and with the leveling matrix totals.</p>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-18</span><span class="pill s-med">Medium</span><span class="ftitle">"Gaps Plugged: +$169,500" contradicts the $186,000 shown on the same screen</span></div>
+<p class="fline"><b>What I saw.</b> The KPI band reads "Gaps Plugged: +$169,500", while the leveling card right below lists Alterman's Scope Exclusions +$147,000, Lead Time (16 wks) +$24,000 and ACORD 25 COI +$15,000 — a total of $186,000. The backend narrative on the audit stream also cites "$186,000 in scope adjustments". The headline matches no visible combination (147+24=171k, 147+15=162k, 24+15=39k).</p>
+<p class="fline"><b>Why it matters.</b> It is a summary of money the user is about to negotiate over, and it is $16,500 light.</p>
+<p class="fline"><b>Reproduction.</b> Open Bid Leveling on the demo project and add the three normalisation components, then read the KPI band.</p>
+<figure><img src="images/audit3-j21-leveled.jpg" alt="BUG-06/18/24/26: KPI band, leveling matrix and gaps figures that do not reconcile on one screen." loading="lazy"/><figcaption><span class="fname">audit3-j21-leveled.png</span>BUG-06/18/24/26: KPI band, leveling matrix and gaps figures that do not reconcile on one screen.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-34</span><span class="pill s-med">Medium</span><span class="ftitle">Horizontal page overflow on every viewport between ~640px and ~1210px</span></div>
+<p class="fline"><b>What I saw.</b> At 768px the document scrollWidth was 1194px; at 1024px it was 1210px; at 1440px it was fine (1434 vs 1440). The page gains a horizontal scrollbar and the leftmost ~170px of the workflow — the Step 1 card title, the budget labels and the "Advance…" control — is pushed off-screen.</p>
+<p class="fline"><b>Evidence for the root cause.</b> A single element is responsible: the nav stepper <span class="mono">&lt;div class="hidden sm:flex … shrink-0 overflow-x-auto"&gt;</span> has an intrinsic width of 1178px. Because it is <span class="mono">shrink-0</span>, its <span class="mono">overflow-x-auto</span> never engages (clientWidth = scrollWidth = 1178; setting scrollLeft to 400 left it at 0), and it stretches its <span class="mono">overflow:visible</span> parent instead. Source: <span class="mono">src/components/Header.tsx:363</span>.</p>
+<p class="fline"><b>Zoom impact.</b> The same defect appears at 200% browser zoom (720 CSS px), so it affects low-vision users, not just small windows.</p>
+<p class="fline"><b>Reproduction.</b> Resize to 1024px or press Ctrl/Cmd + to 200% and try to scroll horizontally.</p>
+<figure><img src="images/audit3-j40-laptop.jpg" alt="BUG-34: at 1024px the nav stepper forces a 1210px page; the left column is pushed off-screen." loading="lazy"/><figcaption><span class="fname">audit3-j40-laptop.png</span>BUG-34: at 1024px the nav stepper forces a 1210px page; the left column is pushed off-screen.</figcaption></figure>
+<figure><img src="images/audit3-j42-1024-hs-overflow.jpg" alt="BUG-34: page scrolled to scrollX 192 — content is cut off on the left at a common laptop width." loading="lazy"/><figcaption><span class="fname">audit3-j42-1024-hs-overflow.png</span>BUG-34: page scrolled to scrollX 192 — content is cut off on the left at a common laptop width.</figcaption></figure>
+<figure><img src="images/audit3-j43-zoom200.jpg" alt="BUG-34: the same defect at 200% browser zoom (720 CSS px), affecting low-vision users." loading="lazy"/><figcaption><span class="fname">audit3-j43-zoom200.png</span>BUG-34: the same defect at 200% browser zoom (720 CSS px), affecting low-vision users.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-33</span><span class="pill s-med">Medium</span><span class="ftitle">The Judge Dock declares aria-modal="true" but does not trap focus, and ESC does not restore focus</span></div>
+<p class="fline"><b>What I saw.</b> The "⚡ 60s Judge Dock" opens correctly with <span class="mono">role="dialog"</span>, <span class="mono">aria-modal="true"</span> and <span class="mono">aria-labelledby</span>. Pressing Tab 14 times escaped into the obscured background page (the project select, the New Project button, the nav step buttons); a sighted keyboard user could activate hidden controls without seeing them. Pressing ESC closed the dialog but left focus on a background nav button ("03"), not on the "⚡ 60s Judge Dock" trigger.</p>
+<p class="fline"><b>Why it matters.</b> Both halves of the modal contract — trap and restore — are missing while the markup claims the dialog is modal. Keyboard-only users lose their place entirely.</p>
+<p class="fline"><b>Reproduction.</b> Open the Judge Dock with the keyboard, Tab repeatedly, observe focus leaving the dialog; press ESC and read document.activeElement.</p>
+<figure><img src="images/audit3-j36-keyboard.jpg" alt="BUG-33: the Judge Dock declares aria-modal=true but Tab escapes into the background page." loading="lazy"/><figcaption><span class="fname">audit3-j36-keyboard.png</span>BUG-33: the Judge Dock declares aria-modal=true but Tab escapes into the background page.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-01</span><span class="pill s-med">Medium</span><span class="ftitle">The New Project modal is rendered inside the sticky header and clips most of its fields</span></div>
+<p class="fline"><b>What I saw.</b> Opening "New Project" renders the dialog inside the page's <span class="mono">position:sticky</span> header rather than at the top of the document. Three of its seven fields and the submit button fall outside the clipped container, and scrolling the page does not reveal them. I still completed creation by driving the fields programmatically, but a mouse user cannot easily reach them.</p>
+<p class="fline"><b>Why it matters.</b> Creating a project is the first thing a new user does, and it is the least usable screen in the app.</p>
+<p class="fline"><b>Reproduction.</b> Click "New Project" at a normal desktop size and try to reach the "Specification Summary" textarea or the submit button by scrolling.</p>
+<figure><img src="images/audit3-j01-newproject-modal.jpg" alt="BUG-01: New Project modal is rendered inside the page's sticky header, so most fields and the submit button fall below the fold inside a cli" loading="lazy"/><figcaption><span class="fname">audit3-j01-newproject-modal.png</span>BUG-01: New Project modal is rendered inside the page's sticky header, so most fields and the submit button fall below the fold inside a clipped container.</figcaption></figure>
+</div>
+
+<div class="finding low">
+<div class="frow"><span class="fid">BUG-04</span><span class="pill s-med">Medium</span><span class="ftitle">An empty specification silently closes the Auto-Scope modal</span></div>
+<p class="fline"><b>What I saw.</b> Submitting the AI Spec Breakdown with no spec text dismisses the dialog with no message and no result — no error, no toast, no package. The user cannot tell whether it failed, ignored them, or is still working.</p>
+<p class="fline"><b>Reproduction.</b> Open Auto-Scope, clear the specification, submit.</p>
+<figure><img src="images/audit3-j06-after-empty-autoscope.jpg" alt="BUG-04: submitting an empty specification silently closes the Auto-Scope modal without a message." loading="lazy"/><figcaption><span class="fname">audit3-j06-after-empty-autoscope.png</span>BUG-04: submitting an empty specification silently closes the Auto-Scope modal without a message.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-07</span><span class="pill s-med">Medium</span><span class="ftitle">A green "RFQs Dispatched" success toast fires with zero contractors selected</span></div>
+<p class="fline"><b>What I saw.</b> Clicking "Dispatch RFQs" with nobody selected produces a green success toast claiming RFQs were dispatched. No invitations were sent.</p>
+<p class="fline"><b>Why it matters.</b> It is a false success on an irreversible outbound action; a GC would assume subcontractors had been invited and wait for bids that will never come.</p>
+<p class="fline"><b>Reproduction.</b> On CSI Scoping, click "Dispatch RFQs" without selecting a contractor.</p>
+<figure><img src="images/audit3-j08-rfq-dispatched.jpg" alt="BUG-07: a green 'RFQs Dispatched' success toast appears even when zero contractors were selected." loading="lazy"/><figcaption><span class="fname">audit3-j08-rfq-dispatched.png</span>BUG-07: a green 'RFQs Dispatched' success toast appears even when zero contractors were selected.</figcaption></figure>
+</div>
+
+<div class="finding med">
+<div class="frow"><span class="fid">BUG-15</span><span class="pill s-med">Medium</span><span class="ftitle">Stacked destructive confirmations are clipped at the top of the viewport</span></div>
+<p class="fline"><b>What I saw.</b> When a delete-file confirmation and a delete-project confirmation are open together, both layers use <span class="mono">z-[70]</span> and the newest destructive confirm is cut off above the viewport's top edge — its heading and part of the dialog are not fully reachable.</p>
+<p class="fline"><b>Reproduction.</b> Open the file-delete confirm, then trigger the project-delete confirm without dismissing the first.</p>
+<figure><img src="images/audit3-j19-stacked-dialogs.jpg" alt="BUG-15: two confirmations stacked at z-[70]; the destructive confirm is clipped off the top of the viewport." loading="lazy"/><figcaption><span class="fname">audit3-j19-stacked-dialogs.png</span>BUG-15: two confirmations stacked at z-[70]; the destructive confirm is clipped off the top of the viewport.</figcaption></figure>
+</div>
+
+<h3>The rest — Medium, Low and Info</h3>
+<p class="sub">Compact entries; each was reproduced in the browser unless the note says otherwise.</p>
+<table>
+<thead><tr><th style="width:66px">ID</th><th style="width:80px">Severity</th><th>Finding · reproduction · impact</th></tr></thead>
+<tbody>
+<tr><td class="mono">BUG-02</td><td><span class="pill s-low">Low</span></td><td><b>The teleprompter hard-codes demo counts.</b> It announces package/sub/bid counts that no longer match a project the user has edited. Repro: edit the demo project, replay the tour. Impact: the narrator contradicts the screen (same family as BUG-36).</td></tr>
+<tr><td class="mono">BUG-04</td><td><span class="pill s-med">Medium</span></td><td><b>An empty specification silently closes the Auto-Scope modal.</b> Submitting the AI Spec Breakdown with no spec text dismisses the dialog with no message and no result. Repro: open Auto-Scope, submit empty. Impact: the user cannot tell whether it failed or did nothing.</td></tr>
+<tr><td class="mono">BUG-07</td><td><span class="pill s-med">Medium</span></td><td><b>A green "RFQs Dispatched" success toast fires with zero contractors selected.</b> Repro: click Dispatch RFQs without selecting recipients. Impact: false success on an outbound action — the user believes invites were sent.</td></tr>
+<tr><td class="mono">BUG-08</td><td><span class="pill s-med">Medium</span></td><td><b>The RFI form clears and then waits ~14s with no feedback.</b> Repro: submit an RFI. Impact: the form appears to have lost the input; users resubmit, creating duplicates. (Reclassified from High once the RFI ultimately appeared.)</td></tr>
+<tr><td class="mono">BUG-09</td><td><span class="pill s-low">Low</span></td><td><b>AI RFI bodies render raw Markdown.</b> Asterisks and hashes appear literally in the answer. Repro: open any AI RFI reply.</td></tr>
+<tr><td class="mono">BUG-10 / 28</td><td><span class="pill s-low">Low</span></td><td><b>Timestamps are 12-hour, date-less and not real.</b> Entries show a time with no date, no timezone, and do not correspond to the actual action time. Impact: the audit trail cannot be used to establish when something happened.</td></tr>
+<tr><td class="mono">BUG-13</td><td><span class="pill s-med">Medium</span></td><td><b>Upload is flaky on the first attempt.</b> The first drag/drop or file-pick is intermittently dropped with no error; a retry succeeds. Repro: upload several fixtures in a row. Impact: silent data loss from the user's point of view. (Reclassified from a hard failure.)</td></tr>
+<tr><td class="mono">BUG-14</td><td><span class="pill s-med">Medium</span></td><td><b>The caption "100% Real Construction Document Specification" is applied to any uploaded file</b>, including a renamed PNG. Repro: upload a non-document file and read the caption. Impact: false provenance on uploaded evidence.</td></tr>
+<tr><td class="mono">BUG-15</td><td><span class="pill s-med">Medium</span></td><td><b>Stacked destructive confirms are clipped.</b> When a file-delete and a project-delete confirm overlap, both use <span class="mono">z-[70]</span> and the destructive confirm is cut off at the top of the viewport. Repro: open two confirms in sequence. Impact: the destructive button can be partly unreachable.</td></tr>
+<tr><td class="mono">BUG-17</td><td><span class="pill s-low">Low</span></td><td><b>"Simulate Inbound Quote" opens the Judge Dock instead of simulating a quote.</b> Repro: click it on Bid Leveling. Impact: mislabelled control.</td></tr>
+<tr><td class="mono">BUG-20 / 21 / 22</td><td><span class="pill s-low">Low</span></td><td><b>Clash-card vocabulary and severity terms are inconsistent</b> between the summary tiles and the detail cards. Repro: open Scope Clash and compare labels. Impact: terminology noise.</td></tr>
+<tr><td class="mono">BUG-24</td><td><span class="pill s-med">Medium</span></td><td><b>Liquidated damages disagree across surfaces.</b> The executed agreement displays <b>$1,200/day</b> (<span class="mono">liquidatedDamagesDaily: 1200</span>), while the leveling "Why GCs Care" copy and the generated specification say <b>$6,000/week</b> (~$857/day). Repro: compare the Contracts register with the leveling rationale. Impact: a contract term differs from its own justification.</td></tr>
+<tr><td class="mono">BUG-29</td><td><span class="pill s-low">Low</span></td><td><b>The nav badge and the tab count disagree for RFIs</b> ("1 RFIs" vs "3 RFIs"). Repro: compare the header chip with the Pre-Bid tab counter. Impact: count drift.</td></tr>
+<tr><td class="mono">BUG-32</td><td><span class="pill s-info">Info</span></td><td><b>Retracted — described as a false positive.</b> A "duplicate project name" I saw was <span class="mono">document.body.innerText</span> serialising a <span class="mono">&lt;select&gt;</span>'s options on separate lines, not a second visible label. Recorded for transparency. Cross-project isolation itself passed.</td></tr>
+<tr><td class="mono">BUG-35</td><td><span class="pill s-low">Low</span></td><td><b>Small secondary text fails WCAG AA.</b> 11px slate-500 on slate-900 measures 3.75:1 (AA needs 4.5:1); "+2 more required items" at 10px measures 3.47:1. Repro: inspect secondary lines in any card. Impact: low-vision users struggle with detail text. (Note: the primary green CTA is fine — my automated 1.00 reading of it was a false positive caused by a CSS gradient.)</td></tr>
+<tr><td class="mono">OBS-01</td><td><span class="pill s-info">Info</span></td><td><b>Dark theme only.</b> The app hard-sets <span class="mono">&lt;html class="dark"&gt;</span> and ignores <span class="mono">prefers-color-scheme</span>; there is no light or high-contrast option. Not a defect, but worth noting for accessibility-conscious buyers.</td></tr>
+<tr><td class="mono">OBS-02</td><td><span class="pill s-info">Info</span></td><td><b>Reset dialog names the wrong project.</b> The "Reset Project Seed State" copy says it resets the "Austin Commercial Tower demo project" while the actual demo is "The Domain Tower B - Commercial MEP". Same hard-coded-string family as BUG-36.</td></tr>
+<tr><td class="mono">OBS-03</td><td><span class="pill s-info">Info</span></td><td><b>Numeric inputs have no min/max/step</b>, but client-side validation still rejects a negative budget with a clear inline message, so this is cosmetic only.</td></tr>
+</tbody>
+</table>
+
+<h3>Retracted candidates (kept for transparency)</h3>
+<div class="callout">
+<ul>
+<li><b>BUG-03</b> (Load Sample) — false positive caused by my viewport drifting mid-test, not an app bug.</li>
+<li><b>BUG-05</b> (an "invisible" textarea overlay) — the overlay was the Auto-Scope modal's own textarea rendering correctly; the earlier "flash and close" was a viewport artifact.</li>
+<li><b>BUG-32</b> (duplicate project name) — <span class="mono">innerText</span> of a <span class="mono">&lt;select&gt;</span> enumerates its options; there was no visible duplicate.</li>
+<li><b>"3 icon-only buttons lack accessible names"</b> — retracted; every icon-only button carries a <span class="mono">title</span>, which is a valid accessible name.</li>
+<li><b>"Silent submit on New Project"</b> — retracted; my click had missed the button mid-animation. Validation fires correctly.</li>
+</ul>
+</div>
+
+<section id="redundancy">
+<h2>Redundancy register</h2>
+<p class="sub">Persistent global chrome (Demo Tour, Judge Dock, New Project, the project select, the 6-step stepper, the two utility tabs) appears on every tab by design and is not counted below. These are the genuinely overlapping affordances.</p>
+<table>
+<thead><tr><th style="width:200px">Affordance</th><th>Where it appears</th><th>Overlaps with</th><th style="width:120px">Risk</th></tr></thead>
+<tbody>
+<tr><td><b>Three competing "go next" controls on one screen</b></td><td>Bid Leveling (and every stage): green teleprompter "Advance to Scope Clash Engine", amber footer "Advance to Scope Clash Engine ➔", slate footer "Proceed to Contracts Register ➔"</td><td>All three advance the workflow; two are duplicates and one <b>skips a whole stage</b></td><td><span class="pill s-med">Confusing</span></td></tr>
+<tr><td>Per-stage trade selector</td><td>Discovery and Pre-Bid Q&amp;A ("26 00 00 Electrical…", "22 00 00 Plumbing…")</td><td>Mirrors the per-package selectors already on CSI Scoping</td><td><span class="pill s-low">Low</span></td></tr>
+<tr><td>Tour controls</td><td>"🔄 Restart Demo Tour" and "Dismiss" rendered on both Live Activity Audit and Evals</td><td>Two hosts for the same tour controls</td><td><span class="pill s-low">Low</span></td></tr>
+<tr><td>Stage navigation</td><td>Header stepper <i>and</i> the in-page footer next-CTA on every stage</td><td>No single canonical path; button labels differ</td><td><span class="pill s-med">Confusing</span></td></tr>
+</tbody>
+</table>
+<div class="callout"><b>Recommendation.</b> Collapse each screen to exactly one primary "next" action, and make the header stepper the only secondary navigator. Rename "Proceed to X" so it never silently skips a stage.</div>
+</section>
+
+<section id="consistency">
+<h2>Cross-view consistency ledger</h2>
+<p class="sub">One value, many places it is shown. Where the same figure appears on several surfaces, I reconciled them.</p>
+<table>
+<thead><tr><th>Value / fact</th><th>Surface A</th><th>Surface B</th><th>Surface C</th><th style="width:100px">Status</th></tr></thead>
+<tbody>
+<tr><td>Budget (demo)</td><td>KPI band $4,250,000</td><td>Package cards $1,250,000 + $1,850,000 + $950,000</td><td>All 8 tabs identical</td><td><span class="pill s-pass">Agree</span></td></tr>
+<tr><td>Package / sub / bid / RFI counts</td><td>KPI band 3 / 4 / 2 / 3</td><td>Header stepper 3 / 4 / 2 / 3</td><td>All 8 tabs identical</td><td><span class="pill s-pass">Agree</span></td></tr>
+<tr><td>Leveling winner cost</td><td>Leveling matrix $1,253,000 (post-action)</td><td>Contract register $1,253,000 (post-action)</td><td>Tour script still says $1,225,000</td><td><span class="pill s-warn">Tour stale</span></td></tr>
+<tr><td>Normalised savings</td><td>Leveling banner "+$33,000" (live)</td><td>Tour cue "$61,000 cheaper"</td><td>Scene banner "$61k-$96k"</td><td><span class="pill s-fail">Disagree</span></td></tr>
+<tr><td>Gaps plugged</td><td>KPI band $169,500</td><td>Component sum on screen $186,000</td><td>Audit narrative $186,000</td><td><span class="pill s-fail">Disagree</span></td></tr>
+<tr><td>Awarded count</td><td>KPI band "0/3 Awarded"</td><td>Stepper "1 Award"</td><td>Register "Execution 1/1"</td><td><span class="pill s-fail">Disagree</span></td></tr>
+<tr><td>Liquidated damages</td><td>Agreement $1,200/day</td><td>Leveling copy $6,000/week</td><td>Generated spec $6,000/week</td><td><span class="pill s-fail">Disagree</span></td></tr>
+<tr><td>Discovery contractor count</td><td>Banner "4 Verified"</td><td>Directory counter "5 of 5"</td><td>List rows 5</td><td><span class="pill s-fail">Disagree</span></td></tr>
+<tr><td>ADR-0003 per-bid maths</td><td>UI total</td><td>Hand recomputation</td><td>Exported CSV</td><td><span class="pill s-pass">Agree</span></td></tr>
+<tr><td>Deduct credit / void assignment</td><td>Scope Clash UI</td><td>Second live session (realtime)</td><td>Audit stream</td><td><span class="pill s-pass">Agree</span></td></tr>
+<tr><td>Project title in <span class="mono">&lt;select&gt;</span></td><td>Selected option matches displayed project</td><td>—</td><td>—</td><td><span class="pill s-pass">Agree</span></td></tr>
+</tbody>
+</table>
+<div class="callout bad"><b>Pattern.</b> The immutable, computed values (per-bid maths, credits, voids, the audit stream) are consistent everywhere. The inconsistency lives in the <b>hand-authored strings</b> — tour copy, "gaps", banners and the award counter. That is exactly where a fix is cheapest and most valuable.</div>
+</section>
+
+<section id="ux">
+<h2>UX &amp; visual</h2>
+<div class="grid g2">
+<div class="card">
+<h4>Strengths</h4>
+<ul>
+<li>Lightning-fast first paint and a clean, dense, professional dark visual language.</li>
+<li>The 6-stage stepper gives an immediately legible mental model of the workflow.</li>
+<li>Per-bid leveling cards render the ADR-0003 formula as an inspectable line-item breakdown — genuinely good for building trust.</li>
+<li>Destructive confirmations name the exact object and scope ("Permanently remove ADDENDUM_NO._01_CLARIFICATIONS.md from this project's document register and storage?").</li>
+<li>Empty states ("No Trade Packages Configured", "No Subcontract Agreements Found") explain the next action.</li>
+</ul>
+</div>
+<div class="card">
+<h4>Weaknesses</h4>
+<ul>
+<li>Three different "next" buttons per screen with inconsistent colours and labels (see redundancy register).</li>
+<li>The New Project modal is the least usable screen and it is the first one a new user meets.</li>
+<li>Long, silent waits with no progress indicator on RFI submission (~14s) and discovery (8–28s) encourage double-submission.</li>
+<li>Vocabulary churns: "Real-Time" / "Forensic" / "Leveling" for one feature; "Buyout" means both a dollar total and an award counter.</li>
+<li>Copy overstates ("100% Real", "100% TDLR Validated", "Zero Cheating"), which trains scepticism rather than confidence.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="a11y">
+<h2>Accessibility</h2>
+<table>
+<thead><tr><th>Check</th><th style="width:110px">Result</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Visible focus indicator</td><td><span class="pill s-pass">Pass</span></td><td>All 18 tab stops showed a browser focus ring (<span class="mono">outline: auto 1px rgb(153,200,255)</span>).</td></tr>
+<tr><td>Accessible names on controls</td><td><span class="pill s-pass">Pass</span></td><td>0 unnamed buttons, 0 images without alt, 0 unlabelled fields. Icon-only buttons use <span class="mono">title</span>.</td></tr>
+<tr><td>Modal focus trap / restore</td><td><span class="pill s-fail">Fail</span></td><td><b>BUG-33.</b> Judge Dock declares <span class="mono">aria-modal="true"</span> but focus escapes and ESC does not return focus to the trigger.</td></tr>
+<tr><td>Text contrast</td><td><span class="pill s-warn">Partial</span></td><td><b>BUG-35.</b> 11px slate-500 secondary text at 3.75:1 (AA needs 4.5:1); 10px detail text at 3.47:1. Primary CTAs are fine.</td></tr>
+<tr><td>Colour-only signalling</td><td><span class="pill s-warn">Watch</span></td><td>Stage state is conveyed by colour plus text, which is acceptable, but several chips rely heavily on hue at small sizes.</td></tr>
+<tr><td>Theme options</td><td><span class="pill s-info">Info</span></td><td>Dark-only; no light/high-contrast preference.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="perf">
+<h2>Performance &amp; network</h2>
+<p class="sub">Cold reload with cache disabled, measured from the live tab over CDP.</p>
+<div class="grid g3">
+<div class="card"><h4>First contentful paint</h4><div class="kpi">1.19 s</div><div class="sub">first paint 672 ms · TTFB 539 ms</div></div>
+<div class="card"><h4>DOMContentLoaded</h4><div class="kpi">1.11 s</div><div class="sub">load 1.11 s</div></div>
+<div class="card"><h4>Total transfer</h4><div class="kpi">238 KB</div><div class="sub">3 resources, no fonts, no analytics</div></div>
+<div class="card"><h4>Largest asset</h4><div class="kpi sm">192 KB</div><div class="sub">index JS · CSS 45 KB</div></div>
+<div class="card"><h4>Console errors</h4><div class="kpi" style="color:var(--em)">0</div><div class="sub">no warnings or exceptions on load</div></div>
+<div class="card"><h4>DOM nodes</h4><div class="kpi sm">703</div><div class="sub">lean</div></div>
+</div>
+<div class="callout good" style="margin-top:16px"><b>Verdict: no performance finding.</b> This is a genuinely lightweight, fast SPA. Realtime push arrivals measured in the low seconds reflect server-side LLM work, not a sluggish client.</div>
+</section>
+
+<section id="backend">
+<h2>Backend &amp; data integrity · Auth-readiness</h2>
+<div class="grid g2">
+<div class="card">
+<h4>Verified correct</h4>
+<ul>
+<li><b>ADR-0003 per-bid math</b> matched a hand recomputation to the dollar for both bidders, in the UI and in the exported CSV.</li>
+<li><b>Mutations persist</b> — a deduct-credit and a void-assignment survived reload and were observed on a second live session.</li>
+<li><b>Audit stream is truthful</b> — every action I took was logged with the correct amount, including the $1,746,500 Brandt decomposition.</li>
+<li><b>Execution locks the record</b> after A401 execution.</li>
+<li><b>Isolation holds</b> — a stale/non-Convex project id was rejected and the app fell back without leakage.</li>
+<li><b>Preview serves true stored bytes</b> and CSV export quoting/arithmetic are valid.</li>
+</ul>
+</div>
+<div class="card" style="border-left:4px solid var(--am)">
+<h4>Risk: two sources of truth</h4>
+<p style="margin:6px 0">The app writes a full dataset to <span class="mono">localStorage["tradepulse_standalone_v3"]</span> (~38.5 KB) on every load, for its documented "Zero-Cloud Resilient Mode" (it engages only after 8 s without a Convex connection). That is intentional, but the fallback is a <b>stale snapshot</b>:</p>
+<ul>
+<li>Fallback Rosendin agreement: <b>contractSum $1,225,000</b>, status <span class="mono">generated</span>.</li>
+<li>Live Convex for the same agreement: <b>$1,253,000</b>, status <span class="mono">executed</span>.</li>
+</ul>
+<p style="margin:6px 0">If Convex dropped mid-demo, the Contracts tab would silently regress to a different contract sum and status, with no visible "offline data" warning on the numbers.</p>
+<p class="dim">Recommendation: badge the UI while serving standalone data, and refresh the snapshot after each successful mutation.</p>
+</div>
+</div>
+
+<h3>Auth-readiness (not a bug — a production-readiness gap)</h3>
+<div class="callout">
+<p style="margin:4px 0"><b>There is no authentication.</b> Identity is implicit: a user picks a project from a dropdown; each trade package owns a synthetic AgentMail inbox (e.g. <span class="mono">trade-26000-2898@agentmail.to</span>); contractor replies are attributed purely by sender address. Every role shares one unauthenticated surface.</p>
+<p style="margin:8px 0 4px">For a production build this means:</p>
+<ul>
+<li>Any visitor can read and act on every project.</li>
+<li>Destructive actions (delete project/file, run crons, record executions) require no credentials.</li>
+<li>Any sender using a matching address can impersonate a contractor.</li>
+<li>The audit stream attributes actions to no user, so it cannot answer "who did this".</li>
+</ul>
+<p class="dim" style="margin-top:6px">This is expected for a hackathon demo and was explicitly not reported as a defect per the audit brief.</p>
+</div>
+</section>
+
+<section id="blocked">
+<h2>Blocked / not tested</h2>
+<table>
+<thead><tr><th>Item</th><th style="width:130px">Status</th><th>Detail</th></tr></thead>
+<tbody>
+<tr><td>True external AgentMail delivery</td><td><span class="pill s-na">Not asserted</span></td><td>Inboxes, addressing and the reply-attribution model were verified inside the app; I did not assert delivery to a third-party mail server.</td></tr>
+<tr><td>Payment / accounting integration</td><td><span class="pill s-na">Absent</span></td><td>No such feature exists in the product.</td></tr>
+<tr><td>Multi-user concurrency at scale</td><td><span class="pill s-na">Not tested</span></td><td>Only two concurrent sessions were exercised (enough to confirm realtime).</td></tr>
+<tr><td>Sustained-load behavior of crons</td><td><span class="pill s-na">Partial</span></td><td>Both crons were triggered manually and logged truthful events; long-run scheduling was not observed over time.</td></tr>
+<tr><td>PDF byte-level fidelity of exported agreements</td><td><span class="pill s-na">Not tested</span></td><td>Because of BUG-12 I did not treat Download output as trustworthy, so I did not validate generated-PDF fidelity.</td></tr>
+<tr><td>Screen-reader walk-through (NVDA/JAWS)</td><td><span class="pill s-na">Not tested</span></td><td>Semantics were inspected via the DOM/accessibility tree, not a live screen reader.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="recs">
+<h2>Recommendations, in priority order</h2>
+<table>
+<thead><tr><th style="width:52px">#</th><th>Action</th><th style="width:150px">Findings addressed</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Stop presenting generated data as verified.</b> Either source real discovery data or relabel the fabricated rows clearly as sample data and remove the "TDLR Verified" badges until a real lookup backs them.</td><td class="mono">BUG-16</td></tr>
+<tr><td>2</td><td><b>Make Download serve the stored file.</b> Delete the filename-keyed canned-document dictionary and stream the actual bytes, matching Preview exactly.</td><td class="mono">BUG-12</td></tr>
+<tr><td>3</td><td><b>Re-scope the eval suite honestly.</b> Rename it an extraction/parsing check, remove "Zero Cheating / Parity", and add an evaluation that cannot be satisfied by copying the prompt.</td><td class="mono">BUG-30, BUG-31</td></tr>
+<tr><td>4</td><td><b>Make the tour read live data</b> (or visually label it a canned recording) so narrated savings and counts can never contradict the screen.</td><td class="mono">BUG-02, BUG-36</td></tr>
+<tr><td>5</td><td><b>Unify derived numbers.</b> Award count, "Gaps Plugged", the "Leveled Buyout" label, LD rate and discovery counts should each be computed once and read everywhere.</td><td class="mono">BUG-06, 18, 24, 26, 29</td></tr>
+<tr><td>6</td><td><b>Fix responsive layout.</b> Constrain the nav stepper (remove the blanket <span class="mono">shrink-0</span> / give the scroller a bounded width) so the page never scrolls horizontally below ~1210px.</td><td class="mono">BUG-34</td></tr>
+<tr><td>7</td><td><b>Finish the modal contract.</b> Add a focus trap and restore focus on close for the Judge Dock and every dialog.</td><td class="mono">BUG-33</td></tr>
+<tr><td>8</td><td><b>Reparent the New Project modal</b> to the document body so it is never clipped by the sticky header.</td><td class="mono">BUG-01</td></tr>
+<tr><td>9</td><td><b>Add progress + disable-on-submit</b> to RFI submission and every AI action, and show a real error when zero recipients are selected.</td><td class="mono">BUG-07, BUG-08</td></tr>
+<tr><td>10</td><td><b>Badge offline/standalone mode</b> and refresh the local snapshot after mutations; raise small-text contrast to AA.</td><td class="mono">OBS/Data, BUG-35</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="log">
+<h2>Timestamped audit log</h2>
+<p class="sub">Condensed from the running session log. Times are as recorded in-session (local to the audit run).</p>
+<details><summary>Show the full chronological log (46 entries)</summary>
+<table>
+<thead><tr><th style="width:88px">Time</th><th>Action / observation</th></tr></thead>
+<tbody>
+<tr><td class="mono">08:19</td><td>Fetched /llms.txt, /api/health (v1.0.0), repo README/schema; enumerated 8 nav tabs and all modals. Recorded ADR-0003 formula and the identity model (no auth; implicit via project select + per-package AgentMail inboxes).</td></tr>
+<tr><td class="mono">08:22</td><td>Fresh-profile check: app writes the full fake dataset to localStorage on every load, even with Convex connected. Server-seeded.</td></tr>
+<tr><td class="mono">08:31</td><td>BUG-01 second repro: New Project modal clipped inside sticky header.</td></tr>
+<tr><td class="mono">08:34–08:40</td><td>Created AUDIT-GC-Alpha (budget $5.5M) via real input; AI Spec Breakdown produced 3 packages (Div26 1.85M, Div23 2.4M, Div22 980k); ran discovery; issued RFI + addendum; PM certification verified.</td></tr>
+<tr><td class="mono">08:44</td><td>Realtime confirmed across two sessions: deduct-credit and void-assignment propagated in &lt;3 s; full RFI round-trip ~23.6 s.</td></tr>
+<tr><td class="mono">08:50</td><td>Bug triage: retracted BUG-03 and BUG-05 as viewport-drift artifacts; logged the stable-viewport requirement.</td></tr>
+<tr><td class="mono">08:56</td><td>BUG-06 confirmed: "Leveled Buyout (Normalized)" is the sum of package budgets.</td></tr>
+<tr><td class="mono">09:21</td><td>BUG-08 reclassified High→Medium once the RFI appeared after a silent delay.</td></tr>
+<tr><td class="mono">09:58</td><td>BUG-13 reclassified: upload flaky on first attempt rather than hard-failing.</td></tr>
+<tr><td class="mono">10:08</td><td>BUG-12 proven: a 43-byte collision file downloads canned text; the dictionary ships in the bundle.</td></tr>
+<tr><td class="mono">10:42</td><td>BUG-23 first seen: register sum vs leveling vs tour disagreed on the awarded cost.</td></tr>
+<tr><td class="mono">10:51</td><td>Execution lock verified; BUG-26 seen ("0/3 Awarded" after execution).</td></tr>
+<tr><td class="mono">11:12</td><td>BUG-30 escalated: captured the full eval prompt showing the expected answer is provided to the model.</td></tr>
+<tr><td class="mono">11:15</td><td>Noted that Phase-3 actions had mutated the shared demo; scheduled a reset at the end.</td></tr>
+<tr><td class="mono">11:18–11:20</td><td>Isolation test passed; BUG-32 retracted (select innerText).</td></tr>
+<tr><td class="mono">11:22–11:28</td><td>Keyboard: focus rings pass; BUG-33 confirmed (no focus trap, no focus restore).</td></tr>
+<tr><td class="mono">11:35</td><td>BUG-34 found: horizontal overflow at 768/1024.</td></tr>
+<tr><td class="mono">11:40</td><td>200% zoom reproduces BUG-34; dark-only theme; contrast sweep (BUG-35).</td></tr>
+<tr><td class="mono">11:48</td><td>Adversarial input: negative budget correctly rejected; retracted a "silent submit" misread.</td></tr>
+<tr><td class="mono">11:52–11:56</td><td>XSS attempt safely rendered as text; RTL/emoji title fine; created and later deleted two throwaway projects.</td></tr>
+<tr><td class="mono">12:02–12:08</td><td>Dangerous actions: delete project and delete file both well-formed; Cancel is non-destructive; confirm deletes.</td></tr>
+<tr><td class="mono">12:14</td><td>BUG-36: tour script stale after a normal award.</td></tr>
+<tr><td class="mono">12:18–12:19</td><td>BUG-18 ($169,500 vs $186,000) and BUG-24 (LD rates) re-confirmed with exact sources.</td></tr>
+<tr><td class="mono">12:24</td><td>Redundancy register completed.</td></tr>
+<tr><td class="mono">12:30</td><td>Terminology scan across all 8 tabs; corrected BUG-24 (dropped an unreproducible $2,500/day variant).</td></tr>
+<tr><td class="mono">12:33</td><td>BUG-26 re-confirmed against executed state.</td></tr>
+<tr><td class="mono">12:37</td><td>Performance measured: 238 KB, FCP 1.19 s, zero console errors.</td></tr>
+<tr><td class="mono">12:42–12:43</td><td>BUG-16 re-confirmed on a user-created project; banner count vs list count mismatch noted.</td></tr>
+<tr><td class="mono">12:46</td><td>A11y naming correction: all icon buttons have titles; retracted the earlier claim.</td></tr>
+<tr><td class="mono">12:50</td><td>Data-integrity section: dual-source staleness quantified; Auth-readiness documented.</td></tr>
+<tr><td class="mono">12:58</td><td>Cleanup: reset the shared demo to seed baseline; deleted AUDIT-GC-Alpha and the throwaway projects; only the demo remains.</td></tr>
+</tbody>
+</table>
+</details>
+</section>
+
+<section id="selfint">
+<h2>Self-interrogation</h2>
+<p class="sub">Where could this audit be wrong? Answered honestly, because a confident report is worth less than a calibrated one.</p>
+<table>
+<thead><tr><th style="width:300px">Question</th><th>Answer</th></tr></thead>
+<tbody>
+<tr><td>Which findings depend on a browser quirk rather than the app?</td><td>None in the final list. Three earlier candidates (BUG-03, BUG-05, the duplicate project name) were retracted precisely because they were viewport or <span class="mono">innerText</span> artifacts. I required two reproductions at a stable 1440×900 viewport before keeping anything.</td></tr>
+<tr><td>Which finding is least certain?</td><td>BUG-13 (flaky upload). It reproduced, but intermittently, and I could not isolate a single deterministic trigger. I kept it at Medium and said so.</td></tr>
+<tr><td>Which finding is most likely to be disputed by the team?</td><td>BUG-30/31. Someone may argue the eval is "a real LLM call and a real trace". It is — but my point is narrower and, I think, unarguable: the prompt contains the expected answer, so the score measures copying, not estimating.</td></tr>
+<tr><td>Did I mutate anything I should not have?</td><td>Yes, temporarily — I took deduct/void/execute/cron actions on the shared demo to exercise those mechanisms. I restored it via the app's own Reset, then verified the restored baseline (contract sum $1,225,000, Execution 0/1, 4 clashes, no voids) and deleted every fixture project.</td></tr>
+<tr><td>What did I not test that a user would?</td><td>Real external email delivery, long-run cron behaviour, and a live screen-reader walk-through. All are listed under Blocked/Not tested.</td></tr>
+<tr><td>Is the severity scale applied consistently?</td><td>Yes, and deliberately conservatively. I did not use Critical anywhere: nothing caused data loss or an isolation breach. BUG-16, BUG-12 and BUG-30 are High because they materially mislead; the rest are Medium/Low/Info.</td></tr>
+<tr><td>Could the "fabricated discovery" be intended demo data?</td><td>It could be intended for the <i>seeded demo</i>, but it also fires on projects a real user creates, and it is labelled "Active / Verified (TDLR)" with no "sample data" disclaimer. That labelling is the defect, regardless of intent.</td></tr>
+<tr><td>Did I verify the app is actually live and not a local mock?</td><td>Yes — real network to <span class="mono">brainy-skunk-440.convex.site</span>, real Convex websockets, real LLM traces with tokens/cost, and mutations that persisted across two separate browser sessions.</td></tr>
+</tbody>
+</table>
+</section>
+
+<footer>
+<p><b>TradePulse Pro — User-Journey Audit</b> · Completed 2026-09-17 09:00 UTC · Live app <a href="https://brainy-skunk-440.convex.site/">brainy-skunk-440.convex.site</a> · Repository <a href="https://github.com/bO-05/tradepulse-pro">bO-05/tradepulse-pro</a>.</p>
+<p>Read-only audit. No source files were modified, nothing was deployed or committed. All fixtures were removed and the shared demo project was restored to its seed baseline. Screenshots are raw CDP captures taken at a fixed 1440×900 viewport unless a responsive test states otherwise. Raw evidence files (<span class="mono">audit3-*.png</span>, <span class="mono">audit3-sessionlog.md</span>, <span class="mono">audit3-leveling-reconstructed.csv</span>, <span class="mono">audit3-llms.txt</span>, <span class="mono">audit3-health.json</span>) accompany this report in the workspace.</p>
+</footer>
+</div>
+</body>
+</html>

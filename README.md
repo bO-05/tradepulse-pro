@@ -161,5 +161,25 @@ npm run build
 
 ---
 
+## 🧾 Audits & Verification
+
+The full audit trail lives in [`docs/audits/`](./docs/audits/README.md) — self-contained HTML reports
+(open by double-click, no network needed):
+
+| Report | What it covers |
+| :--- | :--- |
+| [audit-1-ux.html](./docs/audits/audit-1-ux.html) | First UX audit of the deployed app. |
+| [audit-2-user-journey.html](./docs/audits/audit-2-user-journey.html) | Five-persona user-journey audit (BUG-01…BUG-36). |
+| [audit-3-adversarial.html](./docs/audits/audit-3-adversarial.html) | Independent audit v3 with adversarial passes (AUD-01…AUD-05). |
+| [audit-4-ui.html](./docs/audits/audit-4-ui.html) | Human-operator UI audit (F1…F12). The [.md copy](./docs/audits/audit-4-ui.md) is machine-readable. |
+| [audit-5-remediation.html](./docs/audits/audit-5-remediation.html) | Remediation pass 2: F1–F12 verification table, new findings, claim-change decisions, convergence log, before/after evidence. |
+
+**Current state (audit 5).** All Critical/High/Medium findings were fixed and re-verified live;
+F10/F11 could not be reproduced and are marked as such rather than "fixed." Regression is green:
+`npx tsc -b` clean, `npx vitest run` 80/80, `python tests/test_tradepulse.py` 36/36. Live
+verification harness: [`scripts/qa/`](./scripts/qa/README.md).
+
+---
+
 ## 📄 License
 MIT License. Built for the Convex All Gas Hackathon 2026.
