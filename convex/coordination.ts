@@ -523,18 +523,26 @@ export const reverseDoubleBuyCredit = mutation({
       throw new ConvexError("There is no applied credit to reverse for this clash.");
     }
 
-    const bids = await ctx.db
-      .query("bids")
-      .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+// A36-01: search every package in the project for the bid carrying this clash's
+// credit. Limiting the search to the caller's package let a sibling-package id
+// delete a live resolution and strand the credit.
+    const projectPackages = await ctx.db
+      .query("tradePackages")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    // A32-01/A34-02: find the bid that actually carries a credit for THIS clash
-// (marker or legacy note). Amounts are irrelevant to identity here.
+    const projectBids = (
+      await Promise.all(
+        projectPackages.map((p) =>
+          ctx.db.query("bids").withIndex("by_package", (q) => q.eq("tradePackageId", p._id)).collect()
+        )
+      )
+    ).flat() as any[];
     const creditMatchesClash = (v: any) =>
       v.description.startsWith(`Cross-Trade Clash Credit [${args.clashId}]:`) ||
       (resolution.note
         ? v.description === `Cross-Trade Clash Credit: Deduct redundant ${resolution.note}`
         : false);
-    const targetBid = bids.find((b) => (b.valueEngineeringAlternates || []).some((v: any) => creditMatchesClash(v)));
+    const targetBid = projectBids.find((b) => (b.valueEngineeringAlternates || []).some((v: any) => creditMatchesClash(v)));
     if (!targetBid) {
       // Stale resolution: nothing carried it. Clear it with an audit record so
       // the state is explainable and re-applicable.
@@ -581,7 +589,7 @@ export const reverseDoubleBuyCredit = mutation({
     await ctx.db.delete(resolution._id);
     await ctx.db.insert("auditLogs", {
       projectId: args.projectId,
-      tradePackageId: args.tradePackageId,
+      tradePackageId: targetBid.tradePackageId,
       eventType: "bid_leveled",
       title: `Double-Buy Credit Reversed: $${reversedAmount.toLocaleString()}`,
       description: `Reversed the cross-trade credit of $${reversedAmount.toLocaleString()} on ${targetBid.subcontractorName}. Normalized leveled cost restored to $${newLeveledCost.toLocaleString()}.`,

@@ -1095,6 +1095,64 @@ test("A28-01/02/03/04: clash truth, manual-VE coverage, and credit bounds", asyn
   expect(afterStale.doubleBuys.find((d: any) => d.id === "clash-disconnect-02")?.status).toBe("deducted");
 });
 
+test("A36-01: reversal finds the carrier even when a sibling package id is passed", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Reversal Package Guard");
+  const elecId = await createPackage(t, projectId);
+  const hvacId = await t.mutation(api.tradePackages.createTradePackage, {
+    projectId,
+    csiDivision: "23 00 00",
+    tradeName: "HVAC Systems",
+    budgetEstimate: 1_200_000,
+    scopeSummary: "Rooftop units and hydronic piping.",
+    mandatoryInclusions: ["Crane pick"],
+    bidDeadline: "2026-10-31",
+  });
+  const elecContractor = await createContractor(t, elecId);
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: elecId,
+    contractorId: elecContractor,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  const hvacContractor = await t.mutation(api.contractors.createContractor, {
+    tradePackageId: hvacId,
+    companyName: "Regression Mechanical LLC",
+    contactEmail: "bids@regression-mech.test",
+    licenseNumber: "TX-REG-0007",
+    licenseStatus: "Active / Verified",
+    sourceUrl: "https://regression-mech.test",
+    rfqStatus: "invited",
+  });
+  const hvacBid: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: hvacId,
+    contractorId: hvacContractor,
+    subcontractorName: "Regression Mechanical LLC",
+    baseBidAmount: 1_150_000,
+  });
+  await t.mutation(api.coordination.deductDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+    deductAmount: 12_000,
+    description: "VFD credit",
+    bidId: hvacBid.bidId,
+  });
+
+  // Wrong (sibling) package id: the reversal must still find the carrier.
+  const reversed: any = await t.mutation(api.coordination.reverseDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: elecId,
+  });
+  expect(reversed.success).toBe(true);
+  expect(reversed.reversedAmount).toBe(12_000);
+  const hvacAfter: any = await t.run(async (ctx) => await ctx.db.get(hvacBid.bidId));
+  expect((hvacAfter.valueEngineeringAlternates || []).length).toBe(0);
+  const detect: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(detect.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.status).toBe("detected");
+});
+
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
   const t = convexTest(schema, modules);
   const projectId = await createProject(t, "Adjustment Guard Project");
