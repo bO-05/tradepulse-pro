@@ -1017,6 +1017,32 @@ test("A28-01/02/03/04: clash truth, manual-VE coverage, and credit bounds", asyn
   });
   const final: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
   expect(final.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.status).toBe("deducted");
+
+  // A30-01: if the credit alternate is later removed, the card must not keep a
+  // phantom deducted claim, and the reversal path must clear the stale record.
+  await t.mutation(api.bids.updateBidAdjustments, {
+    bidId: hvacBid.bidId,
+    identifiedExclusions: [],
+    valueEngineeringAlternates: [],
+  });
+  const stale: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(stale.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.status).toBe("detected");
+
+  const reversed: any = await t.mutation(api.coordination.reverseDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+  });
+  expect(reversed.success).toBe(true);
+  const reDeduct: any = await t.mutation(api.coordination.deductDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+    deductAmount: 37_500,
+    description: "VFD double buy",
+    bidId: hvacBid.bidId,
+  });
+  expect(reDeduct.success).toBe(true);
 });
 
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {

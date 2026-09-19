@@ -22,6 +22,7 @@ interface CrossTradeCoordinationViewProps {
   scopeVoids: ScopeVoidClash[];
   bids?: Bid[];
   onDeductCredit: (clashId: string, tradePackageId: string, amount: number, description: string) => Promise<void>;
+  onReverseCredit?: (clashId: string, tradePackageId: string) => Promise<void>;
   onAssignVoid: (voidId: string, tradePackageId: string, amount: number, description: string) => Promise<void>;
   onNavigateToLeveling?: () => void;
   onScanClashes?: () => Promise<string>;
@@ -35,6 +36,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
   scopeVoids,
   bids = [],
   onDeductCredit,
+  onReverseCredit,
   onAssignVoid,
   onNavigateToLeveling,
   onScanClashes,
@@ -315,9 +317,21 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
                   <div className="text-xs text-slate-400">
                     {isDeducted ? (
-                      <span className="text-emerald-400 font-medium flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5" />
-                        {clash.resolution || `Deducted $${(typeof clash.deductedAmount === "number" ? clash.deductedAmount : clash.redundantAmount).toLocaleString("en-US")} credit from proposal`}
+                      <span className="text-emerald-400 font-medium flex flex-wrap items-center gap-2">
+                        <span className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" />
+                          {clash.resolution || `Deducted $${(typeof clash.deductedAmount === "number" ? clash.deductedAmount : clash.redundantAmount).toLocaleString("en-US")} credit from proposal`}
+                        </span>
+                        {onReverseCredit && targetPkg && (
+                          <button
+                            type="button"
+                            onClick={() => onReverseCredit(clash.id, targetPkg._id)}
+                            className="text-[11px] font-semibold text-slate-400 hover:text-rose-300 underline underline-offset-2 transition"
+                            title="Reverse this credit and restore the proposal's leveled cost"
+                          >
+                            Reverse credit
+                          </button>
+                        )}
                       </span>
                     ) : clash.redundantAmount <= 0 ? (
                       <span className="text-emerald-400/90 font-medium">

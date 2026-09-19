@@ -160,7 +160,9 @@ export const detectCrossTradeClashes = query({
         .filter((v) => v.isAccepted && rx.test(v.description))
         .reduce((sum, v) => sum + (v.costDeduct || 0), 0);
     const vfdManualCoverage = manualCoverageFor(/VFD|Variable Frequency/i);
-    const disconnectManualCoverage = manualCoverageFor(/Disconnect|Switch/i);
+    // A30-02: "switch" alone matches unrelated alternates ("Switchgear arc-flash
+    // credit"); only true disconnect scope may offset the disconnect clash.
+    const disconnectManualCoverage = manualCoverageFor(/disconnect/i);
 
     // Check if scope voids have been assigned to mandatoryInclusions
     const elecInclusions = elecPkg?.mandatoryInclusions || [];
@@ -262,10 +264,20 @@ export const detectCrossTradeClashes = query({
       if (resolution.kind === "double_buy") {
         const match = doubleBuys.find((d) => d.id === resolution.clashId);
         if (match) {
-          match.status = "deducted";
-          // A10-07/A11-04: show the credit actually applied, not the static benchmark.
-          match.deductedAmount = resolution.amount;
-          match.resolution = undefined;
+          // A30-01: a deducted card is only true while the credit alternate still
+          // exists on a proposal. If it was un-accepted/removed, show the clash
+          // as detected again (and offer reverse/apply) instead of a phantom claim.
+          const creditStillApplied = allVe.some(
+            (v) =>
+              v.isAccepted &&
+              v.description.startsWith("Cross-Trade Clash Credit:") &&
+              (v.costDeduct || 0) === resolution.amount
+          );
+          if (creditStillApplied) {
+            match.status = "deducted";
+            match.deductedAmount = resolution.amount;
+            match.resolution = undefined;
+          }
         }
       } else {
         const match = scopeVoids.find((v) => v.id === resolution.clashId);
@@ -413,8 +425,13 @@ export const deductDoubleBuyCredit = mutation({
       );
     }
     const currentAlternates = targetBid.valueEngineeringAlternates || [];
+    // A30-L1: only replace a prior cross-trade credit for this same clash; never
+    // delete an unrelated manual alternate whose description happens to match.
     const updatedAlternates = [
-      ...currentAlternates.filter((a: any) => !a.description.includes(description)),
+      ...currentAlternates.filter(
+        (a: any) =>
+          !(a.description.startsWith("Cross-Trade Clash Credit:") && a.description.includes(description))
+      ),
       {
         description: veDescription,
         costDeduct: deductAmount,
@@ -466,6 +483,94 @@ export const deductDoubleBuyCredit = mutation({
       deductAmount,
       newLeveledCost,
     };
+  },
+});
+
+/**
+ * A30-01: explicit reversal path for a cross-trade credit. Removes the matching
+ * credit alternate from the target proposal, recalculates leveling, deletes the
+ * persisted resolution, and records the reversal in the audit stream.
+ */
+export const reverseDoubleBuyCredit = mutation({
+  args: {
+    projectId: v.id("projects"),
+    clashId: v.string(),
+    tradePackageId: v.id("tradePackages"),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new ConvexError("Project not found.");
+    const tradePkg = await ctx.db.get(args.tradePackageId);
+    if (!tradePkg || tradePkg.projectId !== args.projectId) {
+      throw new ConvexError("The trade package does not belong to the selected project.");
+    }
+    const resolutions = await ctx.db
+      .query("clashResolutions")
+      .withIndex("by_project_and_clash", (q) =>
+        q.eq("projectId", args.projectId).eq("clashId", args.clashId)
+      )
+      .collect();
+    const resolution = resolutions.find((r) => r.status === "deducted");
+    if (!resolution) {
+      throw new ConvexError("There is no applied credit to reverse for this clash.");
+    }
+
+    const bids = await ctx.db
+      .query("bids")
+      .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+      .collect();
+    const targetBid = bids.find((b) => b.isAwarded) || [...bids].sort((a, b) => a.leveledTotalCost - b.leveledTotalCost)[0];
+    if (!targetBid) {
+      // No proposal to clean up: just clear the stale resolution.
+      await ctx.db.delete(resolution._id);
+      return { success: true, note: "Stale credit record cleared; no proposal was modified." };
+    }
+
+    const currentAlternates = targetBid.valueEngineeringAlternates || [];
+    const matchingCredits = currentAlternates.filter(
+      (a: any) =>
+        a.description.startsWith("Cross-Trade Clash Credit:") && (a.costDeduct || 0) === resolution.amount
+    );
+    if (matchingCredits.length === 0) {
+      await ctx.db.delete(resolution._id);
+      return { success: true, note: "Stale credit record cleared; the proposal no longer carried it." };
+    }
+
+    const updatedAlternates = currentAlternates.filter((a: any) => !matchingCredits.includes(a));
+    const acceptedVeDeduct = updatedAlternates.reduce(
+      (sum: number, x: any) => (x.isAccepted ? sum + (x.costDeduct || 0) : sum),
+      0
+    );
+    const activeExclusionsCost = (targetBid.identifiedExclusions || []).reduce(
+      (sum: number, x: any) => (x.isWaived ? sum : sum + (x.costImpact || 0)),
+      0
+    );
+    const newLeveledCost = Math.max(
+      0,
+      targetBid.baseBidAmount +
+        activeExclusionsCost +
+        (targetBid.leadTimePenalty || 0) +
+        (targetBid.coiPenalty || 0) -
+        acceptedVeDeduct
+    );
+
+    await ctx.db.patch(targetBid._id, {
+      valueEngineeringAlternates: updatedAlternates,
+      leveledTotalCost: newLeveledCost,
+    });
+    await syncAgreementForBid(ctx, targetBid._id);
+    await ctx.db.delete(resolution._id);
+    await ctx.db.insert("auditLogs", {
+      projectId: args.projectId,
+      tradePackageId: args.tradePackageId,
+      eventType: "bid_leveled",
+      title: `Double-Buy Credit Reversed: $${resolution.amount.toLocaleString()}`,
+      description: `Reversed the cross-trade credit of $${resolution.amount.toLocaleString()} on ${targetBid.subcontractorName}. Normalized leveled cost restored to $${newLeveledCost.toLocaleString()}.`,
+      actor: "Cross-Trade Clash Coordination Engine",
+      timestamp: Date.now(),
+    });
+
+    return { success: true, reversedAmount: resolution.amount, newLeveledCost };
   },
 });
 

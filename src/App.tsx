@@ -444,6 +444,7 @@ export const App: React.FC = () => {
   const retryRfiAnalysisMutation = useMutation(api.simulation.retryRfiAnalysis);
   const discoverAction = useAction(api.contractorDiscovery.discoverSubcontractors);
   const deductDoubleBuyCreditMutation = useMutation(api.coordination.deductDoubleBuyCredit);
+  const reverseDoubleBuyCreditMutation = useMutation(api.coordination.reverseDoubleBuyCredit);
   const assignScopeVoidToTradeMutation = useMutation(api.coordination.assignScopeVoidToTrade);
   const reviewEscalatedRfiMutation = useMutation(api.rfq.reviewEscalatedRfi);
   const generateTradePackagesAction = useAction(api.tradePackages.generateTradePackagesFromSpec);
@@ -1633,6 +1634,45 @@ export const App: React.FC = () => {
       );
     } catch (err: any) {
       showToast(`Deduct credit failed: ${getErrorMessage(err) || "The credit was not applied."}`);
+      throw err;
+    }
+  };
+
+  const handleReverseDoubleBuyCredit = async (clashId: string, tradePackageId: string) => {
+    try {
+      const canReverseConvex =
+        isRealConvexProject &&
+        Boolean(currentProject) &&
+        !currentProject._id.startsWith("proj_") &&
+        Boolean(tradePackageId) &&
+        !tradePackageId.startsWith("pkg_");
+      if (canReverseConvex) {
+        await reverseDoubleBuyCreditMutation({
+          projectId: currentProject!._id as any,
+          clashId,
+          tradePackageId: tradePackageId as any,
+        });
+      } else {
+        updateStandaloneAndPersist((prev) => ({
+          ...prev,
+          doubleBuys: prev.doubleBuys.map((d) =>
+            d.id === clashId ? { ...d, status: "detected" as const, resolution: undefined, deductedAmount: undefined } : d
+          ),
+          bids: prev.bids.map((b) =>
+            b.tradePackageId === tradePackageId
+              ? {
+                  ...b,
+                  valueEngineeringAlternates: (b.valueEngineeringAlternates || []).filter(
+                    (v) => !v.description.startsWith("Cross-Trade Clash Credit:")
+                  ),
+                }
+              : b
+          ),
+        }));
+      }
+      showToast("Cross-trade credit reversed; leveled cost restored.");
+    } catch (err: any) {
+      showToast(`Credit reversal failed: ${getErrorMessage(err) || "The credit was not reversed."}`);
       throw err;
     }
   };
@@ -3748,6 +3788,7 @@ export const App: React.FC = () => {
             scopeVoids={scopeVoids}
             bids={allProjectBids}
             onDeductCredit={handleDeductDoubleBuyCredit}
+            onReverseCredit={handleReverseDoubleBuyCredit}
             onAssignVoid={handleAssignScopeVoid}
             onNavigateToLeveling={() => setActiveTab("leveling")}
             onScanClashes={handleScanCrossTradeClashes}
