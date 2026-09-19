@@ -12,7 +12,7 @@
 - **Auth:** none
 - **AI models:** gpt-4o (BYOK), gemini-3.6-flash (pinned; gemini-3.8-flash returns 429), claude-sonnet-5
 - **Started:** 2026-09-09T12:41:52Z
-- **Last updated:** 2026-09-18T06:10:00Z
+- **Last updated:** 2026-09-19T08:49:00Z
 
 ## Submission Summary
 
@@ -76,7 +76,7 @@ Verification: `tsc -b` clean; `npm test` 21/21 (3 suites: convex regression 12, 
 
 ### 2026-09-17 - sponsor_stack_hardening
 Post-remediation sponsor-stack verification surfaced and fixed two integration failures plus a claims issue:
-1. AgentMail outbound was broken on current Convex: the published `@agentmail/convex` component reads `AGENTMAIL_API_KEY` from `process.env` inside its sandbox, which does not inherit the host deployment env and cannot be passed via `app.use` (the component declares no env schema). Inbox provisioning and sends now go through `convex/agentmailApi.ts` using the deployment key directly; the component remains mounted for Svix-verified inbound webhooks. Discovered live: the AgentMail account hit its free-plan 3-inbox limit, so provisioning falls back to reusing an existing inbox and the UI labels it "Shared inbox — AgentMail plan inbox limit reached". (Note: a test cleanup accidentally deleted and then recreated `dullstreet57@agentmail.to`; the address/name is restored.)
+1. AgentMail outbound was broken on current Convex: the published `@agentmail/convex` component reads `AGENTMAIL_API_KEY` from `process.env` inside its sandbox, which does not inherit the host deployment env and cannot be passed via `app.use` (the component declares no env schema). Inbox provisioning and sends now go through `convex/agentmailApi.ts` using the deployment key directly; the component remains mounted for Svix-verified inbound webhooks. Discovered live: the AgentMail account hit its free-plan 3-inbox limit, so provisioning falls back to reusing an existing inbox and the UI labels it "Shared inbox — AgentMail plan inbox limit reached". (Note: a test cleanup accidentally deleted and then recreated `[redacted]@agentmail.to`; the address/name is restored.)
 2. Discovery no longer ships a fabricated fallback directory at all. Live Firecrawl results are the only source; records use only published data with provenance labels, directory pages are skipped, licence extraction requires a real licence shape, and zero results returns an honest empty result with a retry message. Contact-not-published placeholders render as "Contact not published".
 3. OpenAI is not configured on either deployment, so the "OpenAI" model route silently falls back to Anthropic. Awaiting an `OPENAI_API_KEY` from the operator; Gemini and Claude are verified live.
 Verification: `npx tsc -b` clean, `npm test` 21/21, live sponsor probe (Firecrawl 200 / 5 results in 1.4s; AgentMail 200 / 3 inboxes; Gemini + Claude live completions) recorded in `evidence/fix-sponsor-*.json`.
@@ -493,3 +493,30 @@ Completed enterprise LLM routing and resilient AgentMail webhook integrations:
 4. Static Hosting Multi-Environment Synchronization:
    - Synchronized static hosting on both dev (`https://brilliant-ferret-962.convex.site`, previously unuploaded 503) and prod (`https://brainy-skunk-440.convex.site`), both now returning HTTP 200 with the active bundle (`index-BlB4hS7d.js`).
    - Verified all 33 unit tests (`pytest tests/test_tradepulse.py`), 6/6 real-world benchmark suites (`node scripts/run-real-world-benchmark.mjs --prod`), and 10/10 expert ground truth evaluations (`node scripts/run-expert-evals.mjs --prod`) pass with 100% parity and 0% MAPE.
+
+### 2026-09-19 - audit_5_remediation_pass2_executed_contract_immutability_claim_integrity_and_convergence
+
+Audited the live deployment against audit 4 (F1-F12) plus 18 independent agent QA rounds (QA1-QA38). Eleven of twelve audit findings reproduced and were fixed; F10/F11 were explicitly marked UNREPRODUCED. 77 additional defects (FIX-NEW-01..77) and 17 product-usefulness findings (USE-A4-01..17) were filed; every Critical/High/Medium was fixed and re-verified, and the loop closed with two consecutive clean rounds (17, 18).
+
+1. Data durability and truth (F1-F3, F12):
+   - RFIs are persisted as `pending_analysis` inside the submit mutation before any LLM work; analysis failures write `failed_analysis` with an inline error and a Retry action that re-queues the stored text; live verified pending at 2.2s / clarified at 22.5s (was 40.7s with no row until completion).
+   - `computeProcurementMetrics` now derives the Leveled Buyout caption and a `varianceIsLeveled` flag so the compact strip and expanded cards say `budget estimates only` / `Budget vs scope estimate (not bid-based)` until real bids exist; the demo triple-check reconciliation still holds (,250,000 budget, ,918,500 buyout, +,500 7.8%, +,000 gaps).
+   - New Project uses placeholders with explicit budget/duration validation (typed values persist exactly; oversize budgets show a visible ceiling message); `Buyout` now means the dollar forecast while award counters are `Subcontracts x/y Awarded`.
+
+2. Workflow integrity and legal-draft honesty (F4-F9, FIX-NEW):
+   - Leveling control renamed to `Open Demo Simulation...`; empty-state and cross-stage CTA duplicates removed; RFIs route through an explicit trade selector (Div 22 question verified stored on Div 22, not the active Div 26 package).
+   - SEO/discovery title sanitizer rejects mid-sentence fragments, service/boilerplate titles, and social hosts; unit tests lock the audit example plus live-observed junk classes.
+   - Generated subcontracts are now explicitly `A401-style structure - generated draft, not an AIA-licensed form` with real/placeholder counterparty fields, Substantial Completion LD wording, UTC-labelled dates, an isolated print/PDF path, and an audited void-execution escape hatch.
+
+3. Backend hardening (FIX-NEW):
+   - Executed subcontracts are immutable across award, delete bid/package/project, revision, and the full-cycle simulation; contractors with bids or executed agreements cannot be cascade-deleted; every refusal returns a readable ConvexError shown inline in its confirm dialog.
+   - Cross-trade credits require priced proposals on both trades, known clash ids, positive amounts within leveled cost, and are keyed per clash so equal-amount credits cannot mask or over-reverse; reversal searches the whole project for the carrier; stale records expose a clear control.
+   - CSV export is RFC-4180 safe with formula-injection neutralization; all public bid writers share validation; deadline crons wait for local-day end and flag zero-bid packages once; project deletion removes clash resolutions.
+
+4. Accessibility and craft:
+   - All dialogs now have role/aria-modal/labelled titles, focus traps, Escape handling with focus restore, body scroll lock, and topmost-dialog Tab handling; form controls gained accessible names; stepper/ribbons/tour expose aria-current/aria-pressed; contrast raised to AA (PM queue 3.19 -> 11.45); reduced-motion support added; long-name ribbons and the stepper wrap instead of clipping.
+
+5. Verification:
+   - `npx tsc -b` clean; `npx vitest run` 7 files / 80 tests green (F1 failure-path persistence + retry, leveling basis, project validation, RFI routing, CSV injection, executed-contract guards, clash evidence/identity/reversal, name validation, concurrency, deadline slack, honesty assertions); `python tests/test_tradepulse.py` 36/36.
+   - Production deployed (`npx convex deploy` + `@convex-dev/static-hosting`); every audit fix re-verified live with before/after evidence; full bid-day journeys completed with real UI input and reconciled against the backend; fixtures `AUDIT-*` deleted and the seeded demo project left byte-stable.
+   - Deliverable: `doc/tradepulse audit 5/TradePulse-Pro-Remediation-Pass2-2026-09-19-3-00-PM-UTC.html` (self-contained; base64 evidence; verification table, claim-change decisions, convergence log, and remaining decisions).
