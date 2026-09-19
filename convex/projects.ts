@@ -903,11 +903,12 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
     const agreementNumber = "A401-2026-2601-18042";
     const agreementText = generateAiaA401AgreementText({
       agreementNumber,
-      formattedDate: new Date().toLocaleDateString("en-US", {
+      formattedDate: `${new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
-      }),
+        timeZone: "UTC",
+      })} (UTC)`,
       generalContractor: DEFAULT_GENERAL_CONTRACTOR,
       gcCity: "Austin",
       gcState: "Texas",

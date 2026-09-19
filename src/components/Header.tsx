@@ -319,6 +319,14 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => {
               setCreateError(null);
+              // A18-01: a cancelled draft must not leak into the next project.
+              setNewTitle("");
+              setNewLocation("");
+              setNewType("");
+              setNewBudget("");
+              setNewWeeks("");
+              setNewSpec("");
+              setNewGeneralContractor("");
               setIsNewProjectModalOpen(true);
             }}
             className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"

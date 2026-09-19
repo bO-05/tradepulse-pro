@@ -427,7 +427,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                   }`}
                 >
                   <span className="font-mono text-[11px] opacity-90">{pkg.csiDivision}</span>
-                  <span className="truncate max-w-[140px] sm:max-w-[220px]">{pkg.tradeName}</span>
+                  <span className="truncate max-w-[140px] sm:max-w-[220px]" title={pkg.tradeName}>{pkg.tradeName}</span>
                 </button>
               );
             })}
@@ -570,7 +570,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
       )}
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3 text-xs">
         <span className="text-slate-400 font-medium flex items-center gap-1">
           <Filter className="w-3.5 h-3.5" />
           Queue Filter:

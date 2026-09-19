@@ -372,7 +372,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
                   }`}
                 >
                   <span className="font-mono text-[11px] opacity-90">{pkg.csiDivision}</span>
-                  <span className="truncate max-w-[140px] sm:max-w-[220px]">{pkg.tradeName}</span>
+                  <span className="truncate max-w-[140px] sm:max-w-[220px]" title={pkg.tradeName}>{pkg.tradeName}</span>
                 </button>
               );
             })}
@@ -406,7 +406,18 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                // A18-01: discard any cancelled draft before opening again.
+                setAddForm({
+                  companyName: "",
+                  contactEmail: "",
+                  phone: "",
+                  licenseNumber: "",
+                  licenseStatus: "Active & Verified",
+                  sourceUrl: "",
+                });
+                setIsAddModalOpen(true);
+              }}
               className="bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-slate-600 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
             >
               <Plus className="w-4 h-4 text-emerald-400" />

@@ -281,6 +281,9 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (isBootLoading) return;
+    // A18-02: do not clear the persisted package selection while the package
+    // list is still loading, or a reload silently reverts to Package 01.
+    if (tradePackagesLoading) return;
     if (tradePackages.length === 0) {
       if (selectedPackageId !== "") {
         setSelectedPackageId("");
@@ -288,7 +291,7 @@ export const App: React.FC = () => {
     } else if (!selectedPackageId || !tradePackages.some((p) => p._id === selectedPackageId)) {
       setSelectedPackageId(tradePackages[0]._id);
     }
-  }, [tradePackages, selectedPackageId, isBootLoading]);
+  }, [tradePackages, selectedPackageId, isBootLoading, tradePackagesLoading]);
 
   // Contractors for active package
   const contractorsData = useQuery(
@@ -3515,6 +3518,7 @@ export const App: React.FC = () => {
       setActiveTab("coordination");
     } else if (sceneId === "coordination") {
       const vfdClash = doubleBuys.find((d) => d.status === "detected");
+      let deducted = false;
       if (vfdClash) {
         const targetPkg =
           tradePackages.find(
@@ -3524,10 +3528,15 @@ export const App: React.FC = () => {
           ) || activePackage;
         if (targetPkg) {
           await handleDeductDoubleBuyCredit(vfdClash.id, targetPkg._id, vfdClash.redundantAmount, vfdClash.title);
+          deducted = true;
         }
       }
       setActiveTab("contracts");
-      showToast("Deducted $38,500 VFD credit! Advanced to Contracts Register.");
+      showToast(
+        deducted
+          ? `Deducted $${vfdClash!.redundantAmount.toLocaleString()} clash credit. Advanced to Contracts Register.`
+          : "No open cross-trade clash to deduct. Advanced to Contracts Register."
+      );
     } else if (sceneId === "contracts") {
       const activeAgr = agreements.find((a) => a.status !== "superseded");
       if (activeAgr) {

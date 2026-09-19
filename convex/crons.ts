@@ -34,9 +34,11 @@ export const monitorBidDeadlines = internalMutation({
 
     for (const pkg of packages) {
       monitoredCount++;
-      // A15-05: a date-only deadline runs through the end of that UTC day, so a
-      // user's "today" (west of UTC) is never flagged as already passed.
-      const deadlineTs = Date.parse(`${pkg.bidDeadline}T23:59:59.999Z`);
+      // A17-01: a date-only deadline belongs to the user's local day, which can end
+// up to 12h after the UTC day. Close it only after the last possible local
+// day-end (deadline 23:59:59.999Z + 12h) so no west-of-UTC user sees their own
+// deadline day flagged as passed.
+      const deadlineTs = Date.parse(`${pkg.bidDeadline}T23:59:59.999Z`) + 12 * 60 * 60 * 1000;
       const isOverdue = !isNaN(deadlineTs) && deadlineTs <= now;
 
       if (isOverdue && pkg.status === "rfqs_dispatched") {
@@ -176,7 +178,7 @@ export const runDeadlineMonitorNow = mutation({
     for (const pkg of packages) {
       if (pkg.projectId === args.projectId) {
         monitoredCount++;
-        if (Date.parse(`${pkg.bidDeadline}T23:59:59.999Z`) <= now && pkg.status === "rfqs_dispatched") {
+        if (Date.parse(`${pkg.bidDeadline}T23:59:59.999Z`) + 12 * 60 * 60 * 1000 <= now && pkg.status === "rfqs_dispatched") {
           const pkgBids = await ctx.db
             .query("bids")
             .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))

@@ -1,6 +1,6 @@
 import { getErrorMessage } from "../lib/errors.ts";
 import { buildCsv } from "../lib/csv.ts";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -104,6 +104,17 @@ const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
   const [ingestError, setIngestError] = useState<string | null>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
   const ingestDialogRef = useDialogFocus<HTMLDivElement>(isIngestModalOpen);
+  // A18-01: opening the ingest modal always starts a clean draft, so a cancelled
+  // quote (or one from another package) can never leak into the next ingestion.
+  useEffect(() => {
+    if (!isIngestModalOpen) return;
+    setIngestQuoteText("");
+    setIngestFileName("");
+    setNewContractorName("");
+    setIngestError(null);
+    setScannedPdfWarning(null);
+    ingestSelectionTouchedRef.current = false;
+  }, [isIngestModalOpen]);
   useEscapeToClose(
     isIngestModalOpen,
     () => {
@@ -684,7 +695,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   }`}
                 >
                   <span className="font-mono text-[11px] opacity-90">{pkg.csiDivision}</span>
-                  <span className="truncate max-w-[140px] sm:max-w-[220px]">{pkg.tradeName}</span>
+                  <span className="truncate max-w-[140px] sm:max-w-[220px]" title={pkg.tradeName}>{pkg.tradeName}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
                     pkg.status === "awarded"
                       ? "bg-emerald-950 text-emerald-300"
@@ -833,7 +844,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition shadow-sm"
               >
                 <Split className="w-3.5 h-3.5" />
-                <span>Check Scope Clashes (-$38.5k)</span>
+                <span>Check Scope Clashes</span>
                 <span>➔</span>
               </button>
             )}

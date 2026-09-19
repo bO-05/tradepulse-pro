@@ -229,8 +229,10 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
             {currentProject && (
               <button
                 onClick={() => {
+                  // A18-01: start each breakdown from a clean draft.
+                  setSpecInputText("");
                   setIsSpecModalOpen(true);
-                  if (!specInputText) populateSampleSpec();
+                  populateSampleSpec();
                 }}
                 className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
               >
@@ -239,7 +241,17 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
               </button>
             )}
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                // A18-01: a cancelled package draft must not leak values forward.
+                setCsiDivision("26 00 00");
+                setTradeName("");
+                setBudgetEstimate(1250000);
+                setScopeSummary("");
+                setMandatoryInclusions("Crane hoisting\nSeismic bracing\nTemporary power");
+                setBidDeadline("2026-09-30");
+                setCreationError(null);
+                setIsModalOpen(true);
+              }}
               className="bg-emerald-700 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"
             >
               <Plus className="w-4 h-4" />

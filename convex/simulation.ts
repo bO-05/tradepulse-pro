@@ -756,7 +756,7 @@ export const runFullProcurementCycle = mutation({
     // 6. Generate AIA Document A401 Subcontract Agreement for Winning Bidder
     const divPrefix = tradePkg.csiDivision.replace(/\s+/g, "").slice(0, 4);
     const agreementNumber = `A401-2026-${divPrefix}-${now.toString().slice(-4)}`;
-    const formattedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const formattedDate = `${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })} (UTC)`;
     const locParts = (project?.location || "Austin, Texas").split(",").map((s: string) => s.trim());
     const gcCity = locParts[0] || "Austin";
     const gcState = locParts[1] || "Texas";
