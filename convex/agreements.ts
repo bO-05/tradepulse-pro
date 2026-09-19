@@ -241,7 +241,7 @@ export const generateAgreement = mutation({
       tradePackageId: tradePkg._id,
       eventType: "contract_awarded",
       title: `AIA A401 Subcontract Agreement Awarded: ${subName}`,
-      description: `Executed subcontract agreement ${agreementNumber} for CSI Division ${tradePkg.csiDivision} (${tradePkg.tradeName}) in the amount of $${contractSum.toLocaleString("en-US")}.`,
+      description: `Subcontract agreement ${agreementNumber} generated for CSI Division ${tradePkg.csiDivision} (${tradePkg.tradeName}) in the amount of $${contractSum.toLocaleString("en-US")} — pending external execution.`,
       actor: "Chief Estimator / GC Procurement",
       timestamp: Date.now(),
     });

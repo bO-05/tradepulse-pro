@@ -309,9 +309,14 @@ export const detectCrossTradeClashes = query({
  * 1-Click Deduct Credit:
  * Applies a Value Engineering Deduct Credit to eliminate redundant buyout across trades.
  */
+/** The only clash/void ids the deterministic engine can detect. */
+const KNOWN_DOUBLE_BUY_IDS = new Set(["clash-vfd-01", "clash-disconnect-02"]);
+const KNOWN_SCOPE_VOID_IDS = new Set(["void-bas-wiring-01", "void-smoke-detectors-02"]);
+
 /**
- * A21-01: cross-trade actions assert overlapping priced scope, so they require
- * at least one proposal on both the Electrical and HVAC packages.
+ * A21-01/A25-01/A25-02: cross-trade actions assert overlapping priced scope.
+ * Requires priced evidence on both sides; the known-clash allowlist and the
+ * per-clash resolution guard prevent phantom or stacked credits.
  */
 async function assertCrossTradeEvidence(ctx: any, projectId: any): Promise<void> {
   const packages = await ctx.db
@@ -355,6 +360,11 @@ export const deductDoubleBuyCredit = mutation({
     const deductAmount = validateNonNegativeAmount(args.deductAmount, "Double-buy credit");
     const description = validateProjectText(args.description, "Double-buy description");
     await assertCrossTradeEvidence(ctx, args.projectId);
+    if (!KNOWN_DOUBLE_BUY_IDS.has(args.clashId)) {
+      throw new ConvexError(
+        "Unknown clash id. Run the cross-trade scan and apply the credit to a detected double-buy."
+      );
+    }
 
     // A8-03/A10-04: one persisted credit per clash. Without this a public caller
     // could stack unbounded "credits" on the same clash under new descriptions.
@@ -392,31 +402,11 @@ export const deductDoubleBuyCredit = mutation({
     }
 
     if (!targetBid) {
-      // Gracefully record intent in audit stream even if no bids are ingested yet
-      await ctx.db.insert("auditLogs", {
-        projectId: args.projectId,
-        tradePackageId: args.tradePackageId,
-        eventType: "bid_leveled",
-        title: `Double-Buy Credit Logged: -$${deductAmount.toLocaleString()}`,
-        description: `Flagged $${deductAmount.toLocaleString()} credit for redundant ${description} on Division ${tradePkg.csiDivision} (${tradePkg.tradeName}). Will apply to incoming proposals.`,
-        actor: "Cross-Trade Clash Coordination Engine",
-        timestamp: Date.now(),
-      });
-      await recordClashResolution(
-        ctx,
-        args.projectId,
-        args.clashId,
-        "double_buy",
-        deductAmount,
-        "Credit logged before proposals were received; will apply to incoming bids."
+      // A25-01: without a priced target there is nothing to credit; recording a
+      // "deducted" resolution here created phantom credits with no reversal path.
+      throw new ConvexError(
+        "The target trade package has no priced proposal yet. Ingest a bid before applying this credit."
       );
-      return {
-        success: true,
-        clashId: args.clashId,
-        deductAmount,
-        newLeveledCost: 0,
-        note: "No proposals currently in package; buyout credit logged.",
-      };
     }
 
     const veDescription = `Cross-Trade Clash Credit: Deduct redundant ${description}`;
@@ -502,6 +492,20 @@ export const assignScopeVoidToTrade = mutation({
     const additionalCost = validateNonNegativeAmount(args.additionalCost, "Scope void cost");
     const description = validateProjectText(args.description, "Scope void description");
     await assertCrossTradeEvidence(ctx, args.projectId);
+    if (!KNOWN_SCOPE_VOID_IDS.has(args.voidId)) {
+      throw new ConvexError(
+        "Unknown scope void id. Run the cross-trade scan and assign a detected void."
+      );
+    }
+    const existingVoidResolutions = await ctx.db
+      .query("clashResolutions")
+      .withIndex("by_project_and_clash", (q: any) =>
+        q.eq("projectId", args.projectId).eq("clashId", args.voidId)
+      )
+      .collect();
+    if (existingVoidResolutions.some((r: any) => r.status === "assigned")) {
+      throw new ConvexError("This scope void has already been assigned to a trade package.");
+    }
 
     // Add to package mandatoryInclusions
     const currentInclusions = tradePkg.mandatoryInclusions || [];

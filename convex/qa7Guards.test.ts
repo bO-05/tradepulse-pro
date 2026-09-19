@@ -297,7 +297,7 @@ test("QA7-7: deleteProject removes clashResolutions and every project child", as
   await makeBid(t, hvacPackageId, hvacContractorId, "QA7 Clash HVAC", 1_150_000);
   await t.mutation(api.coordination.deductDoubleBuyCredit, {
     projectId,
-    clashId: "QA7-CLASH-1",
+    clashId: "clash-vfd-01",
     tradePackageId: packageId,
     deductAmount: 1_500,
     description: "QA7 orphan probe",
