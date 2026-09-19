@@ -5,6 +5,7 @@ works from a fresh clone on Windows or macOS/Linux — no absolute paths, no sec
 
 ## Requirements
 
+- `npm ci` first (`puppeteer-core` ships in devDependencies)
 - Node.js 18+
 - Chrome or Edge installed (auto-detected; override with `QA_CHROME_PATH`)
 - Network access to the live deployment (or a local `npx convex dev` deployment)
@@ -36,7 +37,7 @@ Environment overrides: `QA_BACKEND_URL`, `REM_BASE_URL` (site), `REM_EVIDENCE_DI
 ## Report/evidence tooling (`scripts/tools/`)
 
 - `check-docs-links.mjs` — fails on any broken relative link in shipped docs (`node scripts/tools/check-docs-links.mjs docs README.md`).
-- `compress-report-images.ps1` — shrinks self-contained audit HTMLs (embedded PNG → resized JPEG) and standalone screenshot folders for repo-friendly reports.
+- `compress-report-images.ps1` (Windows PowerShell, optional) — shrinks self-contained audit HTMLs (embedded PNG → resized JPEG) and standalone screenshot folders for repo-friendly reports.
 - `reorder-hackathon-log.mjs` — keeps `hackathon.md` strictly chronological (oldest first, newest appended last, per the project log-format reference); run with `--check` in CI/verification.
 
 ## Fixture policy

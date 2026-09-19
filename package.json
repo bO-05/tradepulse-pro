@@ -14,7 +14,10 @@
     "webhook:setup": "node scripts/setup-agentmail-webhook.mjs",
     "benchmark": "node scripts/run-real-world-benchmark.mjs",
     "evals": "node scripts/run-expert-evals.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:docs": "node scripts/tools/check-docs-links.mjs docs README.md && node scripts/tools/reorder-hackathon-log.mjs --check",
+    "verify:reports": "node scripts/qa/render-audit-reports.mjs",
+    "smoke:live": "node scripts/qa/live-smoke.mjs"
   },
   "dependencies": {
     "@agentmail/convex": "^0.1.0",

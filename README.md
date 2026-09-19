@@ -136,8 +136,8 @@ Want to experience the complete platform in 60 seconds?
 git clone https://github.com/bO-05/tradepulse-pro.git
 cd tradepulse-pro
 
-# Install dependencies
-npm install
+# Install exact locked dependencies (npm install also works)
+npm ci
 
 # Run frontend development server
 npm run dev
@@ -149,14 +149,27 @@ npx convex dev
 
 ### Verification & Testing
 ```bash
-# Run 36 domain, sponsor, and architecture deliverable tests
+# Build the frontend first (a fresh clone has no dist/ yet; the Python suite checks it)
+npm run build
+
+# 36 domain, sponsor, and architecture deliverable tests -> expect 36/36 PASS
 python tests/test_tradepulse.py
 
-# Run hackathon setup and log verification tests
+# Hackathon setup and log verification -> expect ALL VERIFICATION TESTS PASSED
 python tests/verify_setup.py
 
-# Run TypeScript & Vite production build
-npm run build
+# Unit + integration tests -> expect 80/80
+npx vitest run
+
+# Type-check -> expect no output, exit 0
+npx tsc -b
+
+# Docs integrity (links + log order) and offline rendering of the curated reports
+npm run verify:docs
+npm run verify:reports
+
+# Live guarantee smoke against the deployment (creates and deletes one AUDIT-* fixture)
+npm run smoke:live
 ```
 
 ---

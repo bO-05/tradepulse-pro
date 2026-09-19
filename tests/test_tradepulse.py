@@ -127,7 +127,7 @@ def test_frontend_build_artifacts():
     Validates that Vite generated production assets in dist/ for static hosting.
     """
     dist_dir = Path("dist")
-    assert dist_dir.exists(), "dist/ directory must exist"
+    assert dist_dir.exists(), "dist/ directory must exist (fresh clone: run `npm run build` first)"
     index_html = dist_dir / "index.html"
     assert index_html.exists(), "dist/index.html missing"
 
