@@ -468,11 +468,11 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                 title={
                   clarifiedCount === 0
                     ? "Certify at least one RFI (Approve for Addendum) before issuing a binding addendum"
-                    : "Compile all clarified subcontractor RFIs into official AIA/CSI ADDENDUM NO. 01"
+                    : "Compile PM-certified RFIs into a TradePulse-generated CSI-style addendum (not an AIA document)"
                 }
               >
                 <FileText className="w-4 h-4 text-emerald-400" />
-                {isGeneratingAddendum ? "Compiling Addendum..." : "📜 Issue Legal Addendum NO. 01"}
+                {isGeneratingAddendum ? "Compiling Addendum..." : "📜 Issue Pre-Bid Addendum NO. 01"}
               </button>
             )}
             {projectId && clarifiedCount === 0 && (

@@ -732,7 +732,7 @@ Each proposal submitted must include affirmative written acknowledgement of ${ad
     fileType: "addendum",
     fileSize: addendumText.length,
     textContent: addendumText,
-    uploadedBy: "TradePulse Legal Addendum Generator",
+    uploadedBy: "TradePulse Pre-Bid Clarification Engine (generated addendum)",
   });
 
   const divisionSet = new Set(conversations.map((c: any) => c.csiDivision).filter(Boolean));

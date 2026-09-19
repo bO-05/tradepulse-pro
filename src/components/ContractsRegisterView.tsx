@@ -530,10 +530,15 @@ const handlePrint = (agr: Agreement) => {
         confirmLabel="Void execution record"
         onCancel={() => setAgreementToVoid(null)}
         onConfirm={async () => {
+          const voidedId = agreementToVoid;
           await voidExecutedAgreementMutation({
-            agreementId: agreementToVoid as any,
+            agreementId: voidedId as any,
             reason: "Voided in TradePulse to correct a recorded execution; external amendment handled outside the system.",
           });
+          // A20-03: refresh the open viewer so it cannot keep the executed state.
+          setSelectedAgreement((prev) =>
+            prev && prev._id === voidedId ? { ...prev, status: "superseded", executedAt: undefined } : prev
+          );
           setAgreementToVoid(null);
         }}
       />

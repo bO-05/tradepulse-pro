@@ -132,7 +132,7 @@ export const awardContract = mutation({
       .withIndex("by_bid", (q) => q.eq("bidId", args.bidId))
       .first();
     if (!existingAgreement || existingAgreement.tradePackageId !== args.tradePackageId) {
-      throw new Error("Generate the agreement before changing an award; this prevents an award without a contract record.");
+      throw new ConvexError("Generate the agreement before changing an award; this prevents an award without a contract record.");
     }
     // Executed subcontracts are immutable: awarding a different bid must not
     // silently supersede a signed agreement (A1-02).
@@ -573,7 +573,7 @@ export const submitDirectBid = mutation({
           .filter((q) => q.neq(q.field("status"), "superseded"))
           .first();
         if (activeAgreement?.status === "executed") {
-          throw new Error("Executed agreements are immutable. Create an amendment before changing this bid.");
+          throw new ConvexError("Executed agreements are immutable. Create an amendment before changing this bid.");
         }
       }
       await ctx.db.patch(existing._id, {

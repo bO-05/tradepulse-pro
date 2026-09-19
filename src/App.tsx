@@ -1770,8 +1770,10 @@ export const App: React.FC = () => {
         const res: any = await scanCrossTradeClashesAction({
           projectId: currentProject._id as any,
         });
-        showToast("Forensic cross-trade clash scan completed via AI reasoning!");
-        return res?.analysis || "AI scan completed: Cross-trade clashes and scope voids analyzed.";
+        if (res?.analyzed) {
+          showToast("Cross-trade clash scan completed on the recorded proposals.");
+        }
+        return res?.message || "Cross-trade scan completed.";
       }
       const summary = `Cross-trade forensic scan complete: Identified 2 duplicate equipment buyouts ($50,500 total: $38,500 VFDs, $12,000 disconnect switches) and 2 unassigned scope voids ($46,500 total: $28,000 BAS control wiring, $18,500 duct smoke detectors) between Division 26 and Division 23.`;
       updateStandaloneAndPersist((prev) => {

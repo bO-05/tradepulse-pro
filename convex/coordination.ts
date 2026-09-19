@@ -575,18 +575,53 @@ export const assignScopeVoidToTrade = mutation({
 export const scanCrossTradeClashes = action({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    // LLM analysis action for deep analysis
+    // A19-02: cross-trade clash detection is only meaningful with both trades
+    // and priced proposals. Never ask the model to invent clashes otherwise.
+    const packages: any = await ctx.runQuery(api.tradePackages.listByProject, { projectId: args.projectId });
+    const elecPkg = packages?.find((p: any) => p.csiDivision.startsWith("26"));
+    const hvacPkg = packages?.find((p: any) => p.csiDivision.startsWith("23"));
+    if (!elecPkg || !hvacPkg) {
+      return {
+        success: false,
+        analyzed: false,
+        message:
+          "Cross-trade clash scan needs both a Division 26 (Electrical) and a Division 23 (HVAC) package. Nothing to scan yet.",
+      };
+    }
+    const elecBids: any = await ctx.runQuery(api.bids.listByPackage, { tradePackageId: elecPkg._id });
+    const hvacBids: any = await ctx.runQuery(api.bids.listByPackage, { tradePackageId: hvacPkg._id });
+    if (!elecBids?.length || !hvacBids?.length) {
+      return {
+        success: false,
+        analyzed: false,
+        message:
+          "Cross-trade clash scan needs at least one priced proposal in both Division 26 and Division 23. Ingest bids before scanning.",
+      };
+    }
+
     const prompt = `Perform cross-trade commercial MEP scope clash detection between CSI Division 26 (Electrical) and Division 23 (HVAC). Detect any Double-Buys (e.g. VFDs, disconnects) and Scope Voids (e.g. low-voltage control wiring, duct smoke detector installation).`;
-    const reasoning: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
+    await ctx.runAction(internal.llmRouter.executeReasoning, {
       taskType: "clash_detection",
       prompt,
       systemPrompt: "You are the TradePulse Cross-Trade MEP Coordination & Clash Detection Specialist.",
     });
 
+    // Return a summary derived from the real computed clashes, not the model text.
+    const detected: any = await ctx.runQuery(api.coordination.detectCrossTradeClashes, {
+      projectId: args.projectId,
+    });
+    const buys = (detected?.doubleBuys || []).filter((d: any) => d.status === "detected");
+    const voids = (detected?.scopeVoids || []).filter((v: any) => v.status === "open");
+    const buyAmount = buys.reduce((sum: number, d: any) => sum + (d.redundantAmount || 0), 0);
+    const voidAmount = voids.reduce((sum: number, v: any) => sum + (v.estimatedVoidCost || 0), 0);
+
     return {
       success: true,
-      projectId: args.projectId,
-      analysis: reasoning.content,
+      analyzed: true,
+      message:
+        buys.length + voids.length === 0
+          ? "Cross-trade scan complete: no double-buys or scope voids detected between Division 26 and Division 23."
+          : `Cross-trade scan complete: ${buys.length} double-buy item(s) worth $${buyAmount.toLocaleString()} and ${voids.length} open scope void(s) worth $${voidAmount.toLocaleString()}.`,
     };
   },
 });
