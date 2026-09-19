@@ -478,6 +478,9 @@ async function doExtractBid(
       );
       if (match) {
         effectiveContractorId = match._id;
+        // A13-03: the linked contractor record is the canonical bidder name;
+        // never store the parsed/stale display name alongside it.
+        subName = match.companyName;
       }
     } catch {
       // Ignore query errors

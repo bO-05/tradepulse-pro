@@ -268,8 +268,9 @@ export const detectCrossTradeClashes = query({
         const match = doubleBuys.find((d) => d.id === resolution.clashId);
         if (match) {
           match.status = "deducted";
-          // A10-07: show the credit actually applied, not the static benchmark.
+          // A10-07/A11-04: show the credit actually applied, not the static benchmark.
           match.deductedAmount = resolution.amount;
+          match.resolution = undefined;
         }
       } else {
         const match = scopeVoids.find((v) => v.id === resolution.clashId);

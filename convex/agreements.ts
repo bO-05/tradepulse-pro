@@ -328,7 +328,7 @@ export const executeAgreement = mutation({
     if (!agreement) throw new Error("Agreement not found");
 
     if (agreement.status === "superseded") {
-      throw new Error("Cannot execute a superseded agreement. Please re-award this proposal first.");
+      throw new ConvexError("Cannot execute a superseded agreement. Regenerate or re-award it first.");
     }
     if (agreement.status === "executed") {
       return { success: true, agreementNumber: agreement.agreementNumber };

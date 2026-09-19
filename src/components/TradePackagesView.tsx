@@ -22,6 +22,13 @@ import { TradePackage, Project } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
 
+/** A14-01: the date input minimum must be the user's LOCAL calendar day. */
+function localDateInputValue(): string {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
 interface TradePackagesViewProps {
   currentProject?: Project | null;
   tradePackages: TradePackage[];
@@ -637,7 +644,7 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                   required
                   aria-label="Bid deadline"
                   value={bidDeadline}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={localDateInputValue()}
                   onChange={(e) => setBidDeadline(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                 />

@@ -43,6 +43,8 @@ export default defineSchema({
     sourceUrl: v.string(),
     rfqStatus: v.string(), // "discovered" | "invited" | "rfi_submitted" | "bid_received"
     dispatchedAt: v.optional(v.number()),
+    /** A14-02: optimistic-concurrency marker for concurrent edits. */
+    updatedAt: v.optional(v.number()),
   }).index("by_package", ["tradePackageId"]),
 
   // Two-way Pre-Bid RFIs and Clarifications

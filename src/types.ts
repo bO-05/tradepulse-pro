@@ -37,6 +37,7 @@ export interface Contractor {
   sourceUrl: string;
   rfqStatus: "discovered" | "invited" | "rfi_submitted" | "bid_received";
   dispatchedAt?: number;
+  updatedAt?: number;
 }
 
 export interface Conversation {

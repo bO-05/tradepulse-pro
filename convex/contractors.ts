@@ -53,6 +53,7 @@ export const createContractor = mutation({
       companyName: validateProjectText(args.companyName, "Company name"),
       contactEmail: validateEmail(args.contactEmail),
       dispatchedAt: args.rfqStatus === "invited" ? Date.now() : undefined,
+      updatedAt: Date.now(),
     });
   },
 });
@@ -81,6 +82,7 @@ export const createContractorInternal = internalMutation({
       companyName: validateProjectText(args.companyName, "Company name"),
       contactEmail: validateEmail(args.contactEmail),
       dispatchedAt: args.rfqStatus === "invited" ? Date.now() : undefined,
+      updatedAt: Date.now(),
     });
   },
 });
@@ -144,15 +146,27 @@ export const updateContractor = mutation({
         v.literal("bid_received")
       )
     ),
+    // A14-02: when supplied, the write is refused if the record changed since
+    // the form was opened, instead of silently clobbering a newer edit.
+    expectedUpdatedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { contractorId, ...fields } = args;
+    const { contractorId, expectedUpdatedAt, ...fields } = args;
     const contractor = await ctx.db.get(contractorId);
     if (!contractor) throw new Error("Contractor not found");
+    if (
+      expectedUpdatedAt !== undefined &&
+      (contractor.updatedAt ?? contractor._creationTime) !== expectedUpdatedAt
+    ) {
+      throw new ConvexError(
+        "This contractor was changed in another session, so your edit was not saved. Reload the record and re-apply your change."
+      );
+    }
     await ctx.db.patch(contractorId, {
       ...fields,
       companyName: validateProjectText(args.companyName, "Company name"),
       contactEmail: validateEmail(args.contactEmail),
+      updatedAt: Date.now(),
     });
     return { success: true };
   },

@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import { validateBidDeadline } from "./validation";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -768,6 +769,47 @@ test("A12-08: reserved system labels and invisible characters are rejected for n
       rfqStatus: "discovered",
     })
   ).rejects.toThrow(/invisible/i);
+});
+
+test("A14-02: a stale contractor edit is refused instead of clobbering a newer save", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Concurrent Edit Guard");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const list: any[] = await t.query(api.contractors.listByPackage, { tradePackageId: packageId });
+  const stored = list.find((c) => c._id === contractorId);
+  const staleMarker = (stored.updatedAt ?? 0) - 1;
+
+  await expect(
+    t.mutation(api.contractors.updateContractor, {
+      contractorId,
+      companyName: "Stale Edit LLC",
+      contactEmail: "stale@example.test",
+      licenseNumber: "TX-3",
+      licenseStatus: "active",
+      sourceUrl: "https://stale.test",
+      expectedUpdatedAt: staleMarker,
+    })
+  ).rejects.toThrow(/changed in another session/i);
+
+  await t.mutation(api.contractors.updateContractor, {
+    contractorId,
+    companyName: "Fresh Edit LLC",
+    contactEmail: "fresh@example.test",
+    licenseNumber: "TX-3",
+    licenseStatus: "active",
+    sourceUrl: "https://fresh.test",
+    expectedUpdatedAt: stored.updatedAt,
+  });
+  const after: any[] = await t.query(api.contractors.listByPackage, { tradePackageId: packageId });
+  expect(after.find((c) => c._id === contractorId)?.companyName).toBe("Fresh Edit LLC");
+});
+
+test("A14-01: a date-only bid deadline accepts the current UTC day", () => {
+  const now = Date.UTC(2026, 8, 19, 0, 13); // 2026-09-19T00:13Z
+  expect(validateBidDeadline("2026-09-19", now)).toBe("2026-09-19");
+  expect(validateBidDeadline("2026-09-18", now)).toBe("2026-09-18"); // one day of TZ slack
+  expect(() => validateBidDeadline("2026-09-17", now)).toThrow(/past/i);
 });
 
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {

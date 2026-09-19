@@ -183,6 +183,27 @@ export const runDeadlineMonitorNow = mutation({
           if (pkgBids.length > 0) {
             await ctx.db.patch(pkg._id, { status: "leveling" });
             transitionedCount++;
+          } else {
+            // A14-03: the manual trigger must match the scheduled job and flag
+            // zero-bid packages once instead of silently doing nothing.
+            const existing = await ctx.db
+              .query("auditLogs")
+              .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))
+              .collect();
+            const alreadyFlagged = existing.some((l) =>
+              l.title.startsWith("Deadline passed with no bids")
+            );
+            if (!alreadyFlagged) {
+              await ctx.db.insert("auditLogs", {
+                projectId: pkg.projectId,
+                tradePackageId: pkg._id,
+                eventType: "compliance_audit",
+                title: `Deadline passed with no bids: ${pkg.tradeName}`,
+                description: `Bid deadline (${pkg.bidDeadline}) passed with zero proposals on file. The package was left open — extend the deadline or re-solicit subcontractors before leveling.`,
+                actor: "Convex Automated Cron Engine",
+                timestamp: Date.now(),
+              });
+            }
           }
         }
       }

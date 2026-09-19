@@ -52,6 +52,7 @@ interface SubcontractorDiscoveryViewProps {
       licenseNumber: string;
       licenseStatus: string;
       sourceUrl: string;
+      expectedUpdatedAt?: number;
     }
   ) => Promise<void>;
   onDeleteContractor?: (contractorId: string) => Promise<void>;
@@ -251,6 +252,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
           licenseNumber: editForm.licenseNumber.trim(),
           licenseStatus: editForm.licenseStatus,
           sourceUrl: editForm.sourceUrl.trim(),
+          expectedUpdatedAt: editingContractor.updatedAt,
         });
       } else {
         await updateContractorMutation({
@@ -261,6 +263,7 @@ export const SubcontractorDiscoveryView: React.FC<SubcontractorDiscoveryViewProp
           licenseNumber: editForm.licenseNumber.trim(),
           licenseStatus: editForm.licenseStatus,
           sourceUrl: editForm.sourceUrl.trim(),
+          expectedUpdatedAt: editingContractor.updatedAt,
         });
       }
       setEditingContractor(null);

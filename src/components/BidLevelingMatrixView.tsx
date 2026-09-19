@@ -34,6 +34,7 @@ import { extractTextFromPdfStream } from "../standaloneStore.ts";
 import { getDeceptiveBidIds, getSuspiciouslyLowBidIds } from "../leveling.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
+import { printContractText } from "../lib/printContract.ts";
 
 interface BidLevelingMatrixViewProps {
   currentPackage: TradePackage | null;
@@ -638,8 +639,8 @@ const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
     URL.revokeObjectURL(url);
   };
 
-  const handlePrintAgreement = () => {
-    window.print();
+  const handlePrintAgreement = (agreement?: Agreement | null) => {
+    if (agreement) printContractText(agreement.agreementNumber, agreement.contractText);
   };
 
   // Sort bids by leveled total cost ascending (lowest normalized cost first)
@@ -2104,7 +2105,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                     )}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Official Standard Form of Agreement Between Contractor and Subcontractor • {activeAgreement?.agreementNumber ?? "Loading..."}
+                    Generated draft based on the A401 article structure — not an AIA-licensed form • {activeAgreement?.agreementNumber ?? "Loading..."}
                   </p>
                 </div>
               </div>
@@ -2132,7 +2133,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                     </button>
 
                     <button
-                      onClick={handlePrintAgreement}
+                      onClick={() => handlePrintAgreement(activeAgreement)}
                       className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1"
                       title="Print subcontract agreement or save as PDF"
                     >

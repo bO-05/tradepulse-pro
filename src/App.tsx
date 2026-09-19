@@ -1174,6 +1174,7 @@ export const App: React.FC = () => {
       licenseNumber: string;
       licenseStatus: string;
       sourceUrl: string;
+      expectedUpdatedAt?: number;
     }
   ) => {
     try {

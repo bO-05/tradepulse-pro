@@ -75,7 +75,11 @@ export function validateBidDeadline(value: string, now = Date.now()): string {
 
   const today = new Date(now);
   const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-  if (deadline < todayUtc) {
+  // A14-01: deadlines are date-only strings, and the client's calendar day can
+  // differ from the UTC day. Allow one day of slack so a user west of UTC can
+  // still enter "today"; the UI enforces the stricter local-date minimum.
+  const oneDaySlack = 24 * 60 * 60 * 1000;
+  if (deadline < todayUtc - oneDaySlack) {
     throw new ConvexError("Bid deadline cannot be in the past.");
   }
 

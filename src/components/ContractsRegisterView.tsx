@@ -16,6 +16,7 @@ import { api } from "../../convex/_generated/api.js";
 import { Project, Agreement } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
+import { printContractText } from "../lib/printContract.ts";
 
 interface ContractsRegisterViewProps {
   currentProject: Project | null;
@@ -92,22 +93,10 @@ const handleDownload = (agr: Agreement) => {
 };
 
 /**
- * A12-04: print the contract in an isolated document so the printed output is
- * the full draft (no modal scroll clipping, no app chrome behind the overlay).
+ * A12-04/A13-04: print the contract in an isolated document (see lib/printContract).
  */
 const handlePrint = (agr: Agreement) => {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
-  if (!printWindow) return;
-  const escaped = agr.contractText
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  printWindow.document.write(
-    `<!doctype html><html><head><title>${agr.agreementNumber}</title><style>body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;padding:24px;line-height:1.45;color:#111}</style></head><body>${escaped}</body></html>`
-  );
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
+  printContractText(agr.agreementNumber, agr.contractText);
 };
 
   const activeAgreements = agreements.filter((a) => a.status !== "superseded");
