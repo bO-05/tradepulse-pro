@@ -662,11 +662,12 @@ async function doGeneratePreBidAddendum(
   }
   const conversations = certificationResult.clarified;
 
-  const nowStr = new Date().toLocaleDateString("en-US", {
+  const nowStr = `${new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
+    timeZone: "UTC",
+  })} (UTC)`;
   const addendumText = `# ${addendumNum}
 ## PROJECT SPECIFICATIONS & BIDDING DOCUMENTS CLARIFICATIONS
 **Project:** ${project?.title || "Commercial Construction Project"}  

@@ -427,7 +427,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
                   }`}
                 >
                   <span className="font-mono text-[11px] opacity-90">{pkg.csiDivision}</span>
-                  <span>{pkg.tradeName}</span>
+                  <span className="truncate max-w-[140px] sm:max-w-[220px]">{pkg.tradeName}</span>
                 </button>
               );
             })}

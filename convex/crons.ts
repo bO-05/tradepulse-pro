@@ -28,15 +28,16 @@ export const monitorBidDeadlines = internalMutation({
   args: {},
   handler: async (ctx) => {
     const packages = await ctx.db.query("tradePackages").collect();
-    const today = new Date().toISOString().slice(0, 10);
     const now = Date.now();
     let monitoredCount = 0;
     let transitionedCount = 0;
 
     for (const pkg of packages) {
       monitoredCount++;
-      const deadlineTs = Date.parse(pkg.bidDeadline);
-      const isOverdue = !isNaN(deadlineTs) ? deadlineTs <= now : pkg.bidDeadline <= today;
+      // A15-05: a date-only deadline runs through the end of that UTC day, so a
+      // user's "today" (west of UTC) is never flagged as already passed.
+      const deadlineTs = Date.parse(`${pkg.bidDeadline}T23:59:59.999Z`);
+      const isOverdue = !isNaN(deadlineTs) && deadlineTs <= now;
 
       if (isOverdue && pkg.status === "rfqs_dispatched") {
         const pkgBids = await ctx.db
@@ -168,14 +169,14 @@ export const runDeadlineMonitorNow = mutation({
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Project not found");
     const packages = await ctx.db.query("tradePackages").collect();
-    const today = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
     let monitoredCount = 0;
     let transitionedCount = 0;
 
     for (const pkg of packages) {
       if (pkg.projectId === args.projectId) {
         monitoredCount++;
-        if (pkg.bidDeadline <= today && pkg.status === "rfqs_dispatched") {
+        if (Date.parse(`${pkg.bidDeadline}T23:59:59.999Z`) <= now && pkg.status === "rfqs_dispatched") {
           const pkgBids = await ctx.db
             .query("bids")
             .withIndex("by_package", (q) => q.eq("tradePackageId", pkg._id))

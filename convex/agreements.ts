@@ -54,11 +54,14 @@ export const generateAgreement = mutation({
     const retainagePercent = RETAINAGE_PERCENT;
     const liquidatedDamagesDaily = LIQUIDATED_DAMAGES_PER_DAY;
 
-    const formattedDate = new Date().toLocaleDateString("en-US", {
+    // A16-01: the server runs in UTC and cannot know the operator's timezone.
+    // Label the generated date explicitly so it is never misread as local.
+    const formattedDate = `${new Date().toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    });
+      timeZone: "UTC",
+    })} (UTC)`;
 
     const contractLocation = project.location || "Austin, Texas";
     const { city: gcCity, state: gcState, stateAbbr } = parseCityAndState(contractLocation);
@@ -523,11 +526,12 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
   const retainagePercent = existingAgreement.retainagePercent || RETAINAGE_PERCENT;
   const liquidatedDamagesDaily = existingAgreement.liquidatedDamagesDaily || LIQUIDATED_DAMAGES_PER_DAY;
 
-  const formattedDate = new Date(existingAgreement.createdAt || Date.now()).toLocaleDateString("en-US", {
+  const formattedDate = `${new Date(existingAgreement.createdAt || Date.now()).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
+    timeZone: "UTC",
+  })} (UTC)`;
 
   const contractLocation = project.location || "Austin, Texas";
   const { city: gcCity, state: gcState, stateAbbr } = parseCityAndState(contractLocation);
