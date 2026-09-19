@@ -266,22 +266,21 @@ export const detectCrossTradeClashes = query({
       if (resolution.kind === "double_buy") {
         const match = doubleBuys.find((d) => d.id === resolution.clashId);
         if (match) {
-          // A30-01: a deducted card is only true while the credit alternate still
-          // exists on a proposal. If it was un-accepted/removed, show the clash
-          // as detected again (and offer reverse/apply) instead of a phantom claim.
-          const creditStillApplied = allVe.some(
-            (v) =>
-              v.isAccepted &&
-              v.description.startsWith("Cross-Trade Clash Credit:") &&
-              (v.costDeduct || 0) === resolution.amount
-          );
+          // A34-01/A34-02: credit alternates carry the clash id so two credits of
+          // equal amount can never mask or reverse each other. Old-format credits
+          // (description matching the resolution note) are still recognized.
+          const isCreditForClash = (v: any) =>
+            v.isAccepted &&
+            (v.description.startsWith(`Cross-Trade Clash Credit [${resolution.clashId}]:`) ||
+              (resolution.note
+                ? v.description === `Cross-Trade Clash Credit: Deduct redundant ${resolution.note}`
+                : false));
+          const creditStillApplied = allVe.some((v) => isCreditForClash(v));
           if (creditStillApplied) {
             match.status = "deducted";
             match.deductedAmount = resolution.amount;
             match.resolution = undefined;
           } else {
-            // A32-02: a resolution with no matching credit is stale; surface that
-            // so the UI can offer an explicit "clear stale credit" action.
             match.staleResolution = true;
           }
         }
@@ -422,7 +421,7 @@ export const deductDoubleBuyCredit = mutation({
       );
     }
 
-    const veDescription = `Cross-Trade Clash Credit: Deduct redundant ${description}`;
+    const veDescription = `Cross-Trade Clash Credit [${args.clashId}]: Deduct redundant ${description}`;
     // A28-04: a credit can never exceed the proposal's leveled cost; an oversized
     // credit overstated the recovery and wrote an impossible audit value.
     if (deductAmount > targetBid.leveledTotalCost) {
@@ -436,7 +435,10 @@ export const deductDoubleBuyCredit = mutation({
     const updatedAlternates = [
       ...currentAlternates.filter(
         (a: any) =>
-          !(a.description.startsWith("Cross-Trade Clash Credit:") && a.description.includes(description))
+          !(
+            a.description.startsWith(`Cross-Trade Clash Credit [${args.clashId}]:`) ||
+            a.description === `Cross-Trade Clash Credit: Deduct redundant ${description}`
+          )
       ),
       {
         description: veDescription,
@@ -525,14 +527,14 @@ export const reverseDoubleBuyCredit = mutation({
       .query("bids")
       .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
       .collect();
-    // A32-01: find the bid that actually carries the matching credit alternate,
-    // not merely the currently awarded/cheapest bid.
-    const targetBid = bids.find((b) =>
-      (b.valueEngineeringAlternates || []).some(
-        (v: any) =>
-          v.description.startsWith("Cross-Trade Clash Credit:") && (v.costDeduct || 0) === resolution.amount
-      )
-    );
+    // A32-01/A34-02: find the bid that actually carries a credit for THIS clash
+// (marker or legacy note). Amounts are irrelevant to identity here.
+    const creditMatchesClash = (v: any) =>
+      v.description.startsWith(`Cross-Trade Clash Credit [${args.clashId}]:`) ||
+      (resolution.note
+        ? v.description === `Cross-Trade Clash Credit: Deduct redundant ${resolution.note}`
+        : false);
+    const targetBid = bids.find((b) => (b.valueEngineeringAlternates || []).some((v: any) => creditMatchesClash(v)));
     if (!targetBid) {
       // Stale resolution: nothing carried it. Clear it with an audit record so
       // the state is explainable and re-applicable.
@@ -550,10 +552,8 @@ export const reverseDoubleBuyCredit = mutation({
     }
 
     const currentAlternates = targetBid.valueEngineeringAlternates || [];
-    const matchingCredits = currentAlternates.filter(
-      (a: any) =>
-        a.description.startsWith("Cross-Trade Clash Credit:") && (a.costDeduct || 0) === resolution.amount
-    );
+    const matchingCredits = currentAlternates.filter((a: any) => creditMatchesClash(a));
+    const reversedAmount = matchingCredits.reduce((sum: number, a: any) => sum + (a.costDeduct || 0), 0);
 
     const updatedAlternates = currentAlternates.filter((a: any) => !matchingCredits.includes(a));
     const acceptedVeDeduct = updatedAlternates.reduce(
@@ -583,13 +583,13 @@ export const reverseDoubleBuyCredit = mutation({
       projectId: args.projectId,
       tradePackageId: args.tradePackageId,
       eventType: "bid_leveled",
-      title: `Double-Buy Credit Reversed: $${resolution.amount.toLocaleString()}`,
-      description: `Reversed the cross-trade credit of $${resolution.amount.toLocaleString()} on ${targetBid.subcontractorName}. Normalized leveled cost restored to $${newLeveledCost.toLocaleString()}.`,
+      title: `Double-Buy Credit Reversed: $${reversedAmount.toLocaleString()}`,
+      description: `Reversed the cross-trade credit of $${reversedAmount.toLocaleString()} on ${targetBid.subcontractorName}. Normalized leveled cost restored to $${newLeveledCost.toLocaleString()}.`,
       actor: "Cross-Trade Clash Coordination Engine",
       timestamp: Date.now(),
     });
 
-    return { success: true, reversedAmount: resolution.amount, newLeveledCost };
+    return { success: true, reversedAmount, newLeveledCost };
   },
 });
 

@@ -1043,6 +1043,56 @@ test("A28-01/02/03/04: clash truth, manual-VE coverage, and credit bounds", asyn
     bidId: hvacBid.bidId,
   });
   expect(reDeduct.success).toBe(true);
+
+  // A34-01/A34-02: equal-amount credits must be isolated by clash identity.
+  await t.mutation(api.coordination.reverseDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+  });
+  await t.mutation(api.coordination.deductDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+    deductAmount: 12_000,
+    description: "VFD equal-amount credit",
+    bidId: hvacBid.bidId,
+  });
+  await t.mutation(api.coordination.deductDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-disconnect-02",
+    tradePackageId: hvacId,
+    deductAmount: 12_000,
+    description: "Disconnect equal-amount credit",
+    bidId: hvacBid.bidId,
+  });
+  const both: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(both.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.status).toBe("deducted");
+  expect(both.doubleBuys.find((d: any) => d.id === "clash-disconnect-02")?.status).toBe("deducted");
+
+  // Un-accept ONLY the VFD credit: the disconnect card must stay deducted.
+  const bidAfterBoth: any = await t.run(async (ctx) => await ctx.db.get(hvacBid.bidId));
+  await t.mutation(api.bids.updateBidAdjustments, {
+    bidId: hvacBid.bidId,
+    identifiedExclusions: [],
+    valueEngineeringAlternates: (bidAfterBoth.valueEngineeringAlternates || []).map((a: any) =>
+      a.description.includes("[clash-vfd-01]") ? { ...a, isAccepted: false } : a
+    ),
+  });
+  const masked: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(masked.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.status).toBe("detected");
+  expect(masked.doubleBuys.find((d: any) => d.id === "clash-vfd-01")?.staleResolution).toBe(true);
+  expect(masked.doubleBuys.find((d: any) => d.id === "clash-disconnect-02")?.status).toBe("deducted");
+
+  // Reverse the stale VFD record: only the VFD credit is cleared.
+  const staleReverse: any = await t.mutation(api.coordination.reverseDoubleBuyCredit, {
+    projectId,
+    clashId: "clash-vfd-01",
+    tradePackageId: hvacId,
+  });
+  expect(staleReverse.success).toBe(true);
+  const afterStale: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(afterStale.doubleBuys.find((d: any) => d.id === "clash-disconnect-02")?.status).toBe("deducted");
 });
 
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
