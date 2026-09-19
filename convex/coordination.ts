@@ -124,10 +124,10 @@ export const detectCrossTradeClashes = query({
           .collect()
       : [];
 
-    // The baseline clash set describes duplicate scope already priced by both trades.
-    // With zero proposals on both sides there is no priced evidence yet, so return an
-    // honest empty result instead of asserting double-buys that nobody has bid.
-    if (elecBids.length === 0 && hvacBids.length === 0) {
+    // A21-01: clashes assert that BOTH trades priced overlapping scope. One-sided
+    // pricing (either side with zero proposals) has no clash evidence and must
+    // return an honest empty result, not the static benchmark set.
+    if (elecBids.length === 0 || hvacBids.length === 0) {
       return {
         success: true,
         projectId: args.projectId,
@@ -309,6 +309,33 @@ export const detectCrossTradeClashes = query({
  * 1-Click Deduct Credit:
  * Applies a Value Engineering Deduct Credit to eliminate redundant buyout across trades.
  */
+/**
+ * A21-01: cross-trade actions assert overlapping priced scope, so they require
+ * at least one proposal on both the Electrical and HVAC packages.
+ */
+async function assertCrossTradeEvidence(ctx: any, projectId: any): Promise<void> {
+  const packages = await ctx.db
+    .query("tradePackages")
+    .withIndex("by_project", (q: any) => q.eq("projectId", projectId))
+    .collect();
+  const elec = packages.find((p: any) => p.csiDivision.startsWith("26"));
+  const hvac = packages.find((p: any) => p.csiDivision.startsWith("23"));
+  const countBids = async (packageId: any) =>
+    packageId
+      ? (await ctx.db.query("bids").withIndex("by_package", (q: any) => q.eq("tradePackageId", packageId)).collect()).length
+      : 0;
+  const elecPriced = (await countBids(elec?._id)) > 0;
+  const hvacPriced = (await countBids(hvac?._id)) > 0;
+  // No priced proposals on either side is allowed (intent logging before bids
+  // arrive). Priced on only one side is the fabricated-clash case: the other
+  // trade never bid, so no credit may touch a real proposal.
+  if (elecPriced !== hvacPriced) {
+    throw new ConvexError(
+      "Cross-trade credits require priced proposals on both Division 26 (Electrical) and Division 23 (HVAC) before a credit can be applied."
+    );
+  }
+}
+
 export const deductDoubleBuyCredit = mutation({
   args: {
     projectId: v.id("projects"),
@@ -328,6 +355,7 @@ export const deductDoubleBuyCredit = mutation({
     }
     const deductAmount = validateNonNegativeAmount(args.deductAmount, "Double-buy credit");
     const description = validateProjectText(args.description, "Double-buy description");
+    await assertCrossTradeEvidence(ctx, args.projectId);
 
     // A8-03/A10-04: one persisted credit per clash. Without this a public caller
     // could stack unbounded "credits" on the same clash under new descriptions.
@@ -474,6 +502,7 @@ export const assignScopeVoidToTrade = mutation({
     }
     const additionalCost = validateNonNegativeAmount(args.additionalCost, "Scope void cost");
     const description = validateProjectText(args.description, "Scope void description");
+    await assertCrossTradeEvidence(ctx, args.projectId);
 
     // Add to package mandatoryInclusions
     const currentInclusions = tradePkg.mandatoryInclusions || [];

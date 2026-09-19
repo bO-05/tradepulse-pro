@@ -291,6 +291,10 @@ test("QA7-7: deleteProject removes clashResolutions and every project child", as
   const bidId = await makeBid(t, packageId, contractorId, "QA7 Clash");
   await t.mutation(api.agreements.generateAgreement, { bidId, tradePackageId: packageId });
   await insertConversation(t, packageId, contractorId, "QA7 clash thread");
+  // A21-01: cross-trade credits require priced proposals on both sides.
+  const hvacPackageId = await makePackage(t, projectId, "23 00 00", 1_200_000);
+  const hvacContractorId = await makeContractor(t, hvacPackageId, "QA7 Clash HVAC");
+  await makeBid(t, hvacPackageId, hvacContractorId, "QA7 Clash HVAC", 1_150_000);
   await t.mutation(api.coordination.deductDoubleBuyCredit, {
     projectId,
     clashId: "QA7-CLASH-1",

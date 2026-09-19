@@ -377,6 +377,10 @@ const handlePrint = (agr: Agreement) => {
                       <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">
                          Execution Status Recorded • Signature Verification Required
                       </span>
+                    ) : selectedAgreement.status === "superseded" ? (
+                      <span className="text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-600 px-2 py-0.5 rounded-full">
+                        Superseded — voided or replaced. This draft is read-only.
+                      </span>
                     ) : (
                       <span className="text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full">
                         Generated / Pending Execution
@@ -495,7 +499,7 @@ const handlePrint = (agr: Agreement) => {
               </div>
 
               <div className="flex items-center gap-2">
-                {selectedAgreement.status !== "executed" && (
+                {selectedAgreement.status === "generated" && (
                   <button
                     onClick={() => handleExecute(selectedAgreement._id)}
                     className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm"

@@ -603,6 +603,31 @@ test("A8-03/A10-04: a clash can only be credited once", async () => {
     subcontractorName: "Regression Electric LLC",
     baseBidAmount: 1_100_000,
   });
+  // A21-01: a cross-trade credit needs priced proposals on BOTH sides.
+  const hvacId = await t.mutation(api.tradePackages.createTradePackage, {
+    projectId,
+    csiDivision: "23 00 00",
+    tradeName: "HVAC Systems",
+    budgetEstimate: 1_200_000,
+    scopeSummary: "Rooftop units and hydronic piping.",
+    mandatoryInclusions: ["Crane pick"],
+    bidDeadline: "2026-10-31",
+  });
+  const hvacContractor = await t.mutation(api.contractors.createContractor, {
+    tradePackageId: hvacId,
+    companyName: "Regression Mechanical LLC",
+    contactEmail: "bids@regression-mech.test",
+    licenseNumber: "TX-REG-0004",
+    licenseStatus: "Active / Verified",
+    sourceUrl: "https://regression-mech.test",
+    rfqStatus: "invited",
+  });
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: hvacId,
+    contractorId: hvacContractor,
+    subcontractorName: "Regression Mechanical LLC",
+    baseBidAmount: 1_150_000,
+  });
   await t.mutation(api.coordination.deductDoubleBuyCredit, {
     projectId,
     clashId: "clash-vfd-01",
@@ -810,6 +835,62 @@ test("A14-01: a date-only bid deadline accepts the current UTC day", () => {
   expect(validateBidDeadline("2026-09-19", now)).toBe("2026-09-19");
   expect(validateBidDeadline("2026-09-18", now)).toBe("2026-09-18"); // one day of TZ slack
   expect(() => validateBidDeadline("2026-09-17", now)).toThrow(/past/i);
+});
+
+test("A21-01: cross-trade clashes and credits require priced evidence on both sides", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Cross-Trade Evidence Guard");
+  const elecId = await createPackage(t, projectId);
+  const hvacId = await t.mutation(api.tradePackages.createTradePackage, {
+    projectId,
+    csiDivision: "23 00 00",
+    tradeName: "HVAC Systems",
+    budgetEstimate: 1_200_000,
+    scopeSummary: "Rooftop units and hydronic piping.",
+    mandatoryInclusions: ["Crane pick"],
+    bidDeadline: "2026-10-31",
+  });
+  const contractorId = await createContractor(t, elecId);
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: elecId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+
+  // Electrical priced, HVAC not: no clash evidence may be asserted.
+  const clashes: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(clashes.doubleBuys.length).toBe(0);
+  expect(clashes.scopeVoids.length).toBe(0);
+
+  await expect(
+    t.mutation(api.coordination.deductDoubleBuyCredit, {
+      projectId,
+      clashId: "clash-vfd-01",
+      tradePackageId: elecId,
+      deductAmount: 38_500,
+      description: "VFD double buy",
+    })
+  ).rejects.toThrow(/both Division 26 .* and Division 23/i);
+
+  // Price the HVAC side and the same clash becomes computable.
+  const hvacContractor = await t.mutation(api.contractors.createContractor, {
+    tradePackageId: hvacId,
+    companyName: "Regression Mechanical LLC",
+    contactEmail: "bids@regression-mech.test",
+    licenseNumber: "TX-REG-0003",
+    licenseStatus: "Active / Verified",
+    sourceUrl: "https://regression-mech.test",
+    rfqStatus: "invited",
+  });
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: hvacId,
+    contractorId: hvacContractor,
+    subcontractorName: "Regression Mechanical LLC",
+    baseBidAmount: 1_150_000,
+  });
+  const clashesAfter: any = await t.query(api.coordination.detectCrossTradeClashes, { projectId });
+  expect(clashesAfter.doubleBuys.length).toBeGreaterThan(0);
 });
 
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
