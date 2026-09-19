@@ -82,10 +82,30 @@ export function validateBidDeadline(value: string, now = Date.now()): string {
   return value;
 }
 
+const INVISIBLE_CONTROL_RX = /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/;
+const RESERVED_NAME_LABELS = new Set([
+  "awarded",
+  "not specified",
+  "unknown",
+  "tbd",
+  "n/a",
+  "none",
+  "guest",
+  "guest / inquiring subcontractor",
+  "commercial subcontractor",
+]);
+
 export function validateProjectText(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) throw new ConvexError(`${label} is required.`);
   if (normalized.length > 500) throw new ConvexError(`${label} must be 500 characters or fewer.`);
+  // A12-08: invisible control/zero-width/bidi characters can spoof other records.
+  if (INVISIBLE_CONTROL_RX.test(value)) {
+    throw new ConvexError(`${label} contains unsupported invisible or direction-control characters.`);
+  }
+  if (/name|title/i.test(label) && RESERVED_NAME_LABELS.has(normalized.toLowerCase())) {
+    throw new ConvexError(`${label} cannot be a reserved system label. Use the real legal name.`);
+  }
   return normalized;
 }
 

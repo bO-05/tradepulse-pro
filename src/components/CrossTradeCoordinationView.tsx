@@ -317,7 +317,7 @@ export const CrossTradeCoordinationView: React.FC<CrossTradeCoordinationViewProp
                     {isDeducted ? (
                       <span className="text-emerald-400 font-medium flex items-center gap-1.5">
                         <Check className="w-3.5 h-3.5" />
-                        {clash.resolution || `Deducted $${clash.redundantAmount.toLocaleString("en-US")} credit from proposal`}
+                        {clash.resolution || `Deducted $${(typeof clash.deductedAmount === "number" ? clash.deductedAmount : clash.redundantAmount).toLocaleString("en-US")} credit from proposal`}
                       </span>
                     ) : (
                       <span>Standard GC buyout recommends deducting redundant equipment from secondary trade proposal.</span>

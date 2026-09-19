@@ -39,7 +39,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   useEffect(() => {
     if (!open) return;
+    // A11-01: reset only when the dialog opens. This must not live in the trap
+    // effect below, whose [isConfirming] dependency re-runs after a refusal and
+    // would wipe the error message the user needs to read.
     setConfirmError(null);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     restoreFocusRef.current = (document.activeElement as HTMLElement) || null;
     const releaseScrollLock = lockBodyScroll();
     openDialogCount += 1;

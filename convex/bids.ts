@@ -134,7 +134,6 @@ export const awardContract = mutation({
     if (!existingAgreement || existingAgreement.tradePackageId !== args.tradePackageId) {
       throw new Error("Generate the agreement before changing an award; this prevents an award without a contract record.");
     }
-
     // Executed subcontracts are immutable: awarding a different bid must not
     // silently supersede a signed agreement (A1-02).
     const packageAgreements = await ctx.db
@@ -145,6 +144,13 @@ export const awardContract = mutation({
     if (executedAgreement && executedAgreement.bidId !== args.bidId) {
       throw new ConvexError(
         `An executed subcontract (${executedAgreement.agreementNumber}) already exists for this package. Void or amend it explicitly before awarding a different bid.`
+      );
+    }
+    // A12-01: a superseded agreement is not an active contract; awarding the bid
+    // behind it would show an award with no contract in the register.
+    if (existingAgreement.status === "superseded") {
+      throw new ConvexError(
+        "The agreement for this bid was superseded. Regenerate the agreement before awarding it again."
       );
     }
     // Un-award all other bids in this package first
@@ -504,7 +510,12 @@ export const submitDirectBid = mutation({
     assertBidAmountPlausible(tradePkg, baseBidAmount);
     assertBidLevelingInputs(args.identifiedExclusions ?? [], args.valueEngineeringAlternates ?? [], args.coiComplianceStatus);
     assertLineItemsNonNegative(args.lineItems);
-    const subcontractorName = validateProjectText(args.subcontractorName, "Subcontractor name");
+    // A12-08: keep one canonical bidder name per contractor so leveling, CSV,
+    // contracts, and the tour cannot disagree.
+    const subcontractorName = validateProjectText(
+      contractor.companyName.trim() || args.subcontractorName,
+      "Subcontractor name"
+    );
     // 1. Mark contractor as bid_received
     await ctx.db.patch(args.contractorId, { rfqStatus: "bid_received" });
 
@@ -580,6 +591,11 @@ export const submitDirectBid = mutation({
         lastRevisedAt: Date.now(),
         receivedAt: Date.now(),
       });
+      // A12-02: a revision to an awarded bid must keep its active agreement in
+      // sync, otherwise the register contract sum drifts from the bid.
+      if (existing.isAwarded) {
+        await syncAgreementForBid(ctx, existing._id);
+      }
     } else {
       bidId = await ctx.db.insert("bids", {
         tradePackageId: args.tradePackageId,

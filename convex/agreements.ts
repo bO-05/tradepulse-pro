@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
-import { DEFAULT_GENERAL_CONTRACTOR } from "./validation";
+import { DEFAULT_GENERAL_CONTRACTOR, validateProjectText } from "./validation";
 import { LIQUIDATED_DAMAGES_PER_DAY, RETAINAGE_PERCENT } from "./terms";
 
 /**
@@ -244,6 +244,48 @@ export const generateAgreement = mutation({
     });
 
     return await ctx.db.get(agreementId);
+  },
+});
+
+/**
+ * A11-03: executed agreements are immutable by default, but the GC needs an
+ * explicit escape hatch so a mistaken execution is not a permanent dead end.
+ * Voiding supersedes the agreement, un-awards the bid, reopens the package, and
+ * writes the operator's reason to the audit stream.
+ */
+export const voidExecutedAgreement = mutation({
+  args: {
+    agreementId: v.id("agreements"),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const agreement = await ctx.db.get(args.agreementId);
+    if (!agreement) throw new ConvexError("Agreement not found.");
+    if (agreement.status !== "executed") {
+      throw new ConvexError("Only an executed agreement can be voided.");
+    }
+    const reason = validateProjectText(args.reason, "Void reason");
+    if (reason.length < 10) {
+      throw new ConvexError("Enter a void reason of at least 10 characters for the audit record.");
+    }
+
+    await ctx.db.patch(args.agreementId, { status: "superseded" });
+    const bid = await ctx.db.get(agreement.bidId);
+    if (bid) await ctx.db.patch(bid._id, { isAwarded: false });
+    const pkg = await ctx.db.get(agreement.tradePackageId);
+    if (pkg) await ctx.db.patch(pkg._id, { status: "leveling" });
+
+    await ctx.db.insert("auditLogs", {
+      projectId: agreement.projectId,
+      tradePackageId: agreement.tradePackageId,
+      eventType: "compliance_audit",
+      title: `Executed Subcontract Voided: ${agreement.agreementNumber}`,
+      description: `Executed subcontract ${agreement.agreementNumber} (${agreement.subcontractorName}) was voided: ${reason} The package is reopened for leveling and external amendment.`,
+      actor: "GC Procurement / Legal",
+      timestamp: Date.now(),
+    });
+
+    return { success: true, agreementNumber: agreement.agreementNumber };
   },
 });
 
@@ -691,7 +733,7 @@ ARTICLE 6 - SUBCONTRACT SUM & PROGRESS PAYMENTS
 § 6.1 The Contractor shall pay the Subcontractor in current funds for the Subcontractor's
 performance of the Subcontract the Subcontract Sum of:
   $${params.contractSum.toLocaleString("en-US")} (${numberToWords(params.contractSum)} Dollars).
-  (Accounting Reconciliation: Base Bid $${params.baseBidAmount.toLocaleString("en-US")} less Accepted VE Deducts $${params.acceptedVeTotal.toLocaleString("en-US")}. Baseline Leveled Cost: $${params.leveledTotalCost.toLocaleString("en-US")}).
+  (Accounting Reconciliation: Base Bid $${params.baseBidAmount.toLocaleString("en-US")}, plus scope-gap exclusions, lead-time, and COI adjustments, less Accepted VE Deducts $${params.acceptedVeTotal.toLocaleString("en-US")}. Baseline Leveled Cost: $${params.leveledTotalCost.toLocaleString("en-US")}).
 
 § 6.2 Progress Payments: Contractor shall pay Subcontractor monthly based on approved
 Schedule of Values minus ${params.retainagePercent}% retainage.

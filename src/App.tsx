@@ -545,7 +545,6 @@ export const App: React.FC = () => {
       }
     } catch (err: any) {
       showToast(`RFQ dispatch failed: ${getErrorMessage(err) || "No invitations were confirmed."}`, "error");
-      throw err;
     }
   };
 

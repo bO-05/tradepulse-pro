@@ -1,4 +1,3 @@
-import { getErrorMessage } from "../lib/errors.ts";
 import React, { useState } from "react";
 import {
   FileText,
@@ -16,6 +15,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Project, Agreement } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
 
 interface ContractsRegisterViewProps {
   currentProject: Project | null;
@@ -37,8 +37,10 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
   const [selectedAgreement, setSelectedAgreement] = useState<Agreement | null>(null);
   const [copied, setCopied] = useState(false);
   const [showWhyCare, setShowWhyCare] = useState(false);
-  const [executionError, setExecutionError] = useState<string | null>(null);
   const [agreementToExecute, setAgreementToExecute] = useState<string | null>(null);
+  const [agreementToVoid, setAgreementToVoid] = useState<string | null>(null);
+  const contractDialogRef = useDialogFocus<HTMLDivElement>(Boolean(selectedAgreement));
+  useEscapeToClose(Boolean(selectedAgreement), () => setSelectedAgreement(null));
 
   const agreementsData = useQuery(
     api.agreements.listAgreements,
@@ -47,6 +49,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
   const agreements: Agreement[] = (agreementsData as any) ?? fallbackAgreements;
 
   const executeAgreementMutation = useMutation(api.agreements.executeAgreement);
+  const voidExecutedAgreementMutation = useMutation(api.agreements.voidExecutedAgreement);
 
   const handleExecute = async (agreementId: string) => {
     setAgreementToExecute(agreementId);
@@ -54,24 +57,20 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
 
   const confirmExecute = async () => {
     if (!agreementToExecute) return;
-    setExecutionError(null);
-    try {
-      if (onExecuteAgreement) {
-        await onExecuteAgreement(agreementToExecute);
-      } else {
-        await executeAgreementMutation({ agreementId: agreementToExecute as any });
-      }
-      if (selectedAgreement && selectedAgreement._id === agreementToExecute) {
-        setSelectedAgreement({
-          ...selectedAgreement,
-          status: "executed",
-          executedAt: Date.now(),
-        });
-      }
-      setAgreementToExecute(null);
-    } catch (err: any) {
-      setExecutionError(getErrorMessage(err) || "The agreement was not updated.");
+    // A12-06: rethrow so the refusal renders inline in the confirm dialog.
+    if (onExecuteAgreement) {
+      await onExecuteAgreement(agreementToExecute);
+    } else {
+      await executeAgreementMutation({ agreementId: agreementToExecute as any });
     }
+    if (selectedAgreement && selectedAgreement._id === agreementToExecute) {
+      setSelectedAgreement({
+        ...selectedAgreement,
+        status: "executed",
+        executedAt: Date.now(),
+      });
+    }
+    setAgreementToExecute(null);
   };
 
   const handleCopyText = (text: string) => {
@@ -80,17 +79,36 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleDownload = (agr: Agreement) => {
-    const blob = new Blob([agr.contractText], { type: "text/plain;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${agr.agreementNumber}_A401-style_Subcontract_Draft.txt`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+const handleDownload = (agr: Agreement) => {
+  const blob = new Blob([agr.contractText], { type: "text/plain;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `${agr.agreementNumber}_A401-style_Subcontract_Draft.txt`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+/**
+ * A12-04: print the contract in an isolated document so the printed output is
+ * the full draft (no modal scroll clipping, no app chrome behind the overlay).
+ */
+const handlePrint = (agr: Agreement) => {
+  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
+  if (!printWindow) return;
+  const escaped = agr.contractText
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  printWindow.document.write(
+    `<!doctype html><html><head><title>${agr.agreementNumber}</title><style>body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;padding:24px;line-height:1.45;color:#111}</style></head><body>${escaped}</body></html>`
+  );
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+};
 
   const activeAgreements = agreements.filter((a) => a.status !== "superseded");
 
@@ -125,11 +143,6 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {executionError && (
-        <div className="rounded-xl border border-rose-800/80 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert">
-          Agreement execution failed: {executionError}
-        </div>
-      )}
       {/* Header Bar */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -354,8 +367,14 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
 
       {/* Full Agreement Inspection Modal */}
       {selectedAgreement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedAgreement(null);
+          }}
+        >
+          <div ref={contractDialogRef} className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="contract-viewer-title">
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950">
               <div className="flex items-center gap-2.5">
@@ -363,7 +382,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <h3 id="contract-viewer-title" className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                     A401-style Subcontract Draft
                     {selectedAgreement.status === "executed" ? (
                       <span className="text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">
@@ -402,7 +421,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                 </button>
 
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => handlePrint(selectedAgreement)}
                   className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1"
                   title="Print agreement or save as PDF"
                 >
@@ -412,6 +431,7 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
 
                 <button
                   onClick={() => setSelectedAgreement(null)}
+                  aria-label="Close contract viewer"
                   className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition"
                 >
                   <X className="w-4 h-4" />
@@ -461,6 +481,14 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-900/80 border border-emerald-600 rounded text-emerald-200 uppercase tracking-wider">
                         RECORDED • SIGNATURE REQUIRED
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setAgreementToVoid(selectedAgreement._id)}
+                      className="bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-800/70 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition"
+                      title="Void the recorded execution so the package can be re-awarded (requires an audit reason)"
+                    >
+                      Void execution record
+                    </button>
                   </div>
                 )}
 
@@ -505,6 +533,20 @@ export const ContractsRegisterView: React.FC<ContractsRegisterViewProps> = ({
         confirmLabel="Record execution"
         onCancel={() => setAgreementToExecute(null)}
         onConfirm={confirmExecute}
+      />
+      <ConfirmDialog
+        open={Boolean(agreementToVoid)}
+        title="Void the recorded execution?"
+        description="This supersedes the executed subcontract record, un-awards the bid, and reopens the package for leveling. Any executed paper contract remains governed by its own terms and requires an external amendment — TradePulse cannot cancel a signed agreement. The void reason is written to the audit stream."
+        confirmLabel="Void execution record"
+        onCancel={() => setAgreementToVoid(null)}
+        onConfirm={async () => {
+          await voidExecutedAgreementMutation({
+            agreementId: agreementToVoid as any,
+            reason: "Voided in TradePulse to correct a recorded execution; external amendment handled outside the system.",
+          });
+          setAgreementToVoid(null);
+        }}
       />
     </div>
   );

@@ -313,19 +313,17 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
 
   const confirmDeleteFile = async () => {
     if (!fileToDelete) return;
-    try {
-      if (!fileToDelete._id.startsWith("file_")) {
-        await deleteFileMutation({ fileId: fileToDelete._id as any });
-      }
-      if (onFileDeleted) {
-        onFileDeleted(fileToDelete._id);
-      }
-      setFileToDelete(null);
-      setStatusMsg("File deleted from storage.");
-      setTimeout(() => setStatusMsg(null), 3000);
-    } catch (err: any) {
-      setStatusMsg(`Delete failed: ${getErrorMessage(err) || "The file was not removed."}`);
+    // A11-02: rethrow so ConfirmDialog shows the guard reason inline (the
+    // overlay otherwise hides the page-level status banner).
+    if (!fileToDelete._id.startsWith("file_")) {
+      await deleteFileMutation({ fileId: fileToDelete._id as any });
     }
+    if (onFileDeleted) {
+      onFileDeleted(fileToDelete._id);
+    }
+    setFileToDelete(null);
+    setStatusMsg("File deleted from storage.");
+    setTimeout(() => setStatusMsg(null), 3000);
   };
 
   const handleAutoScope = async (file: ProjectFile) => {

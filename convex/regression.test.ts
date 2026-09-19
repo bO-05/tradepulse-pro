@@ -647,6 +647,129 @@ test("RFQ dispatch without contractors returns a readable error", async () => {
   );
 });
 
+test("A12-01: awarding cannot ride on a superseded agreement", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Superseded Award Guard");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const created: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  await t.mutation(api.agreements.generateAgreement, { bidId: created.bidId, tradePackageId: packageId });
+  await t.mutation(api.bids.unawardContract, { bidId: created.bidId, tradePackageId: packageId });
+  await expect(
+    t.mutation(api.bids.awardContract, { bidId: created.bidId, tradePackageId: packageId })
+  ).rejects.toThrow(/superseded/i);
+  await t.mutation(api.agreements.generateAgreement, { bidId: created.bidId, tradePackageId: packageId });
+  const result: any = await t.mutation(api.bids.awardContract, {
+    bidId: created.bidId,
+    tradePackageId: packageId,
+  });
+  expect(result.success).toBe(true);
+});
+
+test("A12-02: a revision to an awarded bid keeps the active agreement in sync", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Revision Sync Guard");
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  const created: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_000_000,
+  });
+  const agreement: any = await t.mutation(api.agreements.generateAgreement, {
+    bidId: created.bidId,
+    tradePackageId: packageId,
+  });
+  expect(agreement.contractSum).toBe(1_000_000);
+
+  await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Someone Else Entirely",
+    baseBidAmount: 1_222_222,
+  });
+  const agreements: any[] = await t.run(async (ctx) =>
+    await ctx.db.query("agreements").withIndex("by_bid" as any, (q: any) => q.eq("bidId", created.bidId)).collect()
+  );
+  const active = agreements.find((a: any) => a.status !== "superseded");
+  expect(active?.contractSum).toBe(1_222_222);
+});
+
+test("A12-03: a package cannot be marked awarded without award evidence", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Status Evidence Guard");
+  const packageId = await createPackage(t, projectId);
+  await expect(
+    t.mutation(api.tradePackages.updateStatus, { tradePackageId: packageId, status: "awarded" })
+  ).rejects.toThrow(/awarded after a bid is awarded/i);
+
+  const contractorId = await createContractor(t, packageId);
+  const created: any = await t.mutation(api.bids.submitDirectBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "Regression Electric LLC",
+    baseBidAmount: 1_100_000,
+  });
+  await t.mutation(api.agreements.generateAgreement, { bidId: created.bidId, tradePackageId: packageId });
+  await t.mutation(api.tradePackages.updateStatus, { tradePackageId: packageId, status: "awarded" });
+  const pkg: any = await t.run(async (ctx) => await ctx.db.get(packageId));
+  expect(pkg.status).toBe("awarded");
+});
+
+test("A11-03: voiding an executed agreement reopens the package with an audit reason", async () => {
+  const t = convexTest(schema, modules);
+  const { packageId, bidId, agreementId } = await seedAwardedExecuted(t, "Void Executed Guard");
+  await expect(
+    t.mutation(api.agreements.voidExecutedAgreement, { agreementId, reason: "short" })
+  ).rejects.toThrow(/at least 10/i);
+
+  const result: any = await t.mutation(api.agreements.voidExecutedAgreement, {
+    agreementId,
+    reason: "Recorded execution was a mistake; external amendment handled offline.",
+  });
+  expect(result.success).toBe(true);
+  const agreement: any = await t.run(async (ctx) => await ctx.db.get(agreementId));
+  const bid: any = await t.run(async (ctx) => await ctx.db.get(bidId));
+  const pkg: any = await t.run(async (ctx) => await ctx.db.get(packageId));
+  expect(agreement.status).toBe("superseded");
+  expect(bid.isAwarded).toBe(false);
+  expect(pkg.status).toBe("leveling");
+});
+
+test("A12-08: reserved system labels and invisible characters are rejected for names", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await createProject(t, "Name Guard");
+  const packageId = await createPackage(t, projectId);
+  await expect(
+    t.mutation(api.contractors.createContractor, {
+      tradePackageId: packageId,
+      companyName: "AWARDED",
+      contactEmail: "x@y.test",
+      licenseNumber: "TX-1",
+      licenseStatus: "active",
+      sourceUrl: "https://x.test",
+      rfqStatus: "discovered",
+    })
+  ).rejects.toThrow(/reserved system label/i);
+  await expect(
+    t.mutation(api.contractors.createContractor, {
+      tradePackageId: packageId,
+      companyName: "AUDIT\u200BQA12",
+      contactEmail: "z@y.test",
+      licenseNumber: "TX-2",
+      licenseStatus: "active",
+      sourceUrl: "https://z.test",
+      rfqStatus: "discovered",
+    })
+  ).rejects.toThrow(/invisible/i);
+});
+
 test("A3-06: invalid COI status and negative exclusion impacts are rejected", async () => {
   const t = convexTest(schema, modules);
   const projectId = await createProject(t, "Adjustment Guard Project");

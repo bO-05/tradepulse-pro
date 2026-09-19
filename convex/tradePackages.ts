@@ -117,6 +117,27 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.tradePackageId);
+    if (!pkg) throw new ConvexError("Trade package not found.");
+    // A12-03: "awarded" must be backed by evidence (awarded bid or active
+    // agreement); a bare status write would fake an award in the KPI/stepper.
+    if (args.status === "awarded") {
+      const bids = await ctx.db
+        .query("bids")
+        .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+        .collect();
+      const agreements = await ctx.db
+        .query("agreements")
+        .withIndex("by_package", (q) => q.eq("tradePackageId", args.tradePackageId))
+        .collect();
+      const hasAwardEvidence =
+        bids.some((b) => b.isAwarded) || agreements.some((a) => a.status !== "superseded");
+      if (!hasAwardEvidence) {
+        throw new ConvexError(
+          "A package can only be marked awarded after a bid is awarded or a subcontract agreement exists."
+        );
+      }
+    }
     await ctx.db.patch(args.tradePackageId, { status: args.status });
   },
 });
