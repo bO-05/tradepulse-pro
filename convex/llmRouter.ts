@@ -606,6 +606,24 @@ export function sanitizeBidLevelingOutput(
 }
 
 /**
+ * A7CONV-R4C-2: month-based lead times convert to weeks deterministically
+ * (4.33 weeks/month) so two providers cannot price the same sentence $12,000
+ * apart. Week statements always win over month statements.
+ */
+export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: string | undefined): number {
+  if (!proposalText) return modelWeeks;
+  const hasWeekStatement = /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?\d+(?:\.\d+)?\s*weeks?/i.test(proposalText);
+  if (hasWeekStatement) return modelWeeks;
+  const monthMatch = proposalText.match(
+    /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?(\d+(?:\.\d+)?)\s*months?/i
+  );
+  if (!monthMatch) return modelWeeks;
+  const months = parseFloat(monthMatch[1]);
+  if (!Number.isFinite(months) || months <= 0 || months > 120) return modelWeeks;
+  return Math.round(months * 4.33);
+}
+
+/**
  * A7CONV-R3C-3/6: coarse scope identity for exclusions so wording variants of the
  * same scope ("DDC controls commissioning", "BACnet gateway card") dedupe and bind
  * together across the heuristic and dynamic extraction paths.
@@ -637,12 +655,34 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   proposalText: string | undefined
 ): T[] {
   if (!proposalText || exclusions.length === 0) return exclusions;
-  const segments = proposalText
+  const exclusionWordSegmentRx = /\b(?:exclud|excluded|omit|omitted|by\s+others|by\s+gc|gc\s+to\s+(?:provide|furnish)|not\s+included|not\s+by\s+us)\b/i;
+  // A7CONV-R4C-1: re-join an orphaned amount tail ("… ; allowance: $6,120") to
+  // its exclusion clause before filtering, so the stated amount stays bindable.
+  const rawSegments = proposalText
     .split(/[;\n]+|(?<=\.)\s+/)
     .map((s) => s.trim())
-    .filter((s) => /\b(?:exclud|excluded|omit|omitted|by\s+others|not\s+included|by\s+gc)\b/i.test(s));
+    .filter(Boolean);
+  const joined: string[] = [];
+  for (const seg of rawSegments) {
+    const hasAmount = /\$\s*[0-9]/.test(seg);
+    const prev = joined[joined.length - 1];
+    if (!exclusionWordSegmentRx.test(seg) && hasAmount && prev && !/\$\s*[0-9]/.test(prev)) {
+      joined[joined.length - 1] = `${prev}; ${seg}`;
+    } else {
+      joined.push(seg);
+    }
+  }
+  const segments = joined.filter((s) => exclusionWordSegmentRx.test(s));
   const explicit: Array<{ segment: string; amount: number; used: boolean }> = [];
   for (const seg of segments) {
+    // A7CONV-R4C-1: a VE/alternate deduct is never an exclusion amount, even
+    // when its wording ("omit ... deduct") matches an exclusion keyword.
+    if (
+      /\b(?:value engineering|ve[-\s]?\d+|alternate)\b/i.test(seg) &&
+      /\b(?:deduct|credit|savings)\b/i.test(seg)
+    ) {
+      continue;
+    }
     const amounts = [...seg.matchAll(/\$\s*([0-9][0-9,]*(?:\.[0-9]{2})?)/g)].map((m) =>
       Number(m[1].replace(/,/g, ""))
     );
@@ -1536,7 +1576,7 @@ Ensure all cost numbers are pure numeric primitives.`
           if (!l) return [raw];
           const header = /^(?:scope\s+|specific\s+)?(?:excluded\s+(?:items|scope)?|exclusions?)\s*:?\s*/i.exec(l);
           const body = header ? l.slice(header[0].length) : l;
-          const isExclusionLine = !!header || /\b(?:excluded?|omitted?|by others|by gc|not included|not by us|carve-out)\b/i.test(body);
+          const isExclusionLine = !!header || /\b(?:excluded?|omitted?|by others|by gc|gc to (?:provide|furnish)|not included|not by us|carve-out)\b/i.test(body);
           // Only split when multiple clauses carry their own stated amount, so
           // "Temporary power ... — not by us; allowance $7,318" stays one clause.
           const amountCount = (body.match(/\$\s*[0-9]/g) || []).length;
@@ -1579,7 +1619,7 @@ Ensure all cost numbers are pure numeric primitives.`
             continue;
           }
 
-          const hasExclusionWord = /\b(?:excluded?|omitted?|by others|by gc|not included|not by us|carve-out)\b/i.test(line);
+          const hasExclusionWord = /\b(?:excluded?|omitted?|by others|by gc|gc to (?:provide|furnish)|not included|not by us|carve-out)\b/i.test(line);
           const isBulleted = /^[-*•\d.]+\s*/.test(line);
 
           if ((inExclusionSection && isBulleted) || hasExclusionWord) {

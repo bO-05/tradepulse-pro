@@ -679,7 +679,7 @@ export const insertParsedBid = internalMutation({
     coiPenalty: v.number(),
     leveledTotalCost: v.number(),
     sourceFileId: v.optional(v.id("projectFiles")),
-    /** Which extraction path produced this bid (e.g. "Anthropic claude-sonnet-5" or the deterministic engine). */
+    /** Extraction path recorded in the bid_leveled audit entry (e.g. "Anthropic claude-sonnet-5" or the deterministic engine). */
     levelingProvider: v.optional(v.string()),
   },
   handler: async (ctx, args) => {

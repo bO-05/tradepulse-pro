@@ -77,8 +77,8 @@ export function buildDemoScenes(ctx: TourLiveContext): DemoScene[] {
 
   const contractsMetric =
     ctx.agreementsCount > 0 && typeof ctx.contractSum === "number"
-      ? `$${Math.round(ctx.contractSum).toLocaleString()} Subcontract ${ctx.contractExecuted ? "Execution Recorded" : "Generated"} • AIA A401`
-      : "No AIA A401 agreement yet • Award a leveled bid to generate one";
+      ? `$${Math.round(ctx.contractSum).toLocaleString()} Subcontract ${ctx.contractExecuted ? "Execution Recorded" : "Generated"} • A401-style Draft`
+      : "No A401-style draft yet • Award a leveled bid to generate one";
 
   const coordinationMetric =
     ctx.openClashes > 0
@@ -155,7 +155,7 @@ export function buildDemoScenes(ctx: TourLiveContext): DemoScene[] {
       talkTrack: `"Trades don't always talk to each other. The clash engine flags equipment priced by both trades and scope omitted by both, so the GC can deduct or assign with one click. ${coordinationMetric}."`,
       keyMetric: coordinationMetric,
       actionLabel: "Advance to Subcontract Execution",
-      actionDescription: "Transitions to the Contracts Register to inspect the generated AIA A401 agreement.",
+      actionDescription: "Transitions to the Contracts Register to inspect the generated A401-style subcontract draft.",
     },
     {
       id: "contracts",

@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts } from "./llmRouter";
+import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, normalizeLeadWeeksFromText } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
@@ -566,7 +566,10 @@ async function doExtractBid(
     : [{ item: "Base Commercial Scope", unit: "LS", quantity: 1, unitCost: baseBid, totalCost: baseBid }];
   const exclusions = applyExplicitExclusionAmounts(parsed?.identifiedExclusions ?? [], proposalText);
   const veAlternates = parsed?.valueEngineeringAlternates ?? [];
-  const leadWeeks = parsed?.longLeadEquipmentWeeks ?? 12;
+  const leadWeeks = normalizeLeadWeeksFromText(
+    parsed?.longLeadEquipmentWeeks ?? 12,
+    proposalText
+  );
   const leadTargetWeeks = parsed?.leadTimeTargetWeeks ?? targetWeeksForDivision(tradePackage.csiDivision);
   const leadPenalty = leadTimePenaltyFor(leadWeeks, leadTargetWeeks);
   const coiStatus = parsed?.coiComplianceStatus ?? "compliant";
@@ -661,14 +664,14 @@ async function doGeneratePreBidAddendum(
     { projectId: args.projectId }
   );
   if (certificationResult.pending.length > 0) {
-    throw new Error(
+    throw new ConvexError(
       `PM certification is required before issuing a binding addendum. Review ${certificationResult.pending.length} pending RFI(s).`
     );
   }
   // A7CONV-R2C-F3: the certification gate must hold server-side even with zero
   // RFIs, otherwise the action files a "legally binding" addendum with no basis.
   if (certificationResult.clarified.length === 0) {
-    throw new Error(
+    throw new ConvexError(
       "PM certification is required before issuing a binding addendum. Certify at least one RFI (Approve for Addendum) first."
     );
   }

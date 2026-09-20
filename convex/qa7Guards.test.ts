@@ -8,7 +8,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import { sanitizeBidLevelingOutput, applyExplicitExclusionAmounts } from "./llmRouter";
+import { sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, normalizeLeadWeeksFromText } from "./llmRouter";
 
 const modules = import.meta.glob("./**/*.ts");
 type T = ReturnType<typeof convexTest>;
@@ -654,4 +654,21 @@ test("A7CONV-R3C-6: inferred canonical codes never cross the package division", 
   });
   const codes = (res.parsedJson?.identifiedExclusions || []).map((e: any) => e.canonicalCode || "");
   expect(codes.join(" ")).not.toMatch(/CSI_22/);
+});
+
+test("A7CONV-R4C-1: a VE deduct never overwrites a stated exclusion allowance", () => {
+  const exclusions = [
+    { description: "Concrete pumping — GC to provide", costImpact: 0 },
+  ];
+  const text =
+    "Concrete pumping — GC to provide; allowance: $6,120. Alternate 1: omit decorative concrete staining, deduct $4,875.";
+  const priced = applyExplicitExclusionAmounts(exclusions, text);
+  expect(priced[0].costImpact).toBe(6_120);
+});
+
+test("A7CONV-R4C-2: month-based lead times convert deterministically at 4.33 weeks/month", () => {
+  expect(normalizeLeadWeeksFromText(20, "Equipment lead time 5 months from notice to proceed.")).toBe(22);
+  expect(normalizeLeadWeeksFromText(20, "Equipment lead time 5 months (about 22 weeks) from notice.")).toBe(20);
+  expect(normalizeLeadWeeksFromText(17, "Lead time 17 weeks from NTP.")).toBe(17);
+  expect(normalizeLeadWeeksFromText(12, "No schedule statement.")).toBe(12);
 });

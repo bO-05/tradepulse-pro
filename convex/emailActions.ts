@@ -1,7 +1,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts } from "./llmRouter";
+import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, normalizeLeadWeeksFromText } from "./llmRouter";
 import { sendAgentmailMessage } from "./agentmailApi";
 import { leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
@@ -459,9 +459,9 @@ export const handleBidProcessing = internalAction({
     }
 
     const effectiveBaseBid = bidData.baseBidAmount ?? 0;
-    const effectiveLeadWeeks = bidData.longLeadEquipmentWeeks ?? 12;
-    const effectiveLeadPenalty = bidData.leadTimePenalty ?? 0;
     const effectiveLeadTargetWeeks = bidData.leadTimeTargetWeeks ?? targetWeeksForDivision(tradePkg?.csiDivision);
+    const effectiveLeadWeeks = normalizeLeadWeeksFromText(bidData.longLeadEquipmentWeeks ?? 12, args.text);
+    const effectiveLeadPenalty = leadTimePenaltyFor(effectiveLeadWeeks, effectiveLeadTargetWeeks);
     const effectiveCoiStatus = bidData.coiComplianceStatus ?? "compliant";
     const effectiveCoiPenalty = bidData.coiPenalty ?? 0;
 
