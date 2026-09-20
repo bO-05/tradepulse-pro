@@ -669,6 +669,7 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
     lower.includes("statutory worker's compensation only") ||
     lower.includes("statutory wc only") ||
     lower.includes("wc only") ||
+    /\b\d{1,3}\s*%\s*(?:of\s+)?(?:the\s+)?(?:required\s+)?umbrella/i.test(proposalText) ||
     lower.includes("workers comp only") ||
     lower.includes("workers' compensation only") ||
     lower.includes("standard statutory limits only") ||
@@ -693,11 +694,26 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
   return !affirmative;
 }
 
+/** A7CONV-R11A-F-SEV-PRICE: severity follows the FINAL priced impact. */
+export function normalizeExclusionSeverity<T extends { description: string; costImpact: number }>(
+  exclusions: T[]
+): T[] {
+  return exclusions.map(
+    (ex) =>
+      ({
+        ...ex,
+        severity: ex.costImpact >= 30000 ? "critical" : ex.costImpact >= 15000 ? "moderate" : "minor",
+      } as T)
+  );
+}
+
 /** Benchmark schedule for unpriced exclusions, keyed by scope signature. */
 export function benchmarkExclusionAmount(division: string | undefined, description: string): number {
   const prefix = String(division || "").trim().slice(0, 2);
   switch (exclusionScopeSignature(description)) {
     case "CRANE":
+      // A7CONV-R11B-F3: a pump-skid lift takes the documented pump-skid line.
+      if (/pump|skid|booster/i.test(description)) return 25_000;
       return prefix === "23" ? 48_000 : prefix === "22" ? 25_000 : 45_000;
     case "FIRESTOP":
       return 22_000;
@@ -744,20 +760,29 @@ export function applyUnpricedExclusionBenchmarks<T extends { description: string
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
       .filter((t) => t.length >= 4);
-  const scopeMatches = (sentence: string, signature: string | null, exTokens: string[]) => {
-    if (signature && exclusionScopeSignature(sentence) === signature) return true;
+  const scopeMatches = (sentence: string, signature: string | null, exTokens: string[], strict: boolean) => {
+    const signatures = exclusionScopeSignatures(sentence);
+    // A7CONV-R11B-F1: an ambiguous sentence (multiple scopes) cannot claim a
+    // signature match; fall back to token evidence.
+    if (signature && signatures.size === 1 && signatures.has(signature)) return true;
     const sentenceTokens = tokens(sentence);
-    return exTokens.filter((t) => sentenceTokens.some((s) => s.includes(t) || t.includes(s))).length >= 2;
+    const overlap = exTokens.filter((t) => sentenceTokens.some((s) => s.includes(t) || t.includes(s))).length;
+    return overlap >= (strict ? 3 : 2);
   };
+  const baseLikeSentenceRx = /\b(?:base\s*(?:bid|price|proposal)|contract\s*(?:sum|price)|proposal\s*(?:price|amount)|total\s*(?:bid|proposal)?\s*price)\b/i;
   return exclusions.map((ex) => {
     const signature = exclusionScopeSignature(ex.description);
     const exTokens = tokens(ex.description);
+    // A7CONV-R11A-2b: the base-bid line is never a stated exclusion amount.
     const dollarSentence = sentences.find(
-      (sentence) => /\$\s*[0-9]/.test(sentence) && scopeMatches(sentence, signature, exTokens)
+      (sentence) =>
+        !baseLikeSentenceRx.test(sentence) &&
+        /\$\s*[0-9]/.test(sentence) &&
+        scopeMatches(sentence, signature, exTokens, true)
     );
     if (dollarSentence) return ex; // stated amount wins (bound by applyExplicitExclusionAmounts)
     const percentSentence = sentences.find(
-      (sentence) => /\d+(?:\.\d+)?\s*%/.test(sentence) && scopeMatches(sentence, signature, exTokens)
+      (sentence) => /\d+(?:\.\d+)?\s*%/.test(sentence) && scopeMatches(sentence, signature, exTokens, false)
     );
     const note = percentSentence ? " (proposal prices this as a percentage; benchmark applied)" : "";
     return {
@@ -777,10 +802,10 @@ export function exclusionScopeSignature(value: string): string | null {
   const v = (value || "").toLowerCase();
   if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) return "BACNET";
   if (/crane|rigging|hoisting/.test(v)) return "CRANE";
-  // A7CONV-R10A/R10B-F3: core drilling / sleeves are plumbing scopes; the word
-  // "penetration" alone must not classify them as firestopping.
+  // A7CONV-R11B-F2: explicit firestop wording beats sleeve/penetration nouns.
+  if (/firestop|firestopping|1479/.test(v)) return "FIRESTOP";
   if (/core|drill|sleeve/.test(v)) return "CORE";
-  if (/firestop|firestopping|1479|penetration/.test(v)) return "FIRESTOP";
+  if (/penetration/.test(v)) return "FIRESTOP";
   if (/seismic|bracing|1613/.test(v)) return "SEISMIC";
   if (/overtime|premium|straight\s*time/.test(v)) return "OVERTIME";
   if (/tab|balanc/.test(v)) return "TAB";
@@ -788,6 +813,24 @@ export function exclusionScopeSignature(value: string): string | null {
   if (/backflow/.test(v)) return "BACKFLOW";
   if (/booster|startup/.test(v)) return "BOOSTER";
   return null;
+}
+
+/** All scope signatures present in a text; used to avoid ambiguous matches. */
+export function exclusionScopeSignatures(value: string): Set<string> {
+  const v = (value || "").toLowerCase();
+  const found = new Set<string>();
+  if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) found.add("BACNET");
+  if (/crane|rigging|hoisting/.test(v)) found.add("CRANE");
+  if (/firestop|firestopping|1479/.test(v)) found.add("FIRESTOP");
+  if (/core|drill|sleeve/.test(v)) found.add("CORE");
+  if (!found.has("FIRESTOP") && !found.has("CORE") && /penetration/.test(v)) found.add("FIRESTOP");
+  if (/seismic|bracing|1613/.test(v)) found.add("SEISMIC");
+  if (/overtime|premium|straight\s*time/.test(v)) found.add("OVERTIME");
+  if (/tab|balanc/.test(v)) found.add("TAB");
+  if (/vibration|isolation|spring/.test(v)) found.add("VIBRATION");
+  if (/backflow/.test(v)) found.add("BACKFLOW");
+  if (/booster|startup/.test(v)) found.add("BOOSTER");
+  return found;
 }
 
 /**
@@ -908,7 +951,9 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
     if (exTokens.length === 0 && !exSignature) return;
     explicit.forEach((seg, segIndex) => {
       const segTokens = tokenize(seg.segment);
-      const sigMatch = Boolean(exSignature) && exclusionScopeSignature(seg.segment) === exSignature;
+      const segSignatures = exclusionScopeSignatures(seg.segment);
+      const sigMatch =
+        exSignature !== null && segSignatures.size === 1 && segSignatures.has(exSignature);
       const tokenScore = exTokens.filter((t) => segTokens.some((s) => s.includes(t) || t.includes(s))).length;
       const score = tokenScore + (sigMatch ? 2 : 0);
       if (score > 0) pairs.push({ exIndex, segIndex, score });

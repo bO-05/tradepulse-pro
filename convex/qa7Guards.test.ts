@@ -13,6 +13,7 @@ import {
   applyExplicitExclusionAmounts,
   applyUnpricedExclusionBenchmarks,
   benchmarkExclusionAmount,
+  normalizeExclusionSeverity,
   normalizeLeadWeeksFromText,
   detectCoiDeficiency,
 } from "./llmRouter";
@@ -737,13 +738,20 @@ test("A7CONV-R8C-1: percentage-priced exclusions take the benchmark and disclose
   );
   expect(cap[0].costImpact).toBe(0);
   expect(cap[0].description).not.toMatch(/benchmark applied/i);
-  // A7CONV-R9A-2: an unpriced Div 23 pump-skid crane takes the Div 23 benchmark.
+  // A7CONV-R9A-2/R11B-F3: an unpriced pump-skid crane takes the documented
+  // pump-skid line (25,000) regardless of the package division.
   const div23 = applyUnpricedExclusionBenchmarks(
     [{ description: "Penthouse crane hoisting of the pump skid excluded", costImpact: 25_000 }],
     "The proposal states no dollar amount for this item.",
     "23 00 00"
   );
-  expect(div23[0].costImpact).toBe(48_000);
+  expect(div23[0].costImpact).toBe(25_000);
+  const div23Chiller = applyUnpricedExclusionBenchmarks(
+    [{ description: "Rooftop crane pick and rigging to cooling tower deck excluded", costImpact: 0 }],
+    "The proposal states no dollar amount for this item.",
+    "23 00 00"
+  );
+  expect(div23Chiller[0].costImpact).toBe(48_000);
 });
 
 test("A7CONV-R8A-1: a model-supplied canonical code cannot cross the package division", () => {
@@ -800,6 +808,30 @@ test("A7CONV-R10A/R10B: core-drill scopes price as CORE, credits never bind, wor
     { division: "26 00 00" }
   );
   expect(severity.identifiedExclusions[0].severity).toBe("minor");
+});
+
+test("A7CONV-R11B/R11A: explicit firestop wording, pump-skid crane, base-line guard, severity normalization", () => {
+  // Explicit firestop wording beats sleeve nouns.
+  expect(
+    benchmarkExclusionAmount("26 00 00", "UL 1479 firestopping of plumbing riser sleeves and electrical penetrations")
+  ).toBe(22_000);
+  // A pump-skid lift takes the documented pump-skid line regardless of package division.
+  expect(benchmarkExclusionAmount("26 00 00", "Penthouse crane hoisting of the pump skid excluded")).toBe(25_000);
+  // The BASE BID PRICE line is never a stated exclusion amount, even when the
+  // model description contains "priced"/"percentage-based".
+  const guarded = applyUnpricedExclusionBenchmarks(
+    [{ description: "Rooftop crane hoisting — priced percentage-based carry", costImpact: 0 }],
+    "BASE BID PRICE: $900,000. Rooftop crane hoisting is not in our scope; a proportional 3% carry applies.",
+    "22 00 00"
+  );
+  expect(guarded[0].costImpact).toBe(25_000);
+  expect(guarded[0].description).toMatch(/percentage; benchmark applied/i);
+  // Severity normalization follows the final impact.
+  expect(
+    normalizeExclusionSeverity([{ description: "TAB report excluded", costImpact: 28_000, severity: "minor" }])[0].severity
+  ).toBe("moderate");
+  // A percentage-of-required-umbrella statement is a COI deficiency.
+  expect(detectCoiDeficiency("Insurance: we carry 90% of the required umbrella.")).toBe(true);
 });
 
 test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {

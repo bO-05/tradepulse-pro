@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
+import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
@@ -572,14 +572,16 @@ async function doExtractBid(
     ? parsed.lineItems
     : [{ item: "Base Commercial Scope", unit: "LS", quantity: 1, unitCost: baseBid, totalCost: baseBid }];
   // A7CONV-R9B: unpriced exclusions take the benchmark first; stated dollar
-  // amounts bind afterwards and always win.
-  const exclusions = applyExplicitExclusionAmounts(
-    applyUnpricedExclusionBenchmarks(
-      parsed?.identifiedExclusions ?? [],
-      proposalText,
-      tradePackage.csiDivision
-    ),
-    proposalText
+  // amounts bind afterwards and always win; severity follows the final impact.
+  const exclusions = normalizeExclusionSeverity(
+    applyExplicitExclusionAmounts(
+      applyUnpricedExclusionBenchmarks(
+        parsed?.identifiedExclusions ?? [],
+        proposalText,
+        tradePackage.csiDivision
+      ),
+      proposalText
+    )
   );
   const veAlternates = parsed?.valueEngineeringAlternates ?? [];
   const leadWeeks = normalizeLeadWeeksFromText(
