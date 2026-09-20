@@ -692,6 +692,25 @@ test("A7CONV-R6C-2: subrogation wording is a COI deficiency in raw text detectio
   expect(detectCoiDeficiency("Standard statutory limits only.")).toBe(true);
   expect(detectCoiDeficiency("Insurance: compliant ACORD 25 attached.")).toBe(false);
   expect(detectCoiDeficiency(undefined)).toBe(false);
+  // A7CONV-R7C-3: "statutory WC only" is also a deficiency.
+  expect(detectCoiDeficiency("Insurance: we carry statutory WC only.")).toBe(true);
+});
+
+test("A7CONV-R7C-1/2/3: space-separated amounts, SCHEDULE lead statements, and variant exclusion phrases", () => {
+  // Space-separated thousands must not be truncated to their first group.
+  const spaced = applyExplicitExclusionAmounts(
+    [{ description: "Crane hoisting of the pump skid — excluded", costImpact: 0 }],
+    "Crane hoisting of the pump skid — excluded ($ 12 345)."
+  );
+  expect(spaced[0].costImpact).toBe(12_345);
+  const notInScope = applyExplicitExclusionAmounts(
+    [{ description: "Temporary power — not in our scope", costImpact: 0 }],
+    "Temporary power — not in our scope ($ 51 250)."
+  );
+  expect(notInScope[0].costImpact).toBe(51_250);
+  // SCHEDULE: N weeks is a lead statement.
+  expect(normalizeLeadWeeksFromText(0, "SCHEDULE: 6 weeks from notice to proceed.")).toBe(6);
+  expect(normalizeLeadWeeksFromText(0, "Schedule: 20 weeks from notice to proceed.")).toBe(20);
 });
 
 test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {

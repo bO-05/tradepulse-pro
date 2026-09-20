@@ -612,7 +612,7 @@ export function sanitizeBidLevelingOutput(
  */
 export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: string | undefined): number {
   if (!proposalText) return modelWeeks;
-  const leadKeyword = "(?:lead\\s*time|delivery|procurement|shipment|fabrication)";
+  const leadKeyword = "(?:lead\\s*time|delivery|procurement|shipment|fabrication|schedule[sd]?)";
   // A7CONV-R6C-1: compound "3 months and 2 weeks" statements must sum both parts.
   const compoundMatch = proposalText.match(
     new RegExp(`${leadKeyword}[^.\\n\\r]{0,60}?\\(?\\s*(\\d+(?:\\.\\d+)?)\\s*\\)?\\s*months?\\s*(?:and|,)?\\s*\\(?\\s*(\\d+(?:\\.\\d+)?)\\s*\\)?\\s*weeks?`, "i")
@@ -663,6 +663,10 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
     lower.includes("statutory insurance only") ||
     lower.includes("statutory worker's comp only") ||
     lower.includes("statutory worker's compensation only") ||
+    lower.includes("statutory wc only") ||
+    lower.includes("wc only") ||
+    lower.includes("workers comp only") ||
+    lower.includes("workers' compensation only") ||
     lower.includes("standard statutory limits only") ||
     lower.includes("standard statutory insurance limits only") ||
     lower.includes("subrogation waived") ||
@@ -717,7 +721,7 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   proposalText: string | undefined
 ): T[] {
   if (!proposalText || exclusions.length === 0) return exclusions;
-  const exclusionWordSegmentRx = /\b(?:exclud|excluded|omit|omitted|by\s+others|by\s+gc|gc\s+to\s+(?:provide|furnish)|not\s+included|not\s+by\s+us)\b/i;
+  const exclusionWordSegmentRx = /\b(?:exclud|excluded|omit|omitted|by\s+others|by\s+gc|by\s+the\s+gc|gc\s+to\s+(?:provide|furnish)|not\s+included|not\s+by\s+us|not\s+in\s+(?:our\s+)?scope)\b/i;
   // A7CONV-R4C-1: re-join an orphaned amount tail ("… ; allowance: $6,120") to
   // its exclusion clause before filtering, so the stated amount stays bindable.
   const rawSegments = proposalText
@@ -745,8 +749,10 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
     ) {
       continue;
     }
-    const amounts = [...seg.matchAll(/\$\s*([0-9][0-9,]*(?:\.[0-9]{2})?)/g)].map((m) =>
-      Number(m[1].replace(/,/g, ""))
+    // A7CONV-R7C-1: support space-separated thousands ("$ 12 345") as well as
+    // comma-separated amounts.
+    const amounts = [...seg.matchAll(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g)].map((m) =>
+      Number(m[1].replace(/[,\s]/g, ""))
     );
     if (amounts.length === 1 && Number.isFinite(amounts[0]) && amounts[0] > 0) {
       explicit.push({ segment: seg, amount: amounts[0], used: false });
@@ -1497,7 +1503,7 @@ Ensure all cost numbers are pure numeric primitives.`
         // this, any "excluded" anywhere in the proposal paired with a scope
         // keyword (e.g. a booster pump that was actually INCLUDED) produced a
         // phantom benchmark-priced exclusion.
-        const exclusionWordRx = /\b(?:excluded?|by\s+others|by\s+gc|not\s+included|omitted|carve-?out)\b/i;
+        const exclusionWordRx = /\b(?:excluded?|by\s+others|by\s+gc|by\s+the\s+gc|not\s+included|not\s+in\s+(?:our\s+)?scope|omitted|carve-?out)\b/i;
         const inclusionWordRx = /\b(?:included|in-house|self-perform|by\s+us|we\s+furnish)\b/i;
         // A7CONV-R2A-N2: a keyword only counts as excluded when the exclusion
         // word applies to it BEFORE any inclusion wording does. Compound
@@ -1638,7 +1644,7 @@ Ensure all cost numbers are pure numeric primitives.`
           if (!l) return [raw];
           const header = /^(?:scope\s+|specific\s+)?(?:excluded\s+(?:items|scope)?|exclusions?)\s*:?\s*/i.exec(l);
           const body = header ? l.slice(header[0].length) : l;
-          const isExclusionLine = !!header || /\b(?:excluded?|omitted?|by others|by gc|gc to (?:provide|furnish)|not included|not by us|carve-out)\b/i.test(body);
+          const isExclusionLine = !!header || /\b(?:excluded?|omitted?|by others|by the gc|by gc|gc to (?:provide|furnish)|not included|not in (?:our )?scope|not by us|carve-out)\b/i.test(body);
           // Only split when multiple clauses carry their own stated amount, so
           // "Temporary power ... — not by us; allowance $7,318" stays one clause.
           const amountCount = (body.match(/\$\s*[0-9]/g) || []).length;
@@ -1695,7 +1701,7 @@ Ensure all cost numbers are pure numeric primitives.`
             continue;
           }
 
-          const hasExclusionWord = /\b(?:excluded?|omitted?|by others|by gc|gc to (?:provide|furnish)|not included|not by us|carve-out)\b/i.test(line);
+          const hasExclusionWord = /\b(?:excluded?|omitted?|by others|by the gc|by gc|gc to (?:provide|furnish)|not included|not in (?:our )?scope|not by us|carve-out)\b/i.test(line);
           const isBulleted = /^[-*•\d.]+\s*/.test(line);
 
           if ((inExclusionSection && isBulleted) || hasExclusionWord) {
@@ -1760,8 +1766,9 @@ Ensure all cost numbers are pure numeric primitives.`
                 return overlap.length >= 2;
               });
               if (!alreadyMatched) {
-                const costMatch = cleanDesc.match(/\$\s*([0-9,]+(?:\.[0-9]{2})?)/);
-                let costImpact = costMatch ? parseFloat(costMatch[1].replace(/,/g, "")) : 0;
+                // A7CONV-R7C-1: support space-separated thousands in exclusion amounts.
+                const costMatch = cleanDesc.match(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/);
+                let costImpact = costMatch ? parseFloat(costMatch[1].replace(/[,\s]/g, "")) : 0;
                 let severity = "moderate";
                 const descLower = cleanDesc.toLowerCase();
 
@@ -1814,13 +1821,13 @@ Ensure all cost numbers are pure numeric primitives.`
       // Detect lead time and compute trade-specific milestone schedule penalty
       let leadWeeks = isDiv23 ? 12 : isDiv22 ? 10 : 10;
       const leadMatch =
-        promptText.match(/(?:lead\s*time|equipment\s*lead|material\s*lead|delivery\s*(?:lead\s*time|time)?|fabrication\s*(?:lead\s*time|time)?|procurement\s*lead)[^\n:\r]*?[:\s-]+(\d+)(?:\s*-\s*\d+)?\s*weeks?/i) ||
-        promptText.match(/(?:lead|delivery|shipment|turnaround)[^.\n\r]*?(\d+)\s*weeks?/i) ||
+        promptText.match(/(?:lead\s*time|equipment\s*lead|material\s*lead|delivery\s*(?:lead\s*time|time)?|fabrication\s*(?:lead\s*time|time)?|procurement\s*lead|schedule[sd]?)[^\n:\r]*?[:\s-]+(\d+)(?:\s*-\s*\d+)?\s*weeks?/i) ||
+        promptText.match(/(?:lead|delivery|shipment|turnaround|schedule[sd]?)[^.\n\r]*?(\d+)\s*weeks?/i) ||
         promptText.match(/(\d+)\s*weeks?\s*(?:lead\s*time|delivery|shipment|turnaround|fabrication)/i);
       if (leadMatch) {
         leadWeeks = parseInt(leadMatch[1], 10);
       } else {
-        const monthMatch = promptText.match(/(?:lead\s*time|delivery|shipment|procurement)[^.\n\r]*?(\d+)\s*months?/i);
+        const monthMatch = promptText.match(/(?:lead\s*time|delivery|shipment|procurement|schedule[sd]?)[^.\n\r]*?(\d+)\s*months?/i);
         if (monthMatch) {
           leadWeeks = Math.round(parseInt(monthMatch[1], 10) * 4.33);
         }
