@@ -3819,7 +3819,7 @@ export const App: React.FC = () => {
             TradePulse Pro • Autonomous CSI MasterFormat Subcontractor Procurement
           </span>
           <span className="font-mono text-[11px] text-slate-400">
-            Convex "All Gas" Hackathon 2026 • Powered by Convex, OpenAI, Firecrawl & AgentMail
+            Convex "All Gas" Hackathon 2026 • Powered by Convex, Firecrawl & AgentMail; OpenAI adapter is BYOK
           </span>
         </div>
       </footer>

@@ -1,4 +1,4 @@
-﻿import { internalAction, action, query } from "./_generated/server";
+import { internalAction, action, query } from "./_generated/server";
 import { v } from "convex/values";
 import { inflate } from "pako";
 import { internal } from "./_generated/api";
@@ -206,7 +206,7 @@ export function extractTextFromPdfStream(rawInput: string | Uint8Array): string 
 
   // 3. Fallback token extraction: Strip binary stream contents first
   const textWithoutBinary = rawStr.replace(/stream[\r\n][\s\S]*?endstream/gi, "");
-  const segments = textWithoutBinary.match(/[A-Za-z0-9\s.,;:$%/\\()\-â€“â€”@&+=#'"_[\]*!?]{4,}/g) || [];
+  const segments = textWithoutBinary.match(/[A-Za-z0-9\s.,;:$%/\\()\-–—@&+=#'"_[\]*!?]{4,}/g) || [];
   const cleanTokens = segments
     .filter((s: string) => {
       const trimmed = s.trim();
@@ -260,7 +260,7 @@ export function cleanNumber(val: any, fallback = 0): number {
 
   // 2. Check for range e.g. '$1,200,000 - $1,350,000' or '$1.2M to $1.4M' or 'between $1.2M and $1.4M'
   const withoutBetween = str.replace(/^between\s+/i, "");
-  const rangeMatch = withoutBetween.match(/^(.+?)\s*(?:(?<=\S)\s*[-â€“â€”]\s*(?=\S)|\bto\b|\band\b)\s*(.+)$/i);
+  const rangeMatch = withoutBetween.match(/^(.+?)\s*(?:(?<=\S)\s*[-–—]\s*(?=\S)|\bto\b|\band\b)\s*(.+)$/i);
   if (rangeMatch) {
     let p1 = rangeMatch[1].trim();
     let p2 = rangeMatch[2].trim();
@@ -289,15 +289,15 @@ export function cleanNumber(val: any, fallback = 0): number {
     (str.startsWith("(") && str.endsWith(")")) ||
     str.startsWith("-") ||
     str.endsWith("-") ||
-    /[-]\s*[$â‚¬Â£Â¥â‚¹]/.test(str) ||
-    /[$â‚¬Â£Â¥â‚¹]\s*[-]/.test(str) ||
+    /[-]\s*[$€£¥₹]/.test(str) ||
+    /[$€£¥₹]\s*[-]/.test(str) ||
     /[-]\s*(?:USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD)\b/i.test(str) ||
     /\b(?:USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD)\s*[-]/i.test(str) ||
     /[-]\s*(?:USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD)$/i.test(str);
 
   // 4. Strip common conversational / construction estimation prefixes
   str = str
-    .replace(/^(?:[~â‰ˆ*]|approx\.?|est\.?|estimated|budget:?|total:?|sum:?|quote:?|price:?|cost:?|amount:?)\s*/i, "")
+    .replace(/^(?:[~≈*]|approx\.?|est\.?|estimated|budget:?|total:?|sum:?|quote:?|price:?|cost:?|amount:?)\s*/i, "")
     .replace(/^(?:addendum|alternate|option|item|ve|phase)?\s*#?\d*[:\s-]*(?:deduct(?:ion)?|credit|discount|savings|rebate|less):?\s*/i, "")
     .replace(/^(?:deduct(?:ion)?|credit|discount|savings|rebate|less)\s*(?:alternate|option|item|ve|phase)?\s*#?\d*[:\s-]*/i, "")
     .replace(/^(?:addendum|alternate|option|item|ve|phase)\s*#?\d*[:\s-]*/i, "")
@@ -323,10 +323,10 @@ export function cleanNumber(val: any, fallback = 0): number {
   // 6. Remove wrapping parens, brackets, and signs
   str = str.replace(/^[(\[]+|[)\]]+$/g, "").replace(/^[-+]|[-+]$/g, "").trim();
 
-  // 7. Strip currency symbols and ISO codes: $, â‚¬, Â£, Â¥, â‚¹, USD, CAD, EUR, GBP, AUD, CHF, MXN, NZD, SGD
+  // 7. Strip currency symbols and ISO codes: $, €, £, ¥, ₹, USD, CAD, EUR, GBP, AUD, CHF, MXN, NZD, SGD
   str = str
-    .replace(/^(?:[$â‚¬Â£Â¥â‚¹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+/gi, "")
-    .replace(/(?:[$â‚¬Â£Â¥â‚¹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+$/gi, "")
+    .replace(/^(?:[$€£¥₹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+/gi, "")
+    .replace(/(?:[$€£¥₹]|USD|CAD|EUR|GBP|AUD|CHF|MXN|NZD|SGD|\s)+$/gi, "")
     .trim();
 
   // Re-check minus after currency strip (e.g. '$-25,000' -> '-25,000' or '25,000- USD' -> '25,000-')
@@ -452,6 +452,9 @@ export function sanitizeBidLevelingOutput(
       : targetWeeksForDivision(opts?.division);
   const leadPenalty = leadTimePenaltyFor(leadWeeks, leadTargetWeeks);
   const coiPenalty = cleanNumber(parsedJson.coiPenalty, 0);
+  // A7CONV-R3C-6: canonical codes inferred from wording must match the package
+  // division; a Div 23 chiller startup is never labeled CSI_22_*.
+  const divisionPrefix = String(opts?.division || "").trim().slice(0, 2);
 
   const lineItems = Array.isArray(parsedJson.lineItems)
     ? parsedJson.lineItems.map((li: any) => ({
@@ -536,6 +539,10 @@ export function sanitizeBidLevelingOutput(
         } else if (text.includes("BOOSTER") || text.includes("STARTUP")) {
           code = "CSI_22_BOOSTER_STARTUP";
         }
+        const inferredDivision = code && code.startsWith("CSI_") ? code.split("_")[1] : "";
+        if (inferredDivision && ["22", "23", "26"].includes(divisionPrefix) && inferredDivision !== divisionPrefix) {
+          code = undefined;
+        }
       }
 
       identifiedExclusions.push({
@@ -599,6 +606,26 @@ export function sanitizeBidLevelingOutput(
 }
 
 /**
+ * A7CONV-R3C-3/6: coarse scope identity for exclusions so wording variants of the
+ * same scope ("DDC controls commissioning", "BACnet gateway card") dedupe and bind
+ * together across the heuristic and dynamic extraction paths.
+ */
+export function exclusionScopeSignature(value: string): string | null {
+  const v = (value || "").toLowerCase();
+  if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) return "BACNET";
+  if (/crane|rigging|hoisting/.test(v)) return "CRANE";
+  if (/firestop|penetration|1479/.test(v)) return "FIRESTOP";
+  if (/seismic|bracing|1613/.test(v)) return "SEISMIC";
+  if (/overtime|premium|straight\s*time/.test(v)) return "OVERTIME";
+  if (/tab|balanc/.test(v)) return "TAB";
+  if (/vibration|isolation|spring/.test(v)) return "VIBRATION";
+  if (/core|drill|sleeve/.test(v)) return "CORE";
+  if (/backflow/.test(v)) return "BACKFLOW";
+  if (/booster|startup/.test(v)) return "BOOSTER";
+  return null;
+}
+
+/**
  * A6-54 class fix: when the proposal states a dollar amount for an exclusion, the
  * engine must price that stated amount, not a benchmark rate. This binds each
  * model-identified exclusion to an explicit single-amount exclusion sentence in
@@ -635,10 +662,13 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   const pairs: Array<{ exIndex: number; segIndex: number; score: number }> = [];
   exclusions.forEach((ex, exIndex) => {
     const exTokens = tokenize(ex.description);
-    if (exTokens.length === 0) return;
+    const exSignature = exclusionScopeSignature(ex.description);
+    if (exTokens.length === 0 && !exSignature) return;
     explicit.forEach((seg, segIndex) => {
       const segTokens = tokenize(seg.segment);
-      const score = exTokens.filter((t) => segTokens.some((s) => s.includes(t) || t.includes(s))).length;
+      const sigMatch = Boolean(exSignature) && exclusionScopeSignature(seg.segment) === exSignature;
+      const tokenScore = exTokens.filter((t) => segTokens.some((s) => s.includes(t) || t.includes(s))).length;
+      const score = tokenScore + (sigMatch ? 2 : 0);
       if (score > 0) pairs.push({ exIndex, segIndex, score });
     });
   });
@@ -765,7 +795,7 @@ CRITICAL FORENSIC LEVELING RULES:
 1. ONLY identify exclusions that are EXPLICITLY stated as excluded, omitted, or "by others" in the proposal text. If the proposal does NOT state an exclusion, DO NOT invent, assume, or add one. Clean compliant proposals with no exclusions must return an empty array: "identifiedExclusions": [].
 2. Do NOT include insurance, ACORD 25, or statutory coverage qualifications in identifiedExclusions. Insurance deficiencies belong strictly under coiComplianceStatus ("deficiency_detected") and coiPenalty (15000). Only physical construction trade scope exclusions belong in identifiedExclusions.
 3. Extract the long-lead equipment duration as an integer number of weeks in "longLeadEquipmentWeeks". Report it exactly as stated in the proposal (for example "17 weeks" -> 17). Do NOT compute any dollar penalty; the application computes the schedule penalty from the extracted weeks and the GC-owned division baseline (Division 26: 12 weeks; Division 22/23: 16 weeks). Never invent or adjust a week count.
-4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode. When the proposal DOES state a dollar amount for an exclusion (for example "crane rigging excluded ($18,600)"), use that stated amount verbatim as costImpact — never substitute a benchmark rate for a stated amount. Benchmark schedule when no amount is stated:
+4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode. When the proposal DOES state a dollar amount for an exclusion (for example "crane rigging excluded ($18,600)"), use that stated amount verbatim as costImpact � never substitute a benchmark rate for a stated amount. Benchmark schedule when no amount is stated:
    Division 26 Electrical:
    - Penthouse crane rigging/hoisting (CSI_26_CRANE): 45000
    - UL 1479 floor/wall penetration firestopping (CSI_26_FIRESTOP): 22000
@@ -1101,7 +1131,9 @@ Ensure all cost numbers are pure numeric primitives.`
               max_tokens: 4096,
               system: effectiveSystemPrompt,
               messages: [{ role: "user", content: args.prompt }],
-              ...(args.taskType === "bid_leveling" ? { temperature: 0 } : {}),
+              // NOTE: this Anthropic model rejects the deprecated `temperature`
+              // parameter (HTTP 400), so extraction determinism is enforced in
+              // code (lead-time penalty, exclusion pricing) rather than decoding.
             }),
           });
 
@@ -1224,7 +1256,7 @@ Ensure all cost numbers are pure numeric primitives.`
       } else {
         const nameMatch =
           promptText.match(/(?:(?:PROPOSAL|Proposal|Quote|Bid|FROM|From|Subcontractor|Contractor|Company|PREPARED\s*BY|Prepared\s*By|SUBMITTED\s*BY|Submitted\s*By|BIDDER|Bidder|VENDOR|Vendor):\s*(?:Division\s*\d+\s*[A-Za-z\s]+-\s*)?([A-Za-z0-9\s&.,'-]+?)(?:\r?\n|$))/i) ||
-          promptText.match(/^([A-Z0-9\s&.,'-]{4,60})\s*(?:-|â€“|â€”|PROPOSAL|QUOTATION|BID|\r?\n)/);
+          promptText.match(/^([A-Z0-9\s&.,'-]{4,60})\s*(?:-|–|—|PROPOSAL|QUOTATION|BID|\r?\n)/);
         if (nameMatch && nameMatch[1]?.trim()) {
           const candidate = nameMatch[1].trim();
           if (!candidate.toLowerCase().includes("parse") && !candidate.toLowerCase().includes("normalize") && !candidate.toLowerCase().includes("commercial subcontractor proposal")) {
@@ -1236,8 +1268,8 @@ Ensure all cost numbers are pure numeric primitives.`
       // Detect base bid amount
       let baseBid = 0;
       const headerPatterns = [
-        /(?:Base\s*(?:Bid|Proposal|Offer|Price)?(?:\s*(?:Lump\s*Sum|Price|Amount|Total|Fee))?|Lump\s*Sum(?:\s*(?:Base\s*(?:Bid|Proposal)|Quotation|Price|Amount|Proposal|Fee))?|Contract\s*(?:Sum|Amount|Price)|Subcontract\s*(?:Sum|Amount|Price)|Grand\s*Total|Bid\s*Total|Proposed\s*(?:Total|Price|Amount)|Total\s*(?:Proposed\s*(?:Price|Amount)|Lump\s*Sum|Base\s*Bid|Contract\s*Amount|Amount|Price|Quote|Cost|Fee)|Proposal\s*(?:Amount|Price)|Price|Amount)[:\s=]*(?:of\s*)?([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
-        /(?:we\s+propose\s+to\s+furnish|we\s+agree\s+to\s+perform)[^.\n\r]*?(?:for\s+(?:the\s+sum\s+of\b\s*)?)[:\s=]*([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
+        /(?:Base\s*(?:Bid|Proposal|Offer|Price)?(?:\s*(?:Lump\s*Sum|Price|Amount|Total|Fee))?|Lump\s*Sum(?:\s*(?:Base\s*(?:Bid|Proposal)|Quotation|Price|Amount|Proposal|Fee))?|Contract\s*(?:Sum|Amount|Price)|Subcontract\s*(?:Sum|Amount|Price)|Grand\s*Total|Bid\s*Total|Proposed\s*(?:Total|Price|Amount)|Total\s*(?:Proposed\s*(?:Price|Amount)|Lump\s*Sum|Base\s*Bid|Contract\s*Amount|Amount|Price|Quote|Cost|Fee)|Proposal\s*(?:Amount|Price)|Price|Amount)[^.\n\r:]{0,40}?[:\s=]\s*(?:of\s*)?([$€£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)(?:\s*(?:USD|dollars?))?/i,
+        /(?:we\s+propose\s+to\s+furnish|we\s+agree\s+to\s+perform)[^.\n\r]*?(?:for\s+(?:the\s+sum\s+of\b\s*)?)[:\s=]*([$€£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
       ];
       for (const rx of headerPatterns) {
         const m = promptText.match(rx);
@@ -1266,14 +1298,14 @@ Ensure all cost numbers are pure numeric primitives.`
         }
         const isPotentialLineItem =
           inLineItemSection &&
-          (/^[-*â€¢\d.]+\s*/.test(line) ||
+          (/^[-*•\d.]+\s*/.test(line) ||
             /^(?:item|scope|tag|line|section)?\s*[A-Za-z0-9]/i.test(line));
         if (isPotentialLineItem) {
-          const itemText = line.replace(/^[-*â€¢\d.]+\s*/, "").trim();
-          const costMatch = itemText.match(/[:\-â€“â€”]?\s*([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)\s*$/i);
+          const itemText = line.replace(/^[-*•\d.]+\s*/, "").trim();
+          const costMatch = itemText.match(/[:\-–—]?\s*([$€£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)\s*$/i);
           if (costMatch) {
             const cost = cleanNumber(costMatch[1], 0);
-            const desc = itemText.replace(costMatch[0], "").replace(/[:\-â€“â€”\s]+$/, "").trim();
+            const desc = itemText.replace(costMatch[0], "").replace(/[:\-–—\s]+$/, "").trim();
             if (cost > 0 && desc.length > 2) {
               customLineItems.push({
                 item: desc,
@@ -1293,10 +1325,17 @@ Ensure all cost numbers are pure numeric primitives.`
       }
 
       // Fallback: first significant monetary amount in document >= $10,000
-      // A7CONV-R2C-F2: a negative amount ("-$50,000") is never a base bid.
+      // A7CONV-R2C-F2: a negative amount ("-$50,000") is never a base bid, and
+      // A7CONV-R3C-1: insurance limits ($5,000,000 umbrella) are never a base bid.
       if (baseBid === 0) {
-        const dollarMatches = Array.from(promptText.matchAll(/(?<![-\d])[$â‚¬Â£]\s*([0-9][0-9.,\s]{3,})/g));
+        const dollarMatches = Array.from(promptText.matchAll(/(?<![-\d])[$€£]\s*([0-9][0-9.,\s]{3,})/g));
         for (const dm of dollarMatches) {
+          const contextStart = Math.max(0, (dm.index ?? 0) - 90);
+          const contextEnd = Math.min(promptText.length, (dm.index ?? 0) + 90);
+          const context = promptText.slice(contextStart, contextEnd);
+          if (/\b(?:umbrella|liability|insurance|acord|policy|coverage|bond|retainage|deductible)\b/i.test(context)) {
+            continue;
+          }
           const cand = cleanNumber(dm[1], 0);
           if (cand >= 10000) {
             baseBid = cand;
@@ -1497,8 +1536,11 @@ Ensure all cost numbers are pure numeric primitives.`
           if (!l) return [raw];
           const header = /^(?:scope\s+|specific\s+)?(?:excluded\s+(?:items|scope)?|exclusions?)\s*:?\s*/i.exec(l);
           const body = header ? l.slice(header[0].length) : l;
-          const isExclusionLine = !!header || /\b(?:excluded|exclude|by others|by gc|not included|carve-out)\b/i.test(body);
-          if (isExclusionLine && body.includes(";")) {
+          const isExclusionLine = !!header || /\b(?:excluded?|omitted?|by others|by gc|not included|not by us|carve-out)\b/i.test(body);
+          // Only split when multiple clauses carry their own stated amount, so
+          // "Temporary power ... — not by us; allowance $7,318" stays one clause.
+          const amountCount = (body.match(/\$\s*[0-9]/g) || []).length;
+          if (isExclusionLine && body.includes(";") && amountCount > 1) {
             const parts = body.split(";").map((s) => s.trim()).filter(Boolean);
             if (parts.length > 1) {
               const first = header ? `${header[0].trim()} ${parts[0]}`.trim() : parts[0];
@@ -1537,14 +1579,17 @@ Ensure all cost numbers are pure numeric primitives.`
             continue;
           }
 
-          const hasExclusionWord = /\b(?:excluded|exclude|by others|by gc|not included|carve-out)\b/i.test(line);
-          const isBulleted = /^[-*â€¢\d.]+\s*/.test(line);
+          const hasExclusionWord = /\b(?:excluded?|omitted?|by others|by gc|not included|not by us|carve-out)\b/i.test(line);
+          const isBulleted = /^[-*•\d.]+\s*/.test(line);
 
           if ((inExclusionSection && isBulleted) || hasExclusionWord) {
-            const cleanDesc = line.replace(/^[-*â€¢\d.]+\s*/, "").trim();
+            const cleanDesc = line.replace(/^[-*•\d.]+\s*/, "").trim();
             const descLower = cleanDesc.toLowerCase();
             const isNonExclusion =
               /\b(?:none|n\/?a|not\s+applicable|no\s+exclusions?|zero\s+exclusions?|none\s+noted|none\s+taken|all\s+(?:work|scope)\s+(?:is\s+)?included|100%\s+turnkey)\b/i.test(cleanDesc) ||
+              /\bno\s+(?:items?|scope|work|line\s*items?|services?|materials?)\s+(?:are|is|were|have\s+been)?\s*(?:excluded|omitted|by\s+others)\b/i.test(cleanDesc) ||
+              /\bnothing\s+(?:is\s+|has\s+been\s+)?(?:excluded|omitted)\b/i.test(cleanDesc) ||
+              /\bnone\s+(?:are|is|were)\s+(?:excluded|omitted)\b/i.test(cleanDesc) ||
               descLower.replace(/[^a-z]/g, "") === "none" ||
               descLower.replace(/[^a-z]/g, "") === "na";
             if (isNonExclusion) {
@@ -1564,10 +1609,40 @@ Ensure all cost numbers are pure numeric primitives.`
               cleanDesc.length > 5 &&
               !/^(?:excluded\s+items?|exclusions?|scope\s+exclusions?):\s*$/i.test(cleanDesc)
             ) {
-              const alreadyMatched = exclusions.some((e) =>
-                cleanDesc.toLowerCase().includes(e.description.toLowerCase().slice(0, 15)) ||
-                (e.canonicalCode && cleanDesc.toLowerCase().includes(e.canonicalCode.split("_").pop()?.toLowerCase() || "___"))
-              );
+              // A7CONV-R3C-3: a dynamic clause must not be stacked on top of a
+              // canonical plug for the same scope. Scope signatures catch the
+              // wording differences ("DDC controls" vs "BACnet gateway"), and a
+              // stop-worded token overlap catches everything else.
+              const overlapStop = new Set([
+                "excluded", "exclude", "omitted", "include", "included", "includes", "scope", "item",
+                "items", "work", "proposal", "allowance", "service", "services", "system", "systems",
+                "factory", "materials", "material", "labor", "pump", "pumping",
+              ]);
+              const significantTokens = (value: string) =>
+                value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9\s]/g, " ")
+                  .split(/\s+/)
+                  .filter((t) => t.length >= 4 && !overlapStop.has(t));
+              const lineTokens = significantTokens(cleanDesc);
+              const lineSignature = exclusionScopeSignature(cleanDesc);
+              const alreadyMatched = exclusions.some((e) => {
+                if (
+                  e.canonicalCode &&
+                  cleanDesc.toLowerCase().includes((e.canonicalCode.split("_").pop() || "___").toLowerCase())
+                ) {
+                  return true;
+                }
+                if (cleanDesc.toLowerCase().includes(e.description.toLowerCase().slice(0, 15))) {
+                  return true;
+                }
+                if (lineSignature && exclusionScopeSignature(e.description) === lineSignature) {
+                  return true;
+                }
+                const exTokens = significantTokens(e.description);
+                const overlap = lineTokens.filter((t) => exTokens.some((s) => s.includes(t) || t.includes(s)));
+                return overlap.length >= 2;
+              });
               if (!alreadyMatched) {
                 const costMatch = cleanDesc.match(/\$\s*([0-9,]+(?:\.[0-9]{2})?)/);
                 let costImpact = costMatch ? parseFloat(costMatch[1].replace(/,/g, "")) : 0;
@@ -1681,7 +1756,7 @@ Ensure all cost numbers are pure numeric primitives.`
           inVeSection = true;
         }
         const isAlternateLine =
-          /^(?:[-*â€¢]\s*)?(?:VE[-\w]*|Alternate[-\w]*):?/i.test(lineTrim) ||
+          /^(?:[-*•]\s*)?(?:VE[-\w]*|Alternate[-\w]*):?/i.test(lineTrim) ||
           (inVeSection && /\$(?:[0-9,]+)/.test(lineTrim));
         if (isAlternateLine) {
           const isAdd = /\badd\b|\baddition\b|\+\$/i.test(lineTrim) && !/\bdeduct\b|\bcredit\b|\bsavings\b/i.test(lineTrim);
@@ -1691,9 +1766,9 @@ Ensure all cost numbers are pure numeric primitives.`
               const deductVal = parseFloat(deductMatch[1].replace(/,/g, ""));
               if (deductVal > 0) {
                 const desc = lineTrim
-                  .replace(/^[-*â€¢]\s*/, "")
+                  .replace(/^[-*•]\s*/, "")
                   .replace(/^(?:VE[-\w]*|Alternate[-\w]*):\s*/i, "")
-                  .replace(/[-â€“â€”:]?\s*(?:deduct\s*)?\$[0-9,]+(?:\.[0-9]{2})?.*$/i, "")
+                  .replace(/[-–—:]?\s*(?:deduct\s*)?\$[0-9,]+(?:\.[0-9]{2})?.*$/i, "")
                   .trim();
                 veAlternates.push({
                   description: desc || "Value Engineering Alternate",

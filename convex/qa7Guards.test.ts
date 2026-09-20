@@ -571,3 +571,87 @@ test("A7CONV-R2C-F3: the addendum certification gate holds server-side with zero
     t.action(api.files.generatePreBidAddendum, { projectId })
   ).rejects.toThrow(/certify at least one RFI/i);
 });
+
+test("A7CONV-R3C-1: a currency-word base amount is used; an insurance limit never becomes the base bid", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "26 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Vertica Electric LLC",
+      "Base proposal amount (US dollars): 699,410.55 USD",
+      "Scope: Division 26 switchgear and distribution.",
+      "Insurance: ACORD 25 attached; $5,000,000 commercial umbrella liability included.",
+      "Lead time: 14 weeks.",
+    ].join("\n"),
+  });
+  expect(res.parsedJson?.baseBidAmount).toBeCloseTo(699_410.55, 2);
+  expect(res.parsedJson?.baseBidAmount).not.toBe(5_000_000);
+});
+
+test("A7CONV-R3C-2/3/4/5: inclusion-negatives are not exclusions; plugs are not double-charged; omitted/not-by-us clauses are kept", async () => {
+  const t = convexTest(schema, modules);
+  const noExclusions: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "22 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Northgate Plumbing LLC",
+      "Base Bid Price: $584,190.73",
+      "Scope: Division 22 plumbing rough-in is included; no items are excluded from this scope.",
+      "Lead time: 9 weeks.",
+    ].join("\n"),
+  });
+  expect(noExclusions.parsedJson?.identifiedExclusions).toEqual([]);
+
+  const dedupe: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "23 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Paceflow Mechanical LLC",
+      "Base Bid Price: $713,486.22",
+      "Scope: Division 23 HVAC and controls.",
+      "- Factory commissioning of DDC controls — omitted ($10,240)",
+      "Lead time: 22 weeks.",
+    ].join("\n"),
+  });
+  const dedupeExclusions = dedupe.parsedJson?.identifiedExclusions || [];
+  const bacnet = dedupeExclusions.filter((e: any) => /commissioning|bacnet|ddc/i.test(e.description || ""));
+  expect(bacnet.length).toBe(1);
+  expect(bacnet[0].costImpact).toBe(10_240);
+
+  const kept: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "05 12 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Northline Steel LLC",
+      "Base Bid Price: $742,300.00",
+      "2. Roof screen modifications and penthouse louver rework — omitted from this proposal.",
+      "Temporary power from the permanent service — not by us; allowance $7,318.",
+      "Lead time: 14 weeks.",
+    ].join("\n"),
+  });
+  const keptImpacts = (kept.parsedJson?.identifiedExclusions || []).map((e: any) => e.costImpact);
+  expect(keptImpacts).toContain(7_318);
+  expect(keptImpacts.length).toBeGreaterThanOrEqual(2);
+});
+
+test("A7CONV-R3C-6: inferred canonical codes never cross the package division", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "23 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Northline Mechanical LLC",
+      "Base Bid Price: $742,300.00",
+      "Chiller factory startup (certified technician) excluded ($6,425).",
+      "Lead time: 14 weeks.",
+    ].join("\n"),
+  });
+  const codes = (res.parsedJson?.identifiedExclusions || []).map((e: any) => e.canonicalCode || "");
+  expect(codes.join(" ")).not.toMatch(/CSI_22/);
+});

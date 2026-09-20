@@ -446,7 +446,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-slate-400">
-                Subcontractor inquiries answered with <strong className="text-sky-300">OpenAI & Gemini</strong> reasoning against specifications.
+                Subcontractor inquiries answered by the configured AI provider against specifications (live provider status is shown in Evals &amp; Architecture).
               </p>
               <button
                 onClick={() => setShowWhyCare(!showWhyCare)}
@@ -497,7 +497,7 @@ Each proposal submitted must include affirmative written acknowledgement of ADDE
         {showWhyCare && (
           <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 leading-relaxed bg-slate-950/60 rounded-lg p-3 border animate-in fade-in">
             <span className="font-semibold text-sky-300">Addenda Rigor: </span>
-            Verbal clarifications and disjointed email chains create over $300,000 in scope gap claims per commercial project. TradePulse Pro utilizes <strong className="text-sky-300 font-semibold">OpenAI & Gemini Flash</strong> to answer trade RFIs against contract specifications, automatically cites governing CSI articles, and compiles binding <strong className="text-emerald-300 font-semibold">CSI Addendum No. 01</strong> files stored in Convex File Storage (<code className="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded font-mono">_storage</code>).
+            Verbal clarifications and disjointed email chains create over $300,000 in scope gap claims per commercial project. TradePulse Pro uses the configured AI provider (<strong className="text-sky-300 font-semibold">OpenAI is a BYOK adapter; Gemini/Claude run when configured</strong>) to answer trade RFIs against contract specifications, automatically cites governing CSI articles, and compiles binding <strong className="text-emerald-300 font-semibold">CSI Addendum No. 01</strong> files stored in Convex File Storage (<code className="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded font-mono">_storage</code>).
           </div>
         )}
       </div>
