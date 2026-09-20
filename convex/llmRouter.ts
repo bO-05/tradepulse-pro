@@ -721,18 +721,19 @@ export function benchmarkExclusionAmount(division: string | undefined, descripti
 }
 
 /**
- * A7CONV-R8C-F1: when a proposal prices an exclusion as a percentage instead of
- * a stated dollar amount, the documented benchmark schedule applies (never a
- * silently computed percentage) and the basis is disclosed in the description.
+ * A7CONV-R8C-F1 / A7CONV-R9B: unpriced exclusions take the documented benchmark
+ * schedule. A sentence in the raw text that states a dollar amount for the same
+ * scope always wins (that binding runs afterwards), and a percentage-only basis
+ * is disclosed. Sentences are split without breaking decimals like "4.5%".
  */
-export function applyPercentageExclusionBenchmarks<T extends { description: string; costImpact: number }>(
+export function applyUnpricedExclusionBenchmarks<T extends { description: string; costImpact: number }>(
   exclusions: T[],
   proposalText: string | undefined,
   division?: string
 ): T[] {
   if (!proposalText || exclusions.length === 0) return exclusions;
   const sentences = proposalText
-    .split(/[.\n\r]+/)
+    .split(/\.(?=\s|$)|\n+/)
     .map((s) => s.trim())
     .filter(Boolean);
   const tokens = (value: string) =>
@@ -741,21 +742,26 @@ export function applyPercentageExclusionBenchmarks<T extends { description: stri
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
       .filter((t) => t.length >= 4);
+  const scopeMatches = (sentence: string, signature: string | null, exTokens: string[]) => {
+    if (signature && exclusionScopeSignature(sentence) === signature) return true;
+    const sentenceTokens = tokens(sentence);
+    return exTokens.filter((t) => sentenceTokens.some((s) => s.includes(t) || t.includes(s))).length >= 2;
+  };
   return exclusions.map((ex) => {
-    const exSignature = exclusionScopeSignature(ex.description);
+    const signature = exclusionScopeSignature(ex.description);
     const exTokens = tokens(ex.description);
-    const matched = sentences.some((sentence) => {
-      if (!/\d+(?:\.\d+)?\s*%/.test(sentence)) return false;
-      if (/\$\s*[0-9]/.test(sentence)) return false;
-      if (exSignature && exclusionScopeSignature(sentence) === exSignature) return true;
-      const sentenceTokens = tokens(sentence);
-      return exTokens.filter((t) => sentenceTokens.some((s) => s.includes(t) || t.includes(s))).length >= 2;
-    });
-    if (!matched) return ex;
+    const dollarSentence = sentences.find(
+      (sentence) => /\$\s*[0-9]/.test(sentence) && scopeMatches(sentence, signature, exTokens)
+    );
+    if (dollarSentence) return ex; // stated amount wins (bound by applyExplicitExclusionAmounts)
+    const percentSentence = sentences.find(
+      (sentence) => /\d+(?:\.\d+)?\s*%/.test(sentence) && scopeMatches(sentence, signature, exTokens)
+    );
+    const note = percentSentence ? " (proposal prices this as a percentage; benchmark applied)" : "";
     return {
       ...ex,
       costImpact: benchmarkExclusionAmount(division, ex.description),
-      description: `${ex.description} (proposal prices this as a percentage; benchmark applied)`,
+      description: note && !ex.description.includes("benchmark applied") ? `${ex.description}${note}` : ex.description,
     };
   });
 }

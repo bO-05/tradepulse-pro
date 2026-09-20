@@ -11,7 +11,7 @@ import schema from "./schema";
 import {
   sanitizeBidLevelingOutput,
   applyExplicitExclusionAmounts,
-  applyPercentageExclusionBenchmarks,
+  applyUnpricedExclusionBenchmarks,
   normalizeLeadWeeksFromText,
   detectCoiDeficiency,
 } from "./llmRouter";
@@ -720,15 +720,29 @@ test("A7CONV-R8C-1: percentage-priced exclusions take the benchmark and disclose
   ];
   const percentText =
     "TOTAL PROPOSAL PRICE: $498,700.00. Rooftop crane hoisting of the pump skid is not in our scope; the GC budget carries a proportional 3% of our contract value.";
-  const priced = applyPercentageExclusionBenchmarks(exclusions, percentText, "22 00 00");
+  const priced = applyUnpricedExclusionBenchmarks(exclusions, percentText, "22 00 00");
   expect(priced[0].costImpact).toBe(25_000);
   expect(priced[0].description).toMatch(/percentage; benchmark applied/i);
   // A stated dollar amount in the same sentence wins over the percentage rule.
-  const dollar = applyPercentageExclusionBenchmarks(
+  const dollar = applyUnpricedExclusionBenchmarks(
     exclusions,
     "Rooftop crane hoisting of the pump skid is not in our scope (3%); a stated allowance of $12,345 applies."
   );
   expect(dollar[0].costImpact).toBe(14_961);
+  // A7CONV-R9B: a dollar cap in the same sentence beats the percentage basis.
+  const cap = applyUnpricedExclusionBenchmarks(
+    [{ description: "Penthouse crane rigging is not in our scope", costImpact: 0 }],
+    "Penthouse crane rigging is not in our scope; the GC carry allowance is capped at $23,750 (approximately 4.5% of our contract value)."
+  );
+  expect(cap[0].costImpact).toBe(0);
+  expect(cap[0].description).not.toMatch(/benchmark applied/i);
+  // A7CONV-R9A-2: an unpriced Div 23 pump-skid crane takes the Div 23 benchmark.
+  const div23 = applyUnpricedExclusionBenchmarks(
+    [{ description: "Penthouse crane hoisting of the pump skid excluded", costImpact: 25_000 }],
+    "The proposal states no dollar amount for this item.",
+    "23 00 00"
+  );
+  expect(div23[0].costImpact).toBe(48_000);
 });
 
 test("A7CONV-R8A-1: a model-supplied canonical code cannot cross the package division", () => {
