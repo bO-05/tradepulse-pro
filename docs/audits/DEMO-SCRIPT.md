@@ -20,7 +20,7 @@
 | 0:00–0:15 | Landing (demo project) | Hover the KPI band and 6-stage stepper | "Commercial GCs lose six figures to hidden scope exclusions. TradePulse Pro runs the whole MEP buyout loop on Convex: scope, discover, pre-bid Q&A, leveling, clash resolution, and contracts." |
 | 0:15–0:35 | CSI Scoping | Scroll the three Division cards; point at AgentMail inboxes and mandatory inclusions | "The spec is decomposed into CSI MasterFormat packages with dedicated project inboxes. Budgets and mandatory inclusions are explicit from day one." |
 | 0:35–1:00 | Bid Leveling | Show Rosendin `$1,225,000` vs Alterman `$1,286,000`; open Alterman's exclusion breakdown; point at the KPI `Gaps Exposed +$186,000` | "Alterman looks cheaper on paper at $1.1M. ADR-0003 adds its four exclusions, lead-time delay and COI deficiency — its true cost is $1.286M. The hidden gaps surfaced are $186,000, and the KPI band, the card and the audit stream all agree." |
-| 1:00–1:20 | Bid Leveling → Award | Click **Award Compliant Winner & Generate AIA A401** (if already awarded, skip to Contracts) | "Awarding generates a 10-article AIA Document A401 agreement with retainage and liquidated damages." |
+| 1:00–1:20 | Bid Leveling → Award | Click **Award Compliant Winner (…)** (if already awarded, skip to Contracts) | "Awarding generates a 10-article A401-style subcontract draft with retainage and liquidated damages — clearly labeled as not an official AIA form." |
 | 1:20–1:40 | Subcontracts | Show `ACTIVE CONTRACTED SUM`, `LDs: $1,200/day`; open the agreement; click **Record Execution Status** only if you want to show the lock | "The register and the leveling matrix agree on the same contracted sum. Execution is recorded with an explicit 'not an e-signature' disclaimer, and the record locks." |
 | 1:40–2:00 | Scope Clash | Point at the $50,500 double-buys and $46,500 voids; (optional) click **1-Click Deduct Credit** on the VFD double-buy | "Trades double-buy equipment and leave voids. The clash engine prices both, and one click deducts the credit into the leveling matrix." |
 | 2:00–2:20 | Pre-Bid Q&A | Show the AI clarification card with Confidence %, then **Issue Legal Addendum NO. 01** | "Pre-bid RFIs are answered against the specification, PM-certified, and compiled into a filed CSI addendum stored in Convex storage." |
@@ -32,7 +32,7 @@
 1. **⚡ 60s Judge Dock** → **1-Click Run Full Autonomous Procurement Lifecycle** (~20s, writes real records).
 2. Read the dock result line: awarded bidder, agreement number, exclusions caught.
 3. Close the dock → **Bid Leveling** (awarded matrix + variance), then **Scope Clash** → **Deduct Credit**.
-4. End on **Subcontracts** (AIA A401 + contracted sum).
+4. End on **Subcontracts** (A401-style draft + contracted sum).
 
 ## Lines to avoid (the app no longer claims them)
 

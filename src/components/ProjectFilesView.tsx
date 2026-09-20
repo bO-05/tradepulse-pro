@@ -31,7 +31,7 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const SUPPORTED_UPLOAD_EXTENSIONS = [".pdf", ".dwg", ".dxf", ".txt"];
 
 const ALLOWED_EXTENSIONS_BY_TYPE: Record<string, string[]> = {
-  blueprint: [".pdf", ".dwg", ".dxf"],
+  blueprint: [".pdf", ".dwg", ".dxf", ".txt"],
   spec: [".pdf", ".txt"],
   quote_pdf: [".pdf", ".txt"],
   coi_certificate: [".pdf"],
@@ -500,7 +500,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
               {isDraggingOver ? "Drop files to upload instantly" : "Drag & Drop Drawings, Specs, Quotes, or ACORD COIs here"}
             </span>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Supports PDF, DWG, DXF, TXT • Auto-classifies document types • Instant Convex _storage upload
+              Supports PDF, DWG, DXF, TXT • Document type is the one selected above (drag & drop infers it from the file name) • Stored in Convex _storage
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { formatFullDateTime } from "../lib/datetime.ts";
@@ -20,6 +20,32 @@ import {
   Scale,
 } from "lucide-react";
 
+/**
+ * A6-13: only used when the live /llms.txt fetch fails; the panel prefers the
+ * live endpoint so its copy can never drift from what the deployment serves.
+ */
+const LLMS_FALLBACK_TEXT = `# TradePulse Pro - Autonomous Construction Procurement API
+> Autonomous Trade Subcontractor Procurement, RFQ Distribution & Real-Time Bid Leveling
+> Built for the Convex "All Gas" Hackathon 2026
+
+## Overview
+TradePulse Pro automates the $1.8T commercial construction subcontractor procurement workflow:
+1. CSI MasterFormat Trade Scoping (Div 22 Plumbing, Div 23 HVAC, Div 26 Electrical)
+2. Subcontractor Web Discovery & Licensing Verification via Firecrawl
+3. Programmatic Project Inboxes via AgentMail (@agentmail.to) - shared when the free-tier plan limit is reached, disclosed on each package
+4. Autonomous Pre-Bid RFI Clarifications via OpenAI, Gemini & Claude reasoning (OpenAI is a BYOK adapter; Gemini/Claude run when no OpenAI key is configured)
+5. Forensic Bid Leveling & Scope Gap Normalization via Claude & OpenAI (OpenAI is a BYOK adapter; Claude runs when no OpenAI key is configured)
+6. A401-style Subcontract Draft Generation (not an AIA-licensed form)
+
+## Live Endpoints
+- Web UI: https://brainy-skunk-440.convex.site
+- Webhook Ingest: POST https://brainy-skunk-440.convex.site/agentmail/webhook
+- Discoverability: GET https://brainy-skunk-440.convex.site/llms.txt
+- Reactive Engine: Convex Realtime WebSockets (Zero Polling Invariant)
+
+## Normalization Formula (ADR-0003)
+Leveled Cost = Base Bid + Sum(Scope Gaps) + Lead Time Penalty + COI Penalty - Accepted Alternates`;
+
 export const SponsorDiagnosticsView: React.FC = () => {
   // Real-World Chief Estimator Evaluation State & Telemetry
   const latestEvalData = useQuery((api as any).evals.getLatestEvalRun, {});
@@ -28,6 +54,26 @@ export const SponsorDiagnosticsView: React.FC = () => {
   const [isRunningEvals, setIsRunningEvals] = useState<boolean>(false);
   const [expandedTraceCaseId, setExpandedTraceCaseId] = useState<string | null>(null);
   const [evalStatusMsg, setEvalStatusMsg] = useState<string | null>(null);
+  // A6-13: the /llms.txt panel must show the live endpoint, not a stale snapshot.
+  const [llmsText, setLlmsText] = useState<string | null>(null);
+  const [llmsLive, setLlmsLive] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/llms.txt")
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then((text) => {
+        if (!cancelled && text.trim().length > 0) {
+          setLlmsText(text.trim());
+          setLlmsLive(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLlmsLive(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleRunExpertEvals = async () => {
     setIsRunningEvals(true);
@@ -372,7 +418,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                Case-by-Case Forensic Audit Trail & Side-by-Side Comparison
+                Case-by-Case Leveling & Extraction Audit Trail
               </h4>
               <span className="text-[11px] text-slate-400">
                 Run ID: <code className="font-mono text-slate-300">{latestEvalData.run?.runId}</code>
@@ -793,32 +839,26 @@ export const SponsorDiagnosticsView: React.FC = () => {
           </span>
         </div>
 
+        <div className="flex items-center gap-2 text-[11px]">
+          {llmsLive === true ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-300 border border-emerald-800">
+              <CheckCircle2 className="w-3 h-3" /> Live endpoint content (fetched now)
+            </span>
+          ) : llmsLive === false ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-950/70 text-amber-300 border border-amber-800">
+              ⚠ Live fetch unavailable — showing static snapshot
+            </span>
+          ) : (
+            <span className="text-slate-400">Fetching /llms.txt…</span>
+          )}
+        </div>
+
         <p className="text-xs text-slate-400 leading-relaxed">
           Exposed natively via Convex HTTP actions (<code className="text-emerald-300">convex/http.ts</code>) to allow autonomous procurement agents to query active CSI scopes programmatically.
         </p>
 
         <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs font-mono text-slate-300 leading-relaxed overflow-x-auto">
-          <pre>{`# TradePulse Pro - Autonomous Construction Procurement API
-> Autonomous Trade Subcontractor Procurement, RFQ Distribution & Real-Time Bid Leveling
-> Built for the Convex "All Gas" Hackathon 2026
-
-## Overview
-TradePulse Pro automates the $1.8T commercial construction subcontractor procurement workflow:
-1. CSI MasterFormat Trade Scoping (Div 22 Plumbing, Div 23 HVAC, Div 26 Electrical)
-2. Subcontractor Web Discovery & Licensing Verification via Firecrawl
-3. Programmatic Project Inboxes via AgentMail (@agentmail.to) — shared when the free-tier plan limit is reached, disclosed on each package
-4. Autonomous Pre-Bid RFI Clarifications via OpenAI, Gemini & Claude reasoning (OpenAI is a BYOK adapter; Gemini/Claude run when no OpenAI key is configured)
-5. Forensic Bid Leveling & Scope Gap Normalization via Claude & OpenAI (OpenAI is a BYOK adapter; Claude runs when no OpenAI key is configured)
-6. A401-style Subcontract Draft Generation (not an AIA-licensed form)
-
-## Live Endpoints
-- Web UI: https://brainy-skunk-440.convex.site
-- Webhook Ingest: POST https://brainy-skunk-440.convex.site/agentmail/webhook
-- Discoverability: GET https://brainy-skunk-440.convex.site/llms.txt
-- Reactive Engine: Convex Realtime WebSockets (Zero Polling Invariant)
-
-## Normalization Formula (ADR-0003)
-Leveled Cost = Base Bid + Sum(Scope Gaps) + Lead Time Penalty + COI Penalty - Accepted Alternates`}</pre>
+          <pre>{llmsText ?? LLMS_FALLBACK_TEXT}</pre>
         </div>
       </div>
     </div>

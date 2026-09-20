@@ -50,7 +50,7 @@ Executed 4-Pillar Boost Plan elevating TradePulse Pro to 1st-place hackathon rea
    - Made FIRECRAWL_API_KEY optional in convex.config.ts for zero-friction judge onboarding and local evaluation.
 
 2. Real Construction Contract Generation:
-   - Implemented authentic AIA Document A401 standard subcontract agreement generator in convex/agreements.ts with Articles 1 through 10, mandatory scope inclusions, 5% retainage, liquidated damages, ACORD 25 insurance riders, and legal text generation.
+   - Implemented the A401-style subcontract draft generator in convex/agreements.ts with Articles 1 through 10, mandatory scope inclusions, 10% retainage (centralized in convex/terms.ts), liquidated damages, ACORD 25 insurance riders, and legal text generation.
    - Added agreements table in convex/schema.ts with by_bid, by_package, and by_project indexes.
    - Built interactive Agreement Viewer modal in BidLevelingMatrixView with text download, print/PDF styling, execution signing, and copy to clipboard.
 
