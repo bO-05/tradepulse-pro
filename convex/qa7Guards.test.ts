@@ -504,3 +504,70 @@ test("A7CONV-A-01: an included booster pump is not priced as an exclusion just b
   const impacts = exclusions.map((e: any) => e.costImpact);
   expect(impacts).toEqual(expect.arrayContaining([18_600, 9_950, 7_400]));
 });
+
+test("A7CONV-R2A-N2: a compound INCLUDED/excluded sentence never prices the included scope", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "22 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Meridian Harbor Mechanical LLC",
+      "Base Bid Price: $842,150.13",
+      "Scope: complete Division 22 plumbing scope including a triplex booster pump system with factory certified startup INCLUDED, while crane rigging and hoisting is excluded (by others).",
+      "Lead time: 17 weeks.",
+    ].join("\n"),
+  });
+  const exclusions = res.parsedJson?.identifiedExclusions || [];
+  expect(JSON.stringify(exclusions)).not.toMatch(/BOOSTER/i);
+  expect(exclusions.map((e: any) => e.costImpact)).toContain(25_000);
+});
+
+test("A7CONV-R2C-F1: VE credit lines are alternates, not exclusions; inline exclusion lists keep every clause", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "22 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Rivergate Mechanical LLC",
+      "Base Bid Price: $700,000.00",
+      "Scope: Division 22 plumbing rough-in and fixtures.",
+      "Exclusions: crane rigging and hoisting excluded ($18,600); dewatering and pumping excluded ($11,460); seismic bracing excluded ($7,400).",
+      "Value Engineering: LED lighting alternate credit of $27,450 offered (GC to decide, not included in base price).",
+      "Lead time: 17 weeks.",
+    ].join("\n"),
+  });
+  const exclusions = res.parsedJson?.identifiedExclusions || [];
+  const exclusionText = JSON.stringify(exclusions);
+  expect(exclusionText).not.toMatch(/LED lighting|27,450/i);
+  const impacts = exclusions.map((e: any) => e.costImpact);
+  expect(impacts).toEqual(expect.arrayContaining([18_600, 11_460, 7_400]));
+  const ve = res.parsedJson?.valueEngineeringAlternates || [];
+  expect(ve.some((v: any) => v.costDeduct === 27_450)).toBe(true);
+  expect(ve.every((v: any) => v.isAccepted === false)).toBe(true);
+});
+
+test("A7CONV-R2C-F2: a negative stated base bid is never sign-flipped into a positive amount", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "22 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: PaceFlow Plumbing LLC",
+      "Base Bid Price: -$50,000.00",
+      "Scope: Division 22 plumbing rough-in.",
+      "Lead time: 12 weeks.",
+    ].join("\n"),
+  });
+  expect((res.parsedJson?.baseBidAmount ?? 0) <= 0).toBe(true);
+});
+
+test("A7CONV-R2C-F3: the addendum certification gate holds server-side with zero certified RFIs", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await makeProject(t, "A7 Addendum Gate Project");
+  await expect(
+    t.action(api.files.generatePreBidAddendum, { projectId })
+  ).rejects.toThrow(/certify at least one RFI/i);
+});

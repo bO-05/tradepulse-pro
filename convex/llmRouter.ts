@@ -1236,8 +1236,8 @@ Ensure all cost numbers are pure numeric primitives.`
       // Detect base bid amount
       let baseBid = 0;
       const headerPatterns = [
-        /(?:Base\s*(?:Bid|Proposal|Offer|Price)?(?:\s*(?:Lump\s*Sum|Price|Amount|Total|Fee))?|Lump\s*Sum(?:\s*(?:Base\s*(?:Bid|Proposal)|Quotation|Price|Amount|Proposal|Fee))?|Contract\s*(?:Sum|Amount|Price)|Subcontract\s*(?:Sum|Amount|Price)|Grand\s*Total|Bid\s*Total|Proposed\s*(?:Total|Price|Amount)|Total\s*(?:Proposed\s*(?:Price|Amount)|Lump\s*Sum|Base\s*Bid|Contract\s*Amount|Amount|Price|Quote|Cost|Fee)|Proposal\s*(?:Amount|Price)|Price|Amount)[:\s\-=]*(?:of\s*)?([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
-        /(?:we\s+propose\s+to\s+furnish|we\s+agree\s+to\s+perform)[^.\n\r]*?(?:for\s+(?:the\s+sum\s+of\b\s*)?)[:\s\-=]*([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
+        /(?:Base\s*(?:Bid|Proposal|Offer|Price)?(?:\s*(?:Lump\s*Sum|Price|Amount|Total|Fee))?|Lump\s*Sum(?:\s*(?:Base\s*(?:Bid|Proposal)|Quotation|Price|Amount|Proposal|Fee))?|Contract\s*(?:Sum|Amount|Price)|Subcontract\s*(?:Sum|Amount|Price)|Grand\s*Total|Bid\s*Total|Proposed\s*(?:Total|Price|Amount)|Total\s*(?:Proposed\s*(?:Price|Amount)|Lump\s*Sum|Base\s*Bid|Contract\s*Amount|Amount|Price|Quote|Cost|Fee)|Proposal\s*(?:Amount|Price)|Price|Amount)[:\s=]*(?:of\s*)?([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
+        /(?:we\s+propose\s+to\s+furnish|we\s+agree\s+to\s+perform)[^.\n\r]*?(?:for\s+(?:the\s+sum\s+of\b\s*)?)[:\s=]*([$â‚¬Â£CAD\s]*[0-9][0-9.,\s]*(?:[kKmMbB]|million|mil|thousand|billion)?)/i,
       ];
       for (const rx of headerPatterns) {
         const m = promptText.match(rx);
@@ -1293,8 +1293,9 @@ Ensure all cost numbers are pure numeric primitives.`
       }
 
       // Fallback: first significant monetary amount in document >= $10,000
+      // A7CONV-R2C-F2: a negative amount ("-$50,000") is never a base bid.
       if (baseBid === 0) {
-        const dollarMatches = Array.from(promptText.matchAll(/[$â‚¬Â£]\s*([0-9][0-9.,\s]{3,})/g));
+        const dollarMatches = Array.from(promptText.matchAll(/(?<![-\d])[$â‚¬Â£]\s*([0-9][0-9.,\s]{3,})/g));
         for (const dm of dollarMatches) {
           const cand = cleanNumber(dm[1], 0);
           if (cand >= 10000) {
@@ -1356,8 +1357,24 @@ Ensure all cost numbers are pure numeric primitives.`
         // keyword (e.g. a booster pump that was actually INCLUDED) produced a
         // phantom benchmark-priced exclusion.
         const exclusionWordRx = /\b(?:excluded?|by\s+others|by\s+gc|not\s+included|omitted|carve-?out)\b/i;
-        const hasExclusionNear = (keywordRx: RegExp): boolean =>
-          promptText.split(/[.;\n\r]+/).some((segment) => keywordRx.test(segment) && exclusionWordRx.test(segment));
+        const inclusionWordRx = /\b(?:included|in-house|self-perform|by\s+us|we\s+furnish)\b/i;
+        // A7CONV-R2A-N2: a keyword only counts as excluded when the exclusion
+        // word applies to it BEFORE any inclusion wording does. Compound
+        // sentences like "booster pump startup INCLUDED, while crane rigging is
+        // excluded" must not price the included scope.
+        const hasExclusionNear = (keywordRx: RegExp): boolean => {
+          for (const segment of promptText.split(/[.;\n\r]+/)) {
+            const match = keywordRx.exec(segment);
+            if (!match) continue;
+            const after = segment.slice(match.index + match[0].length, match.index + match[0].length + 90);
+            const before = segment.slice(Math.max(0, match.index - 60), match.index);
+            const exAfter = after.search(exclusionWordRx);
+            const incAfter = after.search(inclusionWordRx);
+            if (incAfter !== -1 && (exAfter === -1 || incAfter < exAfter)) continue; // scope is included
+            if (exAfter !== -1 || exclusionWordRx.test(before)) return true;
+          }
+          return false;
+        };
 
         // Trade-Specific Crane Hoisting & Rigging Plugs
         if (hasExclusionNear(/\b(?:crane|rigging|hoisting|hoist)\b/i)) {
@@ -1473,20 +1490,50 @@ Ensure all cost numbers are pure numeric primitives.`
         }
 
         // Dynamic General Exclusions Extraction for any real-world quote lines
-        const lines = promptText.split(/\r?\n/);
+        // A7CONV-R2C-F1: split inline "Exclusions: a ($x); b ($y)" lists into
+        // separate clauses so none of them are lost or collapsed.
+        const lines = promptText.split(/\r?\n/).flatMap((raw) => {
+          const l = raw.trim();
+          if (!l) return [raw];
+          const header = /^(?:scope\s+|specific\s+)?(?:excluded\s+(?:items|scope)?|exclusions?)\s*:?\s*/i.exec(l);
+          const body = header ? l.slice(header[0].length) : l;
+          const isExclusionLine = !!header || /\b(?:excluded|exclude|by others|by gc|not included|carve-out)\b/i.test(body);
+          if (isExclusionLine && body.includes(";")) {
+            const parts = body.split(";").map((s) => s.trim()).filter(Boolean);
+            if (parts.length > 1) {
+              const first = header ? `${header[0].trim()} ${parts[0]}`.trim() : parts[0];
+              return [first, ...parts.slice(1)];
+            }
+          }
+          return [raw];
+        });
         let inExclusionSection = false;
         for (const rawLine of lines) {
-          const line = rawLine.trim();
+          let line = rawLine.trim();
           if (!line) continue;
-          if (/^(?:scope\s+|specific\s+)?excluded\s+(?:items|scope)?:?/i.test(line) || /^exclusions?:?/i.test(line)) {
+          const headerMatch = line.match(/^(?:scope\s+|specific\s+)?(?:excluded\s+(?:items|scope)?|exclusions?)\s*:?\s*/i);
+          if (headerMatch) {
             inExclusionSection = true;
-            continue;
+            const rest = line.slice(headerMatch[0].length).trim();
+            if (!rest) continue;
+            // Process the inline first clause instead of dropping the whole line.
+            line = rest;
           }
           if (/(?:inclusions?|notes?|clarifications?|terms|lead|insurance|delivery|payment|warranty|value engineering)/i.test(line) && !line.includes("excluded")) {
             inExclusionSection = false;
           }
 
           if (/\b(?:lead\s*time|insurance|acord|warranty|payment\s*terms|statutory)\b/i.test(line)) {
+            continue;
+          }
+
+          // A7CONV-R2C-F1: a VE credit/deduct line ("not included in base price")
+          // is a value-engineering alternate, never a cost exclusion.
+          const looksLikeVeCreditLine =
+            /\b(?:value engineering|ve[-\s]?\d+|alternate)\b/i.test(line) &&
+            /\b(?:credit|deduct|savings)\b/i.test(line) &&
+            /\$\s*[0-9]/i.test(line);
+          if (looksLikeVeCreditLine) {
             continue;
           }
 

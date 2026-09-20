@@ -71,9 +71,31 @@ test("F3/F4: saveFileRecord accepts real storage ids and persists records", asyn
   expect(files.some((f) => f._id === fileId && f.fileName === "26_00_00_Regression_Spec.txt")).toBe(true);
 });
 
-test("F3: legal addendum generates and persists a file record with zero pending RFIs", async () => {
+test("F3/A7CONV-R2C-F3: addendum requires at least one PM-certified RFI; zero certified is refused server-side", async () => {
   const t = convexTest(schema, modules);
   const projectId = await createProject(t, "F3 Addendum Project");
+  // A7CONV-R2C-F3: zero certified RFIs must be refused by the action itself,
+  // not only by the disabled UI button.
+  await expect(t.action(api.files.generatePreBidAddendum, { projectId })).rejects.toThrow(/certify at least one/i);
+
+  // With one PM-certified RFI and zero pending RFIs, the legal addendum generates.
+  const packageId = await createPackage(t, projectId);
+  const contractorId = await createContractor(t, packageId);
+  await t.run(
+    async (ctx) =>
+      await ctx.db.insert("conversations", {
+        tradePackageId: packageId,
+        contractorId,
+        threadId: "f3-thread",
+        inboundSubject: "F3 subject",
+        inboundQuestion: "F3 question?",
+        autonomousReply: "F3 reply.",
+        confidenceScore: 0.98,
+        status: "clarified",
+        pmCertifiedAt: Date.now(),
+        timestamp: Date.now(),
+      })
+  );
   const result: any = await t.action(api.files.generatePreBidAddendum, { projectId });
   expect(result.success).toBe(true);
   expect(result.storageId).toBeTruthy();

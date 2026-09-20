@@ -499,7 +499,10 @@ export const handleBidProcessing = internalAction({
       coiComplianceStatus: effectiveCoiStatus,
       coiPenalty: effectiveCoiPenalty,
       leveledTotalCost: calculatedLeveledCost,
-      levelingProvider: `${llmResult.provider || "deterministic-fallback"} ${llmResult.model || ""}`.trim(),
+      levelingProvider:
+        llmResult.provider === "OpenAI-SimulationEngine"
+          ? "Deterministic Engine (offline fallback — no model call)"
+          : `${llmResult.provider || "deterministic-fallback"} ${llmResult.model || ""}`.trim(),
     });
     } catch (bidErr: any) {
       const message = bidErr?.message || String(bidErr);

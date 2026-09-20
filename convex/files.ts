@@ -418,6 +418,14 @@ async function doExtractBid(
     return { success: false, error: "No readable proposal text was provided." };
   }
 
+  // A7CONV-R2C-F2: a negative stated base bid must be refused, never sign-flipped.
+  if (/(?:base\s*(?:bid|price|proposal|amount)?|contract\s*sum|lump\s*sum)[^\n\r]{0,24}?-\s*\$?\s*[0-9]/i.test(proposalText)) {
+    return {
+      success: false,
+      error: "The proposal states a negative base bid. Correct the proposal before ingesting.",
+    };
+  }
+
   // 1. Forensic reasoning via token-optimized LLM router
   const reasoningResult: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
     taskType: "bid_leveling",
@@ -591,7 +599,10 @@ async function doExtractBid(
     coiPenalty,
     leveledTotalCost: leveledTotal,
     sourceFileId: args.fileId,
-    levelingProvider: `${reasoningResult.provider || "unknown"} ${reasoningResult.model || ""}`.trim(),
+    levelingProvider:
+      reasoningResult.provider === "OpenAI-SimulationEngine"
+        ? "Deterministic Engine (offline fallback — no model call)"
+        : `${reasoningResult.provider || "unknown"} ${reasoningResult.model || ""}`.trim(),
   });
 
   // Update contractor rfqStatus to "bid_received"
@@ -652,6 +663,13 @@ async function doGeneratePreBidAddendum(
   if (certificationResult.pending.length > 0) {
     throw new Error(
       `PM certification is required before issuing a binding addendum. Review ${certificationResult.pending.length} pending RFI(s).`
+    );
+  }
+  // A7CONV-R2C-F3: the certification gate must hold server-side even with zero
+  // RFIs, otherwise the action files a "legally binding" addendum with no basis.
+  if (certificationResult.clarified.length === 0) {
+    throw new Error(
+      "PM certification is required before issuing a binding addendum. Certify at least one RFI (Approve for Addendum) first."
     );
   }
   const conversations = certificationResult.clarified;
