@@ -505,7 +505,7 @@ Audited the live deployment against audit 4 (F1-F12) plus 18 independent agent Q
 
 1. Data durability and truth (F1-F3, F12):
    - RFIs are persisted as `pending_analysis` inside the submit mutation before any LLM work; analysis failures write `failed_analysis` with an inline error and a Retry action that re-queues the stored text; live verified pending at 2.2s / clarified at 22.5s (was 40.7s with no row until completion).
-   - `computeProcurementMetrics` now derives the Leveled Buyout caption and a `varianceIsLeveled` flag so the compact strip and expanded cards say `budget estimates only` / `Budget vs scope estimate (not bid-based)` until real bids exist; the demo triple-check reconciliation still holds (,250,000 budget, ,918,500 buyout, +,500 7.8%, +,000 gaps).
+   - `computeProcurementMetrics` now derives the Leveled Buyout caption and a `varianceIsLeveled` flag so the compact strip and expanded cards say `budget estimates only` / `Budget vs scope estimate (not bid-based)` until real bids exist; the demo triple-check reconciliation still holds ($4,250,000 budget, $3,918,500 buyout, +$331,500 7.8%, +$186,000 gaps).
    - New Project uses placeholders with explicit budget/duration validation (typed values persist exactly; oversize budgets show a visible ceiling message); `Buyout` now means the dollar forecast while award counters are `Subcontracts x/y Awarded`.
 
 2. Workflow integrity and legal-draft honesty (F4-F9, FIX-NEW):
