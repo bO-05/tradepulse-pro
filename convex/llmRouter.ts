@@ -612,8 +612,19 @@ export function sanitizeBidLevelingOutput(
  */
 export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: string | undefined): number {
   if (!proposalText) return modelWeeks;
-  const hasWeekStatement = /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?\d+(?:\.\d+)?\s*weeks?/i.test(proposalText);
-  if (hasWeekStatement) return modelWeeks;
+  // A7CONV-R5A-1: a stated lead time in the text always wins over the model's
+  // number, so a model-returned 0 can never erase "lead time: 12 weeks".
+  const weekMatch =
+    proposalText.match(
+      /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?(\d+(?:\.\d+)?)\s*weeks?/i
+    ) ||
+    proposalText.match(
+      /(\d+(?:\.\d+)?)[\s-]*(?:week|wk)s?\s*(?:lead|delivery|procurement|fabrication|turnaround)/i
+    );
+  if (weekMatch) {
+    const weeks = parseFloat(weekMatch[1]);
+    if (Number.isFinite(weeks) && weeks > 0 && weeks <= 520) return Math.round(weeks);
+  }
   const monthMatch = proposalText.match(
     /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?(\d+(?:\.\d+)?)\s*months?/i
   );
@@ -1590,9 +1601,23 @@ Ensure all cost numbers are pure numeric primitives.`
           return [raw];
         });
         let inExclusionSection = false;
+        let lastExclusionIndex: number | null = null;
         for (const rawLine of lines) {
           let line = rawLine.trim();
           if (!line) continue;
+          // A7CONV-R5C-1: a bare amount on the line after a bulleted exclusion
+          // belongs to that exclusion (numbered-list proposal format).
+          const bareAmount = line.match(/^\$?\s*([0-9][0-9,]*(?:\.[0-9]{2})?)\s*$/);
+          if (bareAmount && lastExclusionIndex !== null) {
+            const amount = Number(bareAmount[1].replace(/,/g, ""));
+            if (Number.isFinite(amount) && amount > 0) {
+              exclusions[lastExclusionIndex].costImpact = amount;
+              continue;
+            }
+          }
+          // A bare amount only attaches to the immediately preceding emitted
+          // exclusion; any other line breaks the attachment.
+          lastExclusionIndex = null;
           const headerMatch = line.match(/^(?:scope\s+|specific\s+)?(?:excluded\s+(?:items|scope)?|exclusions?)\s*:?\s*/i);
           if (headerMatch) {
             inExclusionSection = true;
@@ -1728,6 +1753,7 @@ Ensure all cost numbers are pure numeric primitives.`
                   costImpact,
                   severity,
                 });
+                lastExclusionIndex = exclusions.length - 1;
               }
             }
           }
@@ -1773,6 +1799,8 @@ Ensure all cost numbers are pure numeric primitives.`
         (lower.includes("umbrella") && (lower.includes("excluded") || lower.includes("not included") || lower.includes("not provided"))) ||
         lower.includes("deficiency detected") ||
         lower.includes("insurance deficiency") ||
+        lower.includes("waiver of subrogation excluded") ||
+        lower.includes("subrogation not provided") ||
         lower.includes("standard statutory limits only");
 
       const hasAffirmativeCompliance =

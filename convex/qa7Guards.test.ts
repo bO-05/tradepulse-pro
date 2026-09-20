@@ -668,7 +668,37 @@ test("A7CONV-R4C-1: a VE deduct never overwrites a stated exclusion allowance", 
 
 test("A7CONV-R4C-2: month-based lead times convert deterministically at 4.33 weeks/month", () => {
   expect(normalizeLeadWeeksFromText(20, "Equipment lead time 5 months from notice to proceed.")).toBe(22);
-  expect(normalizeLeadWeeksFromText(20, "Equipment lead time 5 months (about 22 weeks) from notice.")).toBe(20);
+  expect(normalizeLeadWeeksFromText(20, "Equipment lead time 5 months (about 22 weeks) from notice.")).toBe(22);
   expect(normalizeLeadWeeksFromText(17, "Lead time 17 weeks from NTP.")).toBe(17);
   expect(normalizeLeadWeeksFromText(12, "No schedule statement.")).toBe(12);
+  // A7CONV-R5A-1: a model-returned 0 can never erase a stated week count.
+  expect(normalizeLeadWeeksFromText(0, "Material lead time: 12 weeks.")).toBe(12);
+  expect(normalizeLeadWeeksFromText(0, "20-week lead time for switchgear.")).toBe(20);
+});
+
+test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "26 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Meridian Electric LLC",
+      "Base Bid Price: $688,000.00",
+      "EXCLUSIONS:",
+      "1. Temporary power distribution board",
+      "$9,250",
+      "2. UL 1479 firestopping at floor penetrations — excluded (by others)",
+      "$22,000",
+      "Insurance: Waiver of subrogation excluded.",
+      "Lead time: 4 weeks (expedited).",
+    ].join("\n"),
+  });
+  const exclusions = res.parsedJson?.identifiedExclusions || [];
+  const tempPower = exclusions.find((e: any) => /temporary power/i.test(e.description || ""));
+  expect(tempPower?.costImpact).toBe(9_250);
+  const firestop = exclusions.find((e: any) => /firestop/i.test(e.description || ""));
+  expect(firestop?.costImpact).toBe(22_000);
+  expect(res.parsedJson?.coiComplianceStatus).toBe("deficiency_detected");
+  expect(res.parsedJson?.coiPenalty).toBe(15_000);
 });
