@@ -184,7 +184,7 @@ const UNION_OR_ASSOCIATION_HOST_RX = /(?:^|\.)(?:ibew|neca|smacna|liuna)\d*\.(?:
 const NON_COMPANY_PATH_RX =
   /\/(?:contractor|member|business|vendor|company)?-?director(?:y|ies)(?:\/|$)|(?:^|\/)(?:permits?|licensing|regulations?|ordinances?|statutes?)(?:\/|$)|(?:^|\/)(?:blog|news|articles?|resources)(?:\/|$)/i;
 
-function isGovernmentOrAssociationHost(url: string | undefined): boolean {
+export function isGovernmentOrAssociationHost(url: string | undefined): boolean {
   const host = hostOf(url);
   if (!host) return false;
   return (
@@ -194,7 +194,7 @@ function isGovernmentOrAssociationHost(url: string | undefined): boolean {
   );
 }
 
-function isNonCompanyPage(url: string | undefined): boolean {
+export function isNonCompanyPage(url: string | undefined): boolean {
   if (!url) return false;
   try {
     const path = new URL(url).pathname;

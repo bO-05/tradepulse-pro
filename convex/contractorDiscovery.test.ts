@@ -1,5 +1,11 @@
 import { expect, test } from "vitest";
-import { looksLikeCompanyName, nameMatchesDomain, sanitizeContractorCompanyName } from "./contractorDiscovery";
+import {
+  isGovernmentOrAssociationHost,
+  isNonCompanyPage,
+  looksLikeCompanyName,
+  nameMatchesDomain,
+  sanitizeContractorCompanyName,
+} from "./contractorDiscovery";
 
 test("F8: mid-sentence SEO fragments are rejected, not stored as company names", () => {
   // The exact audit example, produced by stripping the brand suffix at the first hyphen.
@@ -80,4 +86,25 @@ test("A6-27: a contractor record must agree with the domain it cites", () => {
   expect(nameMatchesDomain("Contractor Directory", "https://www.ibew48.com/contractor-directory/")).toBe(false);
   // No URL at all cannot be attributed.
   expect(nameMatchesDomain("Rosendin Electric, Inc.", "")).toBe(false);
+});
+
+// A6-27: the exact audited URLs are rejected as non-company sources.
+test("A6-27: government, union and directory URLs are rejected", () => {
+  expect(isGovernmentOrAssociationHost("https://www.portland.gov/code/26/all")).toBe(true);
+  expect(isGovernmentOrAssociationHost("https://www.oregon.gov/bcd/licensing/pages/index.aspx")).toBe(true);
+  expect(isGovernmentOrAssociationHost("https://secure.sos.state.or.us/oard/displayDivisionRules.action")).toBe(true);
+  expect(isGovernmentOrAssociationHost("https://www.ibew48.com/contractor-directory/")).toBe(true);
+  expect(isGovernmentOrAssociationHost("https://pels.texas.gov/")).toBe(true);
+  expect(isGovernmentOrAssociationHost("https://www.rosendin.com/")).toBe(false);
+  expect(isGovernmentOrAssociationHost("https://heinz-mech.com/")).toBe(false);
+
+  expect(isNonCompanyPage("https://www.ibew48.com/contractor-directory/")).toBe(true);
+  expect(isNonCompanyPage("https://www.oregon.gov/bcd/licensing/pages/index.aspx")).toBe(true);
+  // The portland.gov code page is rejected by the host rule, not the path rule.
+  expect(isNonCompanyPage("https://www.portland.gov/code/26/all")).toBe(false);
+  expect(isGovernmentOrAssociationHost("https://www.portland.gov/code/26/all")).toBe(true);
+  expect(isNonCompanyPage("https://example.com/permits/")).toBe(true);
+  expect(isNonCompanyPage("https://example.com/blog/hvac-tips")).toBe(true);
+  expect(isNonCompanyPage("https://www.rosendin.com/projects/")).toBe(false);
+  expect(isNonCompanyPage("https://heinz-mech.com/services/hvac/")).toBe(false);
 });
