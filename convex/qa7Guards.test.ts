@@ -11,6 +11,7 @@ import schema from "./schema";
 import {
   sanitizeBidLevelingOutput,
   applyExplicitExclusionAmounts,
+  applyPercentageExclusionBenchmarks,
   normalizeLeadWeeksFromText,
   detectCoiDeficiency,
 } from "./llmRouter";
@@ -711,6 +712,49 @@ test("A7CONV-R7C-1/2/3: space-separated amounts, SCHEDULE lead statements, and v
   // SCHEDULE: N weeks is a lead statement.
   expect(normalizeLeadWeeksFromText(0, "SCHEDULE: 6 weeks from notice to proceed.")).toBe(6);
   expect(normalizeLeadWeeksFromText(0, "Schedule: 20 weeks from notice to proceed.")).toBe(20);
+});
+
+test("A7CONV-R8C-1: percentage-priced exclusions take the benchmark and disclose the basis", () => {
+  const exclusions = [
+    { description: "Rooftop crane hoisting of the pump skid — not in our scope", costImpact: 14_961 },
+  ];
+  const percentText =
+    "TOTAL PROPOSAL PRICE: $498,700.00. Rooftop crane hoisting of the pump skid is not in our scope; the GC budget carries a proportional 3% of our contract value.";
+  const priced = applyPercentageExclusionBenchmarks(exclusions, percentText, "22 00 00");
+  expect(priced[0].costImpact).toBe(25_000);
+  expect(priced[0].description).toMatch(/percentage; benchmark applied/i);
+  // A stated dollar amount in the same sentence wins over the percentage rule.
+  const dollar = applyPercentageExclusionBenchmarks(
+    exclusions,
+    "Rooftop crane hoisting of the pump skid is not in our scope (3%); a stated allowance of $12,345 applies."
+  );
+  expect(dollar[0].costImpact).toBe(14_961);
+});
+
+test("A7CONV-R8A-1: a model-supplied canonical code cannot cross the package division", () => {
+  const res = sanitizeBidLevelingOutput(
+    {
+      baseBidAmount: 500_000,
+      longLeadEquipmentWeeks: 10,
+      identifiedExclusions: [
+        { canonicalCode: "CSI_22_CRANE", description: "Chiller crane pick excluded", costImpact: 48_000, severity: "critical" },
+      ],
+    },
+    { division: "23 00 00" }
+  );
+  expect(res.identifiedExclusions[0].costImpact).toBe(48_000);
+  expect(res.identifiedExclusions[0].canonicalCode).toBeUndefined();
+  const sameDiv = sanitizeBidLevelingOutput(
+    {
+      baseBidAmount: 500_000,
+      longLeadEquipmentWeeks: 10,
+      identifiedExclusions: [
+        { canonicalCode: "CSI_23_CRANE", description: "Chiller crane pick excluded", costImpact: 48_000, severity: "critical" },
+      ],
+    },
+    { division: "23 00 00" }
+  );
+  expect(sameDiv.identifiedExclusions[0].canonicalCode).toBe("CSI_23_CRANE");
 });
 
 test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {

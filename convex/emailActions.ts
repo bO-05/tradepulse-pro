@@ -1,7 +1,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
+import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, applyPercentageExclusionBenchmarks, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
 import { sendAgentmailMessage } from "./agentmailApi";
 import { COI_DEFICIENCY_PENALTY, leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
@@ -455,7 +455,11 @@ export const handleBidProcessing = internalAction({
     bidData = sanitizeBidLevelingOutput(bidData, { division: tradePkg?.csiDivision });
     if (Array.isArray(bidData?.identifiedExclusions)) {
       // A6-54 class fix: stated exclusion amounts win over benchmark rates.
-      bidData.identifiedExclusions = applyExplicitExclusionAmounts(bidData.identifiedExclusions, args.text);
+      bidData.identifiedExclusions = applyPercentageExclusionBenchmarks(
+        applyExplicitExclusionAmounts(bidData.identifiedExclusions, args.text),
+        args.text,
+        tradePkg?.csiDivision
+      );
     }
     // A7CONV-R6C-2: the proposal text is the source of truth for a stated COI deficiency.
     if (detectCoiDeficiency(args.text)) {

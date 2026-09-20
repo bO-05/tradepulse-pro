@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
+import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, applyPercentageExclusionBenchmarks, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
@@ -571,7 +571,11 @@ async function doExtractBid(
   const lineItems = (parsed?.lineItems && parsed.lineItems.length > 0)
     ? parsed.lineItems
     : [{ item: "Base Commercial Scope", unit: "LS", quantity: 1, unitCost: baseBid, totalCost: baseBid }];
-  const exclusions = applyExplicitExclusionAmounts(parsed?.identifiedExclusions ?? [], proposalText);
+  const exclusions = applyPercentageExclusionBenchmarks(
+    applyExplicitExclusionAmounts(parsed?.identifiedExclusions ?? [], proposalText),
+    proposalText,
+    tradePackage.csiDivision
+  );
   const veAlternates = parsed?.valueEngineeringAlternates ?? [];
   const leadWeeks = normalizeLeadWeeksFromText(
     parsed?.longLeadEquipmentWeeks ?? 12,

@@ -539,10 +539,12 @@ export function sanitizeBidLevelingOutput(
         } else if (text.includes("BOOSTER") || text.includes("STARTUP")) {
           code = "CSI_22_BOOSTER_STARTUP";
         }
-        const inferredDivision = code && code.startsWith("CSI_") ? code.split("_")[1] : "";
-        if (inferredDivision && ["22", "23", "26"].includes(divisionPrefix) && inferredDivision !== divisionPrefix) {
-          code = undefined;
-        }
+      }
+      // A7CONV-R8A-1: also validate a model-supplied canonical code against the
+      // package division, not just codes inferred from wording.
+      const resolvedDivision = code && code.startsWith("CSI_") ? code.split("_")[1] : "";
+      if (resolvedDivision && ["22", "23", "26"].includes(divisionPrefix) && resolvedDivision !== divisionPrefix) {
+        code = undefined;
       }
 
       identifiedExclusions.push({
@@ -687,6 +689,75 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
     lower.includes("umbrella included") ||
     lower.includes("subrogation included");
   return !affirmative;
+}
+
+/** Benchmark schedule for unpriced exclusions, keyed by scope signature. */
+export function benchmarkExclusionAmount(division: string | undefined, description: string): number {
+  const prefix = String(division || "").trim().slice(0, 2);
+  switch (exclusionScopeSignature(description)) {
+    case "CRANE":
+      return prefix === "23" ? 48_000 : prefix === "22" ? 25_000 : 45_000;
+    case "FIRESTOP":
+      return 22_000;
+    case "SEISMIC":
+      return 55_000;
+    case "OVERTIME":
+      return 25_000;
+    case "TAB":
+      return 28_000;
+    case "BACNET":
+      return 18_000;
+    case "VIBRATION":
+      return 14_000;
+    case "CORE":
+      return 16_000;
+    case "BACKFLOW":
+      return 8_500;
+    case "BOOSTER":
+      return 12_000;
+    default:
+      return 15_000;
+  }
+}
+
+/**
+ * A7CONV-R8C-F1: when a proposal prices an exclusion as a percentage instead of
+ * a stated dollar amount, the documented benchmark schedule applies (never a
+ * silently computed percentage) and the basis is disclosed in the description.
+ */
+export function applyPercentageExclusionBenchmarks<T extends { description: string; costImpact: number }>(
+  exclusions: T[],
+  proposalText: string | undefined,
+  division?: string
+): T[] {
+  if (!proposalText || exclusions.length === 0) return exclusions;
+  const sentences = proposalText
+    .split(/[.\n\r]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const tokens = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length >= 4);
+  return exclusions.map((ex) => {
+    const exSignature = exclusionScopeSignature(ex.description);
+    const exTokens = tokens(ex.description);
+    const matched = sentences.some((sentence) => {
+      if (!/\d+(?:\.\d+)?\s*%/.test(sentence)) return false;
+      if (/\$\s*[0-9]/.test(sentence)) return false;
+      if (exSignature && exclusionScopeSignature(sentence) === exSignature) return true;
+      const sentenceTokens = tokens(sentence);
+      return exTokens.filter((t) => sentenceTokens.some((s) => s.includes(t) || t.includes(s))).length >= 2;
+    });
+    if (!matched) return ex;
+    return {
+      ...ex,
+      costImpact: benchmarkExclusionAmount(division, ex.description),
+      description: `${ex.description} (proposal prices this as a percentage; benchmark applied)`,
+    };
+  });
 }
 
 /**
@@ -903,7 +974,7 @@ CRITICAL FORENSIC LEVELING RULES:
 1. ONLY identify exclusions that are EXPLICITLY stated as excluded, omitted, or "by others" in the proposal text. If the proposal does NOT state an exclusion, DO NOT invent, assume, or add one. Clean compliant proposals with no exclusions must return an empty array: "identifiedExclusions": [].
 2. Do NOT include insurance, ACORD 25, or statutory coverage qualifications in identifiedExclusions. Insurance deficiencies belong strictly under coiComplianceStatus ("deficiency_detected") and coiPenalty (15000). Only physical construction trade scope exclusions belong in identifiedExclusions.
 3. Extract the long-lead equipment duration as an integer number of weeks in "longLeadEquipmentWeeks". Report it exactly as stated in the proposal (for example "17 weeks" -> 17). Do NOT compute any dollar penalty; the application computes the schedule penalty from the extracted weeks and the GC-owned division baseline (Division 26: 12 weeks; Division 22/23: 16 weeks). Never invent or adjust a week count.
-4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode. When the proposal DOES state a dollar amount for an exclusion (for example "crane rigging excluded ($18,600)"), use that stated amount verbatim as costImpact � never substitute a benchmark rate for a stated amount. Benchmark schedule when no amount is stated:
+4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode. When the proposal DOES state a dollar amount for an exclusion (for example "crane rigging excluded ($18,600)"), use that stated amount verbatim as costImpact � never substitute a benchmark rate for a stated amount. If an exclusion is priced as a PERCENTAGE of the contract value instead of a dollar amount, return costImpact 0 and keep the percentage wording in the description; never convert a percentage into a dollar figure. Benchmark schedule when no amount is stated:
    Division 26 Electrical:
    - Penthouse crane rigging/hoisting (CSI_26_CRANE): 45000
    - UL 1479 floor/wall penetration firestopping (CSI_26_FIRESTOP): 22000
