@@ -31,7 +31,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { Bid, TradePackage, Agreement, Contractor, ScopeExclusion, ValueEngineeringAlternate } from "../types.ts";
 import { extractTextFromPdfStream } from "../standaloneStore.ts";
-import { getDeceptiveBidIds, getSuspiciouslyLowBidIds } from "../leveling.ts";
+import { getDeceptiveBidIds, getSuspiciouslyLowBidIds, leadPenaltyArithmetic, leadTargetWeeksFor } from "../leveling.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useDialogFocus, useEscapeToClose } from "../lib/useDialogFocus.ts";
 import { printContractText } from "../lib/printContract.ts";
@@ -721,7 +721,7 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 CSI {currentPackage.csiDivision}
               </span>
               <h2 className="text-lg font-bold text-white tracking-tight">
-                Real-Time Forensic Bid Leveling Matrix
+                Real-Time Bid Leveling Matrix
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1137,9 +1137,14 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   </td>
                   {sortedBids.map((bid) => (
                     <td key={bid._id} className="px-3 py-2 border-l border-slate-800 align-top">
-                      <div className="text-slate-200 font-medium text-xs">{bid.longLeadEquipmentWeeks} weeks</div>
+                      <div className="text-slate-200 font-medium text-xs">
+                        {bid.longLeadEquipmentWeeks} weeks
+                        <span className="text-slate-400 font-normal"> vs {leadTargetWeeksFor(bid, currentPackage?.csiDivision)}-wk baseline</span>
+                      </div>
                       <div className={`font-mono text-[10px] font-semibold mt-0.5 ${bid.leadTimePenalty > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                        {bid.leadTimePenalty > 0 ? `+$${bid.leadTimePenalty.toLocaleString()} penalty` : "$0 (Within Schedule)"}
+                        {bid.leadTimePenalty > 0
+                          ? leadPenaltyArithmetic(bid, currentPackage?.csiDivision)
+                          : `$0 (${leadPenaltyArithmetic(bid, currentPackage?.csiDivision)})`}
                       </div>
                     </td>
                   ))}
@@ -1406,10 +1411,10 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                     <div className="flex items-center justify-between text-slate-300 text-[11px]">
                       <span className="flex items-center gap-1.5 text-slate-400">
                         <Clock className="w-3.5 h-3.5 text-sky-400" />
-                        Lead Time ({bid.longLeadEquipmentWeeks} wks):
+                        Lead Time ({bid.longLeadEquipmentWeeks} wks vs {leadTargetWeeksFor(bid, currentPackage?.csiDivision)}-wk baseline):
                       </span>
                       <span className={`font-mono font-semibold ${bid.leadTimePenalty > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                        {bid.leadTimePenalty > 0 ? `+$${bid.leadTimePenalty.toLocaleString()}` : "$0 (On Track)"}
+                        {bid.leadTimePenalty > 0 ? leadPenaltyArithmetic(bid, currentPackage?.csiDivision) : `$0 (${leadPenaltyArithmetic(bid, currentPackage?.csiDivision)})`}
                       </span>
                     </div>
 
@@ -1616,6 +1621,8 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 </label>
                 {contractors.length > 0 ? (
                   <select
+                    id="ingest-contractor-select"
+                    name="ingestContractorId"
                     aria-label="Subcontractor or bidder for this proposal"
                     value={ingestContractorId}
                     onChange={(e) => {
@@ -1640,6 +1647,8 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 )}
                 {(contractors.length === 0 || ingestContractorId === "new_contractor") && (
                   <input
+                    id="ingest-new-contractor-name"
+                    name="newContractorName"
                     type="text"
                     value={newContractorName}
                     aria-label="New subcontractor company name"
@@ -1680,7 +1689,10 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                 }`}
               >
                 <input
+                  id="ingest-proposal-file"
+                  name="proposalFile"
                   type="file"
+                  aria-label="Proposal file (PDF or TXT)"
                   ref={modalFileInputRef}
                   onChange={(e) => {
                     const files = e.target.files;
@@ -1726,6 +1738,8 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   Document / Proposal Filename (PDF)
                 </label>
                 <input
+                  id="ingest-document-filename"
+                  name="ingestFileName"
                   type="text"
                   aria-label="Document or proposal filename"
                   value={ingestFileName}
@@ -1764,6 +1778,8 @@ const deceptiveBidIds = getDeceptiveBidIds(bids);
                   Proposal OCR Text / Paste Direct Quote
                 </label>
                 <textarea
+                  id="ingest-quote-text"
+                  name="ingestQuoteText"
                   rows={6}
                   aria-label="Proposal OCR text or pasted quote"
                   value={ingestQuoteText}
