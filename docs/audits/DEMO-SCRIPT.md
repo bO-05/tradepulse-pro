@@ -8,7 +8,7 @@
 
 ## Pre-flight (do this before recording)
 
-1. Open the live app in a fresh incognito window at 1440×900. Confirm the demo project loads with KPI `Leveled Buyout $3,918,500` and `Buyout: 1/3 Awarded`.
+1. Open the live app in a fresh incognito window at 1440×900. Confirm the demo project loads with KPI `Leveled Buyout $3,918,500` and `Subcontracts: 1/3 Awarded`.
 2. Close the Demo Tour if it auto-opens (X on the teleprompter).
 3. Have the Judge Dock ready: top-right **⚡ 60s Judge Dock**.
 4. If you will show Q&A, submit one RFI ~60 seconds before recording so a live AI clarification is already on screen.

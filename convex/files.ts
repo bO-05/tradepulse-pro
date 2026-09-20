@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { sanitizeBidLevelingOutput, extractTextFromPdfStream } from "./llmRouter";
+import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
@@ -556,7 +556,7 @@ async function doExtractBid(
   const lineItems = (parsed?.lineItems && parsed.lineItems.length > 0)
     ? parsed.lineItems
     : [{ item: "Base Commercial Scope", unit: "LS", quantity: 1, unitCost: baseBid, totalCost: baseBid }];
-  const exclusions = parsed?.identifiedExclusions ?? [];
+  const exclusions = applyExplicitExclusionAmounts(parsed?.identifiedExclusions ?? [], proposalText);
   const veAlternates = parsed?.valueEngineeringAlternates ?? [];
   const leadWeeks = parsed?.longLeadEquipmentWeeks ?? 12;
   const leadTargetWeeks = parsed?.leadTimeTargetWeeks ?? targetWeeksForDivision(tradePackage.csiDivision);
@@ -591,6 +591,7 @@ async function doExtractBid(
     coiPenalty,
     leveledTotalCost: leveledTotal,
     sourceFileId: args.fileId,
+    levelingProvider: `${reasoningResult.provider || "unknown"} ${reasoningResult.model || ""}`.trim(),
   });
 
   // Update contractor rfqStatus to "bid_received"

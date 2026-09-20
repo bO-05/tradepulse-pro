@@ -8,7 +8,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import { sanitizeBidLevelingOutput } from "./llmRouter";
+import { sanitizeBidLevelingOutput, applyExplicitExclusionAmounts } from "./llmRouter";
 
 const modules = import.meta.glob("./**/*.ts");
 type T = ReturnType<typeof convexTest>;
@@ -460,4 +460,47 @@ test("A6-05r: the extraction sanitizer recomputes penalties deterministically pe
   expect(div22.leadTimeTargetWeeks).toBe(16);
   expect(div22.leadTimePenalty).toBe(6_000);
   expect(div22.leveledTotalCost).toBe(506_000);
+});
+
+test("A6-54 class: stated exclusion amounts win over ASPE/RSMeans benchmarks", () => {
+  const exclusions = [
+    { description: "Rooftop crane pick and rigging to cooling tower deck excluded (GC crane required)", costImpact: 48_000 },
+    { description: "UL 1479 floor and wall through-penetration rated firestopping excluded (by others)", costImpact: 22_000 },
+    { description: "IBC Section 1613 engineered structural seismic bracing excluded (by others)", costImpact: 55_000 },
+  ];
+  const text =
+    "Exclusions: crane rigging and hoisting excluded ($18,600); firestopping excluded ($9,950); seismic bracing excluded ($7,400).";
+  const priced = applyExplicitExclusionAmounts(exclusions, text);
+  expect(priced.map((e) => e.costImpact)).toEqual([18_600, 9_950, 7_400]);
+  // Unpriced exclusions keep the benchmark values (and nothing is invented).
+  const unpriced = applyExplicitExclusionAmounts(
+    [{ description: "Crane rigging and hoisting excluded", costImpact: 48_000 }],
+    "Crane rigging and hoisting excluded (by others)."
+  );
+  expect(unpriced[0].costImpact).toBe(48_000);
+  expect(applyExplicitExclusionAmounts([], text)).toEqual([]);
+});
+
+test("A7CONV-A-01: an included booster pump is not priced as an exclusion just because 'excluded' appears elsewhere", async () => {
+  const t = convexTest(schema, modules);
+  const res: any = await t.action(internal.llmRouter.executeReasoning, {
+    taskType: "bid_leveling",
+    division: "22 00 00",
+    prompt: [
+      "PROPOSAL",
+      "Subcontractor: Cascade Mechanical Contractors LLC",
+      "Base Bid Price: $613,777.13",
+      "Scope: complete Division 22 plumbing scope including a triplex booster pump system with factory certified startup.",
+      "Exclusions: crane rigging and hoisting excluded ($18,600); firestopping excluded ($9,950); seismic bracing excluded ($7,400).",
+      "Lead time: 17 weeks.",
+      "Insurance: umbrella liability endorsement excluded.",
+    ].join("\n"),
+  });
+  const exclusions = res.parsedJson?.identifiedExclusions || [];
+  const text = JSON.stringify(exclusions);
+  // The included booster-pump scope must not be fabricated into an exclusion.
+  expect(text).not.toMatch(/BOOSTER/i);
+  // Stated amounts still win over benchmarks.
+  const impacts = exclusions.map((e: any) => e.costImpact);
+  expect(impacts).toEqual(expect.arrayContaining([18_600, 9_950, 7_400]));
 });

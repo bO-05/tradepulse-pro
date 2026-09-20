@@ -899,7 +899,7 @@ Furnish and install 1600A main service switchboard, 480/277V step-down distribut
       uploadedAt: Date.now() - 3600000 * 10,
     });
 
-    // 10. Seed authentic AIA A401 Subcontract Agreement for Rosendin Electric, Inc.
+    // 10. Seed the A401-style draft subcontract for Rosendin Electric, Inc.
     const agreementNumber = "A401-2026-2601-18042";
     const agreementText = generateAiaA401AgreementText({
       agreementNumber,

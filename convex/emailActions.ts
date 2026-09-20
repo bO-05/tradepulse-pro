@@ -1,7 +1,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { cleanNumber, sanitizeBidLevelingOutput } from "./llmRouter";
+import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts } from "./llmRouter";
 import { sendAgentmailMessage } from "./agentmailApi";
 import { leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
@@ -453,6 +453,10 @@ export const handleBidProcessing = internalAction({
     }
 
     bidData = sanitizeBidLevelingOutput(bidData, { division: tradePkg?.csiDivision });
+    if (Array.isArray(bidData?.identifiedExclusions)) {
+      // A6-54 class fix: stated exclusion amounts win over benchmark rates.
+      bidData.identifiedExclusions = applyExplicitExclusionAmounts(bidData.identifiedExclusions, args.text);
+    }
 
     const effectiveBaseBid = bidData.baseBidAmount ?? 0;
     const effectiveLeadWeeks = bidData.longLeadEquipmentWeeks ?? 12;
@@ -495,6 +499,7 @@ export const handleBidProcessing = internalAction({
       coiComplianceStatus: effectiveCoiStatus,
       coiPenalty: effectiveCoiPenalty,
       leveledTotalCost: calculatedLeveledCost,
+      levelingProvider: `${llmResult.provider || "deterministic-fallback"} ${llmResult.model || ""}`.trim(),
     });
     } catch (bidErr: any) {
       const message = bidErr?.message || String(bidErr);

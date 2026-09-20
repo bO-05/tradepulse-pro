@@ -598,6 +598,64 @@ export function sanitizeBidLevelingOutput(
   };
 }
 
+/**
+ * A6-54 class fix: when the proposal states a dollar amount for an exclusion, the
+ * engine must price that stated amount, not a benchmark rate. This binds each
+ * model-identified exclusion to an explicit single-amount exclusion sentence in
+ * the raw proposal text via keyword overlap (greedy unique assignment). It never
+ * invents amounts and leaves unpriced exclusions to the benchmark schedule.
+ */
+export function applyExplicitExclusionAmounts<T extends { description: string; costImpact: number }>(
+  exclusions: T[],
+  proposalText: string | undefined
+): T[] {
+  if (!proposalText || exclusions.length === 0) return exclusions;
+  const segments = proposalText
+    .split(/[;\n]+|(?<=\.)\s+/)
+    .map((s) => s.trim())
+    .filter((s) => /\b(?:exclud|excluded|omit|omitted|by\s+others|not\s+included|by\s+gc)\b/i.test(s));
+  const explicit: Array<{ segment: string; amount: number; used: boolean }> = [];
+  for (const seg of segments) {
+    const amounts = [...seg.matchAll(/\$\s*([0-9][0-9,]*(?:\.[0-9]{2})?)/g)].map((m) =>
+      Number(m[1].replace(/,/g, ""))
+    );
+    if (amounts.length === 1 && Number.isFinite(amounts[0]) && amounts[0] > 0) {
+      explicit.push({ segment: seg, amount: amounts[0], used: false });
+    }
+  }
+  if (explicit.length === 0) return exclusions;
+  const STOP = new Set(["excluded", "exclude", "others", "included", "include", "omitted", "omit", "scope", "cost", "exclusion", "furnished"]);
+  const tokenize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length >= 4 && !STOP.has(t));
+
+  const pairs: Array<{ exIndex: number; segIndex: number; score: number }> = [];
+  exclusions.forEach((ex, exIndex) => {
+    const exTokens = tokenize(ex.description);
+    if (exTokens.length === 0) return;
+    explicit.forEach((seg, segIndex) => {
+      const segTokens = tokenize(seg.segment);
+      const score = exTokens.filter((t) => segTokens.some((s) => s.includes(t) || t.includes(s))).length;
+      if (score > 0) pairs.push({ exIndex, segIndex, score });
+    });
+  });
+  pairs.sort((a, b) => b.score - a.score);
+  const assigned = new Map<number, number>();
+  for (const pair of pairs) {
+    if (assigned.has(pair.exIndex)) continue;
+    if (explicit[pair.segIndex].used) continue;
+    explicit[pair.segIndex].used = true;
+    assigned.set(pair.exIndex, explicit[pair.segIndex].amount);
+  }
+  if (assigned.size === 0) return exclusions;
+  return exclusions.map((ex, index) =>
+    assigned.has(index) ? { ...ex, costImpact: assigned.get(index) as number } : ex
+  );
+}
+
 export function sanitizeSpecGenerationOutput(parsedJson: any): any {
   if (!parsedJson || typeof parsedJson !== "object") return parsedJson;
   const rawPackages = Array.isArray(parsedJson.packages)
@@ -707,7 +765,7 @@ CRITICAL FORENSIC LEVELING RULES:
 1. ONLY identify exclusions that are EXPLICITLY stated as excluded, omitted, or "by others" in the proposal text. If the proposal does NOT state an exclusion, DO NOT invent, assume, or add one. Clean compliant proposals with no exclusions must return an empty array: "identifiedExclusions": [].
 2. Do NOT include insurance, ACORD 25, or statutory coverage qualifications in identifiedExclusions. Insurance deficiencies belong strictly under coiComplianceStatus ("deficiency_detected") and coiPenalty (15000). Only physical construction trade scope exclusions belong in identifiedExclusions.
 3. Extract the long-lead equipment duration as an integer number of weeks in "longLeadEquipmentWeeks". Report it exactly as stated in the proposal (for example "17 weeks" -> 17). Do NOT compute any dollar penalty; the application computes the schedule penalty from the extracted weeks and the GC-owned division baseline (Division 26: 12 weeks; Division 22/23: 16 weeks). Never invent or adjust a week count.
-4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode:
+4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode. When the proposal DOES state a dollar amount for an exclusion (for example "crane rigging excluded ($18,600)"), use that stated amount verbatim as costImpact — never substitute a benchmark rate for a stated amount. Benchmark schedule when no amount is stated:
    Division 26 Electrical:
    - Penthouse crane rigging/hoisting (CSI_26_CRANE): 45000
    - UL 1479 floor/wall penetration firestopping (CSI_26_FIRESTOP): 22000
@@ -1292,8 +1350,17 @@ Ensure all cost numbers are pure numeric primitives.`
                                     (lower.includes("excluded") && !lower.includes("100% complete") && !lower.includes("100% included") && !lower.includes("are included"));
 
       if (hasExplicitExclusions) {
+        // A7CONV-A-01 class fix: a heuristic exclusion may only fire when the
+        // keyword and an exclusion word appear in the SAME sentence/line. Before
+        // this, any "excluded" anywhere in the proposal paired with a scope
+        // keyword (e.g. a booster pump that was actually INCLUDED) produced a
+        // phantom benchmark-priced exclusion.
+        const exclusionWordRx = /\b(?:excluded?|by\s+others|by\s+gc|not\s+included|omitted|carve-?out)\b/i;
+        const hasExclusionNear = (keywordRx: RegExp): boolean =>
+          promptText.split(/[.;\n\r]+/).some((segment) => keywordRx.test(segment) && exclusionWordRx.test(segment));
+
         // Trade-Specific Crane Hoisting & Rigging Plugs
-        if (lower.includes("crane") && (lower.includes("excluded") || lower.includes("gc to furnish") || lower.includes("gc to provide") || lower.includes("gc crane required") || lower.includes("by others"))) {
+        if (hasExclusionNear(/\b(?:crane|rigging|hoisting|hoist)\b/i)) {
           if (isDiv22) {
             exclusions.push({
               canonicalCode: "CSI_22_CRANE",
@@ -1319,7 +1386,7 @@ Ensure all cost numbers are pure numeric primitives.`
         }
 
         // Division 26 Electrical Exclusions
-        if ((lower.includes("firestop") || lower.includes("firestopping")) && lower.includes("excluded")) {
+        if (hasExclusionNear(/\b(?:firestop|firestopping|1479|penetration)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_26_FIRESTOP",
             description: "UL 1479 floor and wall through-penetration rated firestopping excluded (by others)",
@@ -1327,7 +1394,7 @@ Ensure all cost numbers are pure numeric primitives.`
             severity: "critical",
           });
         }
-        if (lower.includes("seismic") && lower.includes("excluded")) {
+        if (hasExclusionNear(/\b(?:seismic|bracing|1613)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_26_SEISMIC",
             description: "IBC Section 1613 engineered structural seismic bracing excluded (by others)",
@@ -1335,7 +1402,7 @@ Ensure all cost numbers are pure numeric primitives.`
             severity: "critical",
           });
         }
-        if (lower.includes("overtime") && (lower.includes("excluded") || lower.includes("straight time only"))) {
+        if (hasExclusionNear(/\b(?:overtime|premium)\b/i) || /\bstraight\s*time\s*only\b/i.test(promptText)) {
           exclusions.push({
             canonicalCode: "CSI_26_OVERTIME",
             description: "Overtime and weekend premium time excluded; base bid reflects straight time only",
@@ -1345,8 +1412,7 @@ Ensure all cost numbers are pure numeric primitives.`
         }
 
         // Division 23 HVAC Mechanical Exclusions
-        if ((lower.includes("tab") || (lower.includes("testing") && lower.includes("balancing"))) &&
-            (lower.includes("tab excluded") || lower.includes("tab report excluded") || lower.includes("balancing report excluded") || (lower.includes("balance report excluded") && !lower.includes("are included")) || (lower.includes("tab") && lower.includes("excluded") && !lower.includes("are included")))) {
+        if (hasExclusionNear(/\b(?:tab|testing|balancing|balance\s*report)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_23_TAB",
             description: "Testing, Adjusting, and Balancing (TAB) certified independent balance report excluded",
@@ -1354,7 +1420,7 @@ Ensure all cost numbers are pure numeric primitives.`
             severity: "critical",
           });
         }
-        if (lower.includes("bacnet") && (lower.includes("excluded") || lower.includes("omitted"))) {
+        if (hasExclusionNear(/\b(?:bacnet|gateway|commissioning)\b/i)) {
           if (lower.includes("field commissioning") || lower.includes("commissioning omitted")) {
             exclusions.push({
               canonicalCode: "CSI_23_BACNET",
@@ -1371,7 +1437,7 @@ Ensure all cost numbers are pure numeric primitives.`
             });
           }
         }
-        if ((lower.includes("vibration") || lower.includes("spring")) && lower.includes("excluded")) {
+        if (hasExclusionNear(/\b(?:vibration|spring|isolation)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_23_VIBRATION",
             description: "Mason Industries 2-inch spring vibration isolation hangers excluded",
@@ -1381,7 +1447,7 @@ Ensure all cost numbers are pure numeric primitives.`
         }
 
         // Division 22 Plumbing & Piping Exclusions
-        if ((lower.includes("core drilling") || lower.includes("penetration sleeves")) && lower.includes("excluded")) {
+        if (hasExclusionNear(/\b(?:core\s*drilling|penetration\s*sleeves)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_22_CORE_DRILL",
             description: "Core drilling and floor/wall penetration sleeves excluded",
@@ -1389,7 +1455,7 @@ Ensure all cost numbers are pure numeric primitives.`
             severity: "critical",
           });
         }
-        if (lower.includes("backflow") && lower.includes("excluded")) {
+        if (hasExclusionNear(/\b(?:backflow)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_22_BACKFLOW",
             description: "City of Austin municipal backflow preventer inspection certification excluded",
@@ -1397,7 +1463,7 @@ Ensure all cost numbers are pure numeric primitives.`
             severity: "minor",
           });
         }
-        if ((lower.includes("booster pump") || lower.includes("booster skid")) && lower.includes("excluded")) {
+        if (hasExclusionNear(/\b(?:booster\s*(?:pump|skid)?|booster)\b/i)) {
           exclusions.push({
             canonicalCode: "CSI_22_BOOSTER_STARTUP",
             description: "Triplex booster pump factory certified technician startup excluded",
@@ -1593,7 +1659,10 @@ Ensure all cost numbers are pure numeric primitives.`
         }
       }
 
-      const totalExclusionsCost = exclusions.reduce((acc, x) => acc + x.costImpact, 0);
+      // A6-54 class fix: prefer the proposal's stated amounts over benchmark plugs
+      // inside the deterministic engine too (the producers also enforce this).
+      const pricedExclusions = applyExplicitExclusionAmounts(exclusions, promptText);
+      const totalExclusionsCost = pricedExclusions.reduce((acc, x) => acc + x.costImpact, 0);
       const totalVeDeduct = veAlternates.reduce((acc, x) => (x.isAccepted ? acc + x.costDeduct : acc), 0);
       const leveledTotalCost = Math.max(0, baseBid + totalExclusionsCost + leadTimePenalty + coiPenalty - totalVeDeduct);
 
@@ -1651,7 +1720,7 @@ Ensure all cost numbers are pure numeric primitives.`
         subcontractorName: subName,
         baseBidAmount: baseBid,
         lineItems: dynamicLineItems,
-        identifiedExclusions: exclusions,
+        identifiedExclusions: pricedExclusions,
         valueEngineeringAlternates: veAlternates,
         longLeadEquipmentWeeks: leadWeeks,
         leadTimePenalty,

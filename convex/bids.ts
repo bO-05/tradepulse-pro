@@ -679,6 +679,8 @@ export const insertParsedBid = internalMutation({
     coiPenalty: v.number(),
     leveledTotalCost: v.number(),
     sourceFileId: v.optional(v.id("projectFiles")),
+    /** Which extraction path produced this bid (e.g. "Anthropic claude-sonnet-5" or the deterministic engine). */
+    levelingProvider: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const tradePkg = await ctx.db.get(args.tradePackageId);
@@ -807,12 +809,13 @@ export const insertParsedBid = internalMutation({
 
     if (tradePkg) {
       const exclusionsCount = args.identifiedExclusions.length;
+      const providerNote = args.levelingProvider ? ` Model path: ${args.levelingProvider}.` : "";
       await ctx.db.insert("auditLogs", {
         projectId: tradePkg.projectId,
         tradePackageId: tradePkg._id,
         eventType: "bid_leveled",
         title: `Forensic Bid Leveled: ${args.subcontractorName}`,
-        description: `Normalized proposal: Base $${baseBidAmount.toLocaleString()} → Leveled $${computedLeveledTotal.toLocaleString()} (${exclusionsCount} exclusions totaling +$${activeExclusionsCost.toLocaleString()}).`,
+        description: `Normalized proposal: Base $${baseBidAmount.toLocaleString()} → Leveled $${computedLeveledTotal.toLocaleString()} (${exclusionsCount} exclusions totaling +$${activeExclusionsCost.toLocaleString()}).${providerNote}`,
         actor: "Forensic Leveling Engine (ADR-0003)",
         timestamp: Date.now(),
       });

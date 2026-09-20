@@ -598,7 +598,8 @@ const [scannedPdfWarning, setScannedPdfWarning] = useState<string | null>(null);
       const alternates = bid.valueEngineeringAlternates || [];
       const totalVeDeduct = alternates.reduce((s, x) => (x.isAccepted ? s + x.costDeduct : s), 0);
       const topCost = sortedBids[0]?.leveledTotalCost ?? bid.leveledTotalCost;
-      const variance = index === 0 ? 0 : bid.leveledTotalCost - topCost;
+      // A7CONV-A-03: avoid float artifacts like 20722.869999999995 in the CSV.
+      const variance = index === 0 ? 0 : Math.round((bid.leveledTotalCost - topCost) * 100) / 100;
       return [
         `#${index + 1}`,
         bid.subcontractorName || "",

@@ -526,7 +526,7 @@ export const runFullProcurementCycle = mutation({
       tradePackageId: packageId,
       eventType: "rfq_dispatched",
       title: `RFQs Dispatched: Division ${tradePkg.csiDivision}`,
-      description: `Autonomous RFQs dispatched via AgentMail to verified bidders (${tradePkg.agentMailbox}).`,
+      description: `Simulated RFQ wave recorded for the demonstration lifecycle (${tradePkg.agentMailbox}); the simulation does not send email.`,
       actor: "Autonomous Procurement Engine",
       timestamp: now,
     });

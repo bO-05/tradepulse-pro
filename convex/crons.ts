@@ -147,7 +147,7 @@ export const auditContractorCompliance = internalMutation({
           projectId: project._id,
           eventType: "compliance_audit",
           title: `Cron Audit: Recorded License Status & ACORD 25 Sweep - ${project.title}`,
-          description: `Audited ${projectContractors.length} trade contractors (${pVerified} verified active, ${pFlagged} flagged). Detected ${pCoiDeficiencies} active COI insurance deficiency riders.`,
+          description: `Audited ${projectContractors.length} trade contractors (${pVerified} with recorded active/verified status, ${pFlagged} flagged). No registry lookup is performed. Detected ${pCoiDeficiencies} active COI insurance deficiency riders.`,
           actor: "Convex Compliance Auditor Cron",
           timestamp: Date.now(),
         });
