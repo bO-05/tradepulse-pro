@@ -551,7 +551,9 @@ export function sanitizeBidLevelingOutput(
         canonicalCode: code,
         description: desc,
         costImpact: impact,
-        severity: String(ex?.severity || "moderate"),
+        // A7CONV-R10A-F-SEV: severity is derived from the priced impact so two
+        // runs of the same text cannot label the same exclusion differently.
+        severity: impact >= 30000 ? "critical" : impact >= 15000 ? "moderate" : "minor",
         isWaived: Boolean(ex?.isWaived),
       });
     }
@@ -775,12 +777,14 @@ export function exclusionScopeSignature(value: string): string | null {
   const v = (value || "").toLowerCase();
   if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) return "BACNET";
   if (/crane|rigging|hoisting/.test(v)) return "CRANE";
-  if (/firestop|penetration|1479/.test(v)) return "FIRESTOP";
+  // A7CONV-R10A/R10B-F3: core drilling / sleeves are plumbing scopes; the word
+  // "penetration" alone must not classify them as firestopping.
+  if (/core|drill|sleeve/.test(v)) return "CORE";
+  if (/firestop|firestopping|1479|penetration/.test(v)) return "FIRESTOP";
   if (/seismic|bracing|1613/.test(v)) return "SEISMIC";
   if (/overtime|premium|straight\s*time/.test(v)) return "OVERTIME";
   if (/tab|balanc/.test(v)) return "TAB";
   if (/vibration|isolation|spring/.test(v)) return "VIBRATION";
-  if (/core|drill|sleeve/.test(v)) return "CORE";
   if (/backflow/.test(v)) return "BACKFLOW";
   if (/booster|startup/.test(v)) return "BOOSTER";
   return null;
@@ -799,6 +803,52 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
 ): T[] {
   if (!proposalText || exclusions.length === 0) return exclusions;
   const exclusionWordSegmentRx = /\b(?:exclud|excluded|omit|omitted|by\s+others|by\s+gc|by\s+the\s+gc|gc\s+to\s+(?:provide|furnish)|not\s+included|not\s+by\s+us|not\s+in\s+(?:our\s+)?scope)\b/i;
+  // A7CONV-R10B-F1: credit/deduct/VE lines are never exclusion amounts.
+  const veOrCreditRx = /\b(?:value engineering|ve[-\s]?\d+|alternate|credit|deduct|savings)\b/i;
+  // A7CONV-R10B-F1: a negative amount ("-$2,500") is a credit, never a cost.
+  const amountRx = /(?<![-\d])\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g;
+  // A7CONV-R10B-F2: stated amounts may be written in words.
+  const WORD_SMALL: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+    ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+    forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  };
+  const wordsToAmount = (segment: string): number | null => {
+    if (!/\b(?:dollars?|usd)\b/i.test(segment)) return null;
+    const words = segment
+      .toLowerCase()
+      .replace(/-/g, " ")
+      .replace(/[^a-z\s]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+    const dollarIndex = words.findIndex((w) => w === "dollar" || w === "dollars" || w === "usd");
+    if (dollarIndex <= 0) return null;
+    let total = 0;
+    let current = 0;
+    let found = false;
+    for (let i = Math.max(0, dollarIndex - 6); i < dollarIndex; i++) {
+      const w = words[i];
+      const small = WORD_SMALL[w];
+      if (small !== undefined) {
+        current += small;
+        found = true;
+      } else if (w === "hundred") {
+        current = (current || 1) * 100;
+        found = true;
+      } else if (w === "thousand") {
+        total += (current || 1) * 1000;
+        current = 0;
+        found = true;
+      } else if (w === "million") {
+        total += (current || 1) * 1_000_000;
+        current = 0;
+        found = true;
+      }
+    }
+    const value = total + current;
+    return found && value > 0 ? value : null;
+  };
   // A7CONV-R4C-1: re-join an orphaned amount tail ("… ; allowance: $6,120") to
   // its exclusion clause before filtering, so the stated amount stays bindable.
   const rawSegments = proposalText
@@ -808,31 +858,38 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   const joined: string[] = [];
   for (const seg of rawSegments) {
     const hasAmount = /\$\s*[0-9]/.test(seg);
+    const hasWordAmount = wordsToAmount(seg) !== null;
     const prev = joined[joined.length - 1];
-    if (!exclusionWordSegmentRx.test(seg) && hasAmount && prev && !/\$\s*[0-9]/.test(prev)) {
+    const isCredit = veOrCreditRx.test(seg);
+    if (
+      !isCredit &&
+      !exclusionWordSegmentRx.test(seg) &&
+      (hasAmount || hasWordAmount) &&
+      prev &&
+      !/\$\s*[0-9]/.test(prev) &&
+      wordsToAmount(prev) === null
+    ) {
       joined[joined.length - 1] = `${prev}; ${seg}`;
     } else {
       joined.push(seg);
     }
   }
-  const segments = joined.filter((s) => exclusionWordSegmentRx.test(s));
+  const segments = joined.filter((s) => exclusionWordSegmentRx.test(s) && !veOrCreditRx.test(s));
   const explicit: Array<{ segment: string; amount: number; used: boolean }> = [];
   for (const seg of segments) {
-    // A7CONV-R4C-1: a VE/alternate deduct is never an exclusion amount, even
-    // when its wording ("omit ... deduct") matches an exclusion keyword.
-    if (
-      /\b(?:value engineering|ve[-\s]?\d+|alternate)\b/i.test(seg) &&
-      /\b(?:deduct|credit|savings)\b/i.test(seg)
-    ) {
-      continue;
-    }
     // A7CONV-R7C-1: support space-separated thousands ("$ 12 345") as well as
-    // comma-separated amounts.
-    const amounts = [...seg.matchAll(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g)].map((m) =>
-      Number(m[1].replace(/[,\s]/g, ""))
-    );
+    // comma-separated amounts; negatives are credits and never bind.
+    const amounts = [...seg.matchAll(amountRx)].map((m) => Number(m[1].replace(/[,\s]/g, "")));
     if (amounts.length === 1 && Number.isFinite(amounts[0]) && amounts[0] > 0) {
       explicit.push({ segment: seg, amount: amounts[0], used: false });
+      continue;
+    }
+    // A7CONV-R10B-F2: words-only stated amounts ("thirty-three thousand dollars").
+    if (amounts.length === 0) {
+      const wordAmount = wordsToAmount(seg);
+      if (wordAmount !== null) {
+        explicit.push({ segment: seg, amount: wordAmount, used: false });
+      }
     }
   }
   if (explicit.length === 0) return exclusions;

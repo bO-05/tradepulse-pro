@@ -12,6 +12,7 @@ import {
   sanitizeBidLevelingOutput,
   applyExplicitExclusionAmounts,
   applyUnpricedExclusionBenchmarks,
+  benchmarkExclusionAmount,
   normalizeLeadWeeksFromText,
   detectCoiDeficiency,
 } from "./llmRouter";
@@ -769,6 +770,36 @@ test("A7CONV-R8A-1: a model-supplied canonical code cannot cross the package div
     { division: "23 00 00" }
   );
   expect(sameDiv.identifiedExclusions[0].canonicalCode).toBe("CSI_23_CRANE");
+});
+
+test("A7CONV-R10A/R10B: core-drill scopes price as CORE, credits never bind, word amounts bind", () => {
+  // The word "penetration" must not turn core drilling into firestopping.
+  expect(benchmarkExclusionAmount("22 00 00", "Core drilling and penetration sleeves excluded")).toBe(16_000);
+  expect(benchmarkExclusionAmount("26 00 00", "UL 1479 floor penetration firestopping excluded")).toBe(22_000);
+  // A negative credit line never becomes an exclusion cost.
+  const credit = applyExplicitExclusionAmounts(
+    [{ description: "Penthouse crane rigging is excluded", costImpact: 0 }],
+    "Penthouse crane rigging is excluded. Credit for salvaged switchgear units: -$2,500."
+  );
+  expect(credit[0].costImpact).toBe(0);
+  // A stated amount written in words binds.
+  const words = applyExplicitExclusionAmounts(
+    [{ description: "Crane rigging is excluded", costImpact: 0 }],
+    "Crane rigging is excluded; the GC carry allowance is thirty-three thousand dollars."
+  );
+  expect(words[0].costImpact).toBe(33_000);
+  // Severity labels are derived from impact, not the model.
+  const severity = sanitizeBidLevelingOutput(
+    {
+      baseBidAmount: 100_000,
+      longLeadEquipmentWeeks: 8,
+      identifiedExclusions: [
+        { description: "Small cleanup item excluded", costImpact: 5_000, severity: "critical" },
+      ],
+    },
+    { division: "26 00 00" }
+  );
+  expect(severity.identifiedExclusions[0].severity).toBe("minor");
 });
 
 test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {
