@@ -25,6 +25,21 @@ export const LEAD_TIME_PENALTY_PER_WEEK = 6000;
 export const LEAD_TIME_TARGET_WEEKS_ELECTRICAL = 12;
 export const LEAD_TIME_TARGET_WEEKS_MECHANICAL = 16;
 
+/**
+ * DECISION (A6-05r/A6-54): the lead-time baseline is a GC-owned schedule
+ * milestone, not a bidder-stated number. Division 26 electrical switchgear uses
+ * a 12-week milestone; Division 22 plumbing and Division 23 HVAC equipment use a
+ * 16-week milestone. Both the LLM extraction path and the deterministic fallback
+ * read the target from here, and the UI renders which target was used, so the
+ * same bid can never be priced against two different baselines.
+ */
+export function targetWeeksForDivision(division: string | undefined | null): number {
+  const prefix = String(division || "").trim().slice(0, 2);
+  return prefix === "22" || prefix === "23"
+    ? LEAD_TIME_TARGET_WEEKS_MECHANICAL
+    : LEAD_TIME_TARGET_WEEKS_ELECTRICAL;
+}
+
 /** Standard COI deficiency penalty applied by ADR-0003. */
 export const COI_DEFICIENCY_PENALTY = 15000;
 

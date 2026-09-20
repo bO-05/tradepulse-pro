@@ -1,5 +1,12 @@
 import { expect, test } from "vitest";
-import { computeProcurementMetrics, getNormalizationBreakdown, getSuspiciouslyLowBidIds } from "./leveling.ts";
+import {
+  computeProcurementMetrics,
+  getNormalizationBreakdown,
+  getSuspiciouslyLowBidIds,
+  leadPenaltyArithmetic,
+  leadTargetWeeksFor,
+} from "./leveling.ts";
+import { LEAD_TIME_PENALTY_PER_WEEK, leadTimePenaltyFor, targetWeeksForDivision } from "../convex/terms.ts";
 import type { Agreement, Bid, TradePackage } from "./types.ts";
 
 const pkg = (id: string, budget: number, status: TradePackage["status"] = "leveling"): TradePackage => ({
@@ -175,4 +182,42 @@ test("Out-of-band low bids are flagged below 50% of the package budget", () => {
   expect(flagged.has("b1")).toBe(false);
   // No budget or a zero budget cannot flag anything.
   expect(getSuspiciouslyLowBidIds(bids, 0).size).toBe(0);
+});
+
+// A6-05r/A6-54: the lead-time penalty is code-computed, deterministic, and priced
+// against the GC-owned division baseline (12 wks Div 26, 16 wks Div 22/23).
+test("Lead-time penalty follows the documented $6,000/week rate against the pinned helper", () => {
+  expect(LEAD_TIME_PENALTY_PER_WEEK).toBe(6000);
+  expect(leadTimePenaltyFor(17, 12)).toBe(30_000);
+  expect(leadTimePenaltyFor(16, 16)).toBe(0);
+  expect(leadTimePenaltyFor(20, 16)).toBe(24_000);
+  expect(leadTimePenaltyFor(12, 12)).toBe(0);
+  expect(leadTimePenaltyFor(8, 12)).toBe(0);
+});
+
+test("Division baselines are 12 weeks electrical and 16 weeks mechanical/plumbing", () => {
+  expect(targetWeeksForDivision("26 00 00")).toBe(12);
+  expect(targetWeeksForDivision("03 30 00")).toBe(12);
+  expect(targetWeeksForDivision("22 11 23")).toBe(16);
+  expect(targetWeeksForDivision("23 00 00")).toBe(16);
+  expect(targetWeeksForDivision(undefined)).toBe(12);
+  // Same input twice is always identical (pure function, no model arithmetic).
+  expect(leadTimePenaltyFor(20, 16)).toBe(leadTimePenaltyFor(20, 16));
+});
+
+test("Bid cards use the persisted target, and older records fall back to the division baseline", () => {
+  const persisted = bid({ _id: "b1", tradePackageId: "p22", leveledTotalCost: 1, longLeadEquipmentWeeks: 17, leadTimePenalty: 6_000, leadTimeTargetWeeks: 16 });
+  expect(leadTargetWeeksFor(persisted, "22 00 00")).toBe(16);
+  const legacy = bid({ _id: "b2", tradePackageId: "p22", leveledTotalCost: 1, longLeadEquipmentWeeks: 17, leadTimePenalty: 6_000 });
+  expect(leadTargetWeeksFor(legacy, "22 00 00")).toBe(16);
+  expect(leadTargetWeeksFor(legacy, "26 00 00")).toBe(12);
+});
+
+test("Lead-time arithmetic is rendered from the persisted numbers", () => {
+  const div22 = bid({ _id: "b1", tradePackageId: "p22", leveledTotalCost: 1, longLeadEquipmentWeeks: 17, leadTimePenalty: 6_000, leadTimeTargetWeeks: 16 });
+  expect(leadPenaltyArithmetic(div22, "22 00 00")).toBe("(17 − 16) × $6,000 = +$6,000");
+  const div26 = bid({ _id: "b2", tradePackageId: "p26", leveledTotalCost: 1, longLeadEquipmentWeeks: 16, leadTimePenalty: 24_000, leadTimeTargetWeeks: 12 });
+  expect(leadPenaltyArithmetic(div26, "26 00 00")).toBe("(16 − 12) × $6,000 = +$24,000");
+  const onTrack = bid({ _id: "b3", tradePackageId: "p26", leveledTotalCost: 1, longLeadEquipmentWeeks: 16, leadTimePenalty: 0, leadTimeTargetWeeks: 16 });
+  expect(leadPenaltyArithmetic(onTrack, "23 00 00")).toBe("within 16-wk baseline");
 });

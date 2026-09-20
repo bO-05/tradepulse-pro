@@ -2,6 +2,7 @@ import { query, mutation, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { syncAgreementForBid } from "./agreements";
 import { validateNonNegativeAmount, validatePositiveAmount, validateProjectText } from "./validation";
+import { leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
 /**
  * Plausibility guard for every bid ingestion path. Blocks six/seven-figure data-entry
@@ -673,6 +674,7 @@ export const insertParsedBid = internalMutation({
     ),
     longLeadEquipmentWeeks: v.number(),
     leadTimePenalty: v.number(),
+    leadTimeTargetWeeks: v.optional(v.number()),
     coiComplianceStatus: v.string(),
     coiPenalty: v.number(),
     leveledTotalCost: v.number(),
@@ -693,9 +695,16 @@ export const insertParsedBid = internalMutation({
     }
     const baseBidAmount = validatePositiveAmount(args.baseBidAmount, "Base bid amount");
     assertBidAmountPlausible(tradePkg, baseBidAmount);
-    const leadTimePenalty = validateNonNegativeAmount(args.leadTimePenalty, "Lead time penalty");
-    const coiPenalty = validateNonNegativeAmount(args.coiPenalty, "COI penalty");
     const longLeadEquipmentWeeks = validateLongLeadWeeks(args.longLeadEquipmentWeeks);
+    // A6-05r/A6-54: the schedule penalty is always derived in code from the stored
+    // weeks and the GC-owned division baseline (or an explicit target), never from
+    // a producer- or model-supplied dollar amount.
+    const leadTimeTargetWeeks =
+      Number.isFinite(args.leadTimeTargetWeeks) && (args.leadTimeTargetWeeks as number) > 0
+        ? (args.leadTimeTargetWeeks as number)
+        : targetWeeksForDivision(tradePkg.csiDivision);
+    const leadTimePenalty = leadTimePenaltyFor(longLeadEquipmentWeeks, leadTimeTargetWeeks);
+    const coiPenalty = validateNonNegativeAmount(args.coiPenalty, "COI penalty");
     // A10-06: normalize model-extracted line items instead of persisting negative math.
     const safeLineItems = args.lineItems.map((item) => ({
       ...item,
@@ -762,6 +771,7 @@ export const insertParsedBid = internalMutation({
         valueEngineeringAlternates: safeVeAlternates,
         longLeadEquipmentWeeks,
         leadTimePenalty,
+        leadTimeTargetWeeks,
         coiComplianceStatus: safeCoiStatus,
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,
@@ -784,6 +794,7 @@ export const insertParsedBid = internalMutation({
         valueEngineeringAlternates: safeVeAlternates,
         longLeadEquipmentWeeks,
         leadTimePenalty,
+        leadTimeTargetWeeks,
         coiComplianceStatus: safeCoiStatus,
         coiPenalty,
         leveledTotalCost: computedLeveledTotal,

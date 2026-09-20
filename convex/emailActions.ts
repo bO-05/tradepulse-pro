@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { cleanNumber, sanitizeBidLevelingOutput } from "./llmRouter";
 import { sendAgentmailMessage } from "./agentmailApi";
+import { leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
 export const processInboundEmail = internalAction({
   args: {
@@ -350,6 +351,7 @@ export const handleBidProcessing = internalAction({
     const llmResult = await ctx.runAction(internal.llmRouter.executeReasoning, {
       taskType: "bid_leveling",
       prompt: `Analyze this commercial subcontractor bid proposal for ${tradePkg?.tradeName || "Trade"} (CSI ${tradePkg?.csiDivision || ""}):\nMandatory package requirements: ${(tradePkg?.mandatoryInclusions || []).join("; ")}\nContractor: ${subName}\nSubject: ${args.subject}\nBody:\n${args.text}\nIdentify base bid amount, line items, subtle scope exclusions, crane hoisting exclusions, long lead times, and insurance compliance. Return structured bid leveling data.`,
+      division: tradePkg?.csiDivision,
     });
 
     let bidData: any = llmResult.parsedJson;
@@ -405,8 +407,8 @@ export const handleBidProcessing = internalAction({
 
         const leadWeeksMatch = text.match(/(\d+)\s*weeks/i);
         const leadWeeks = leadWeeksMatch ? parseInt(leadWeeksMatch[1]) : 12;
-        const targetWeeks = 12;
-        const leadPenalty = leadWeeks > targetWeeks ? (leadWeeks - targetWeeks) * 6000 : 0;
+        const targetWeeks = targetWeeksForDivision(tradePkg?.csiDivision);
+        const leadPenalty = leadTimePenaltyFor(leadWeeks, targetWeeks);
         const coiDeficient =
           text.toLowerCase().includes("coi deficient") ||
           text.toLowerCase().includes("waiver of subrogation excluded") ||
@@ -450,11 +452,12 @@ export const handleBidProcessing = internalAction({
       }
     }
 
-    bidData = sanitizeBidLevelingOutput(bidData);
+    bidData = sanitizeBidLevelingOutput(bidData, { division: tradePkg?.csiDivision });
 
     const effectiveBaseBid = bidData.baseBidAmount ?? 0;
     const effectiveLeadWeeks = bidData.longLeadEquipmentWeeks ?? 12;
     const effectiveLeadPenalty = bidData.leadTimePenalty ?? 0;
+    const effectiveLeadTargetWeeks = bidData.leadTimeTargetWeeks ?? targetWeeksForDivision(tradePkg?.csiDivision);
     const effectiveCoiStatus = bidData.coiComplianceStatus ?? "compliant";
     const effectiveCoiPenalty = bidData.coiPenalty ?? 0;
 
@@ -488,6 +491,7 @@ export const handleBidProcessing = internalAction({
       valueEngineeringAlternates: bidData.valueEngineeringAlternates || [],
       longLeadEquipmentWeeks: effectiveLeadWeeks,
       leadTimePenalty: effectiveLeadPenalty,
+      leadTimeTargetWeeks: effectiveLeadTargetWeeks,
       coiComplianceStatus: effectiveCoiStatus,
       coiPenalty: effectiveCoiPenalty,
       leveledTotalCost: calculatedLeveledCost,

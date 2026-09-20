@@ -491,6 +491,7 @@ Insurance: fully compliant with a $5,000,000 excess umbrella policy naming GC an
         taskType: "bid_leveling",
         prompt,
         systemPrompt: "You are the TradePulse Chief Estimator and Forensic Bid Leveling Specialist.",
+        division: tc.csiDivision,
       });
 
       const latencyMs = Date.now() - caseStartTime;

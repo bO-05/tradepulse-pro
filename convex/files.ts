@@ -9,7 +9,13 @@ import {
   validateUploadFileName,
   validateUploadFileType,
 } from "./validation";
-import { LEAD_TIME_PENALTY_PER_WEEK, LIQUIDATED_DAMAGES_PER_DAY, RETAINAGE_PERCENT } from "./terms";
+import {
+  LEAD_TIME_PENALTY_PER_WEEK,
+  LIQUIDATED_DAMAGES_PER_DAY,
+  RETAINAGE_PERCENT,
+  leadTimePenaltyFor,
+  targetWeeksForDivision,
+} from "./terms";
 
 export { extractTextFromPdfStream };
 
@@ -416,6 +422,7 @@ async function doExtractBid(
   const reasoningResult: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
     taskType: "bid_leveling",
     prompt: proposalText,
+    division: tradePackage.csiDivision,
   });
 
   // A1-01: when a contractor was explicitly selected, the contractor record's
@@ -431,7 +438,9 @@ async function doExtractBid(
       // Fall through to the provided name when lookup fails.
     }
   }
-  const parsed = sanitizeBidLevelingOutput(reasoningResult.parsedJson);
+  const parsed = sanitizeBidLevelingOutput(reasoningResult.parsedJson, {
+    division: tradePackage.csiDivision,
+  });
   let subName = selectedContractorName || args.contractorName || parsed?.subcontractorName;
   if (!subName || subName === "Commercial Subcontractor") {
     if (args.contractorId) {
@@ -487,41 +496,23 @@ async function doExtractBid(
     }
   }
 
-  const resolveRealContractorContact = (name: string) => {
-    const n = (name || "").toLowerCase();
-    if (n.includes("rosendin") || n.includes("electric") || n.includes("power")) {
-      return { email: "estimating@rosendin.com", url: "https://www.rosendin.com" };
-    }
-    if (n.includes("alterman")) {
-      return { email: "estimating@goalterman.com", url: "https://goalterman.com" };
-    }
-    if (n.includes("tdindustries") || n.includes("hvac") || n.includes("chiller") || n.includes("mechanical")) {
-      return { email: "estimating@tdindustries.com", url: "https://www.tdindustries.com" };
-    }
-    if (n.includes("clarke") || n.includes("plumb") || n.includes("piping")) {
-      return { email: "dispatch@clarkekentplumbing.com", url: "https://clarkekentplumbing.com" };
-    }
-    if (n.includes("baker") || n.includes("concrete")) {
-      return { email: "bids@bakerconcrete.com", url: "https://www.bakerconcrete.com/" };
-    }
-    if (n.includes("centimark") || n.includes("roof")) {
-      return { email: "contactus@centimark.com", url: "https://www.centimark.com/" };
-    }
-    if (n.includes("marek") || n.includes("drywall")) {
-      return { email: "bids@marekbros.com", url: "https://www.marekbros.com/" };
-    }
-    return { email: "bids@agc.org", url: "https://www.agc.org/" };
-  };
+  // A6-35: never attribute another company's contact data (or a fabricated
+  // verification badge) to a quote-created contractor. Until the GC supplies
+  // the real details, the record stays explicitly unpublished/unverified.
+  const unpublishedContact = () => ({
+    email: "not-published@verify-required.invalid",
+    url: "",
+  });
 
   if (!effectiveContractorId) {
-    const contactInfo = resolveRealContractorContact(subName);
+    const contactInfo = unpublishedContact();
     try {
       effectiveContractorId = await ctx.runMutation(internal.contractors.createContractorInternal, {
         tradePackageId: args.tradePackageId,
         companyName: subName,
         contactEmail: contactInfo.email,
-        licenseNumber: "COMM-VERIFIED",
-        licenseStatus: "Active / Verified",
+        licenseNumber: "Not verified",
+        licenseStatus: "Unverified — quote intake",
         sourceUrl: contactInfo.url,
         rfqStatus: "bid_received",
       });
@@ -542,13 +533,13 @@ async function doExtractBid(
 
   // Guaranteed fallback: if still not resolved, insert standard contractor
   if (!effectiveContractorId) {
-    const contactInfo = resolveRealContractorContact(subName || "Commercial Subcontractor");
+    const contactInfo = unpublishedContact();
     effectiveContractorId = await ctx.runMutation(internal.contractors.createContractorInternal, {
       tradePackageId: args.tradePackageId,
       companyName: subName || "Commercial Subcontractor",
       contactEmail: contactInfo.email,
-      licenseNumber: "COMM-ACTIVE",
-      licenseStatus: "Active / Verified",
+      licenseNumber: "Not verified",
+      licenseStatus: "Unverified — quote intake",
       sourceUrl: contactInfo.url,
       rfqStatus: "bid_received",
     });
@@ -568,7 +559,8 @@ async function doExtractBid(
   const exclusions = parsed?.identifiedExclusions ?? [];
   const veAlternates = parsed?.valueEngineeringAlternates ?? [];
   const leadWeeks = parsed?.longLeadEquipmentWeeks ?? 12;
-  const leadPenalty = parsed?.leadTimePenalty ?? 0;
+  const leadTargetWeeks = parsed?.leadTimeTargetWeeks ?? targetWeeksForDivision(tradePackage.csiDivision);
+  const leadPenalty = leadTimePenaltyFor(leadWeeks, leadTargetWeeks);
   const coiStatus = parsed?.coiComplianceStatus ?? "compliant";
   const coiPenalty = parsed?.coiPenalty ?? 0;
   const activeExclusionsTotal = exclusions.reduce(
@@ -594,6 +586,7 @@ async function doExtractBid(
     valueEngineeringAlternates: veAlternates,
     longLeadEquipmentWeeks: leadWeeks,
     leadTimePenalty: leadPenalty,
+    leadTimeTargetWeeks: leadTargetWeeks,
     coiComplianceStatus: coiStatus,
     coiPenalty,
     leveledTotalCost: leveledTotal,

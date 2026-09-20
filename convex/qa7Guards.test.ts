@@ -8,6 +8,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import { sanitizeBidLevelingOutput } from "./llmRouter";
 
 const modules = import.meta.glob("./**/*.ts");
 type T = ReturnType<typeof convexTest>;
@@ -382,4 +383,81 @@ test("QA7-8: updateBidAdjustments validates inputs, rejects negatives, and recom
   expect(stored.coiComplianceStatus).toBe("deficiency_detected");
   expect(stored.baseBidAmount).toBe(1_000_000);
   expect(stored.revisionNumber).toBe(1);
+});
+
+// ------------------------------------------------- A6-05r / A6-54 (critical)
+test("A6-05r: insertParsedBid derives the schedule penalty from weeks + division baseline and ignores any supplied dollar amount", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await makeProject(t, "A6 LeadTime Project");
+  const packageId = await makePackage(t, projectId, "22 00 00", 3_000_000);
+  const contractorId = await makeContractor(t, packageId, "A6 Plumbing Bidder");
+
+  // The producer tries to understate the penalty as $0; the engine must recompute.
+  await t.mutation(internal.bids.insertParsedBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "A6 Plumbing Bidder",
+    baseBidAmount: 837_450,
+    lineItems: [],
+    identifiedExclusions: [],
+    valueEngineeringAlternates: [],
+    longLeadEquipmentWeeks: 17,
+    leadTimePenalty: 0,
+    coiComplianceStatus: "compliant",
+    coiPenalty: 0,
+    leveledTotalCost: 0,
+  });
+  const bids: any = await rawByPackage(t, "bids", packageId);
+  expect(bids.length).toBe(1);
+  expect(bids[0].leadTimeTargetWeeks).toBe(16);
+  expect(bids[0].leadTimePenalty).toBe(6_000);
+  expect(bids[0].leveledTotalCost).toBe(837_450 + 6_000);
+
+  // An explicit GC target wins (17 wks vs a 12-wk target is 5 × $6,000).
+  await t.mutation(internal.bids.insertParsedBid, {
+    tradePackageId: packageId,
+    contractorId,
+    subcontractorName: "A6 Plumbing Bidder",
+    baseBidAmount: 837_450,
+    lineItems: [],
+    identifiedExclusions: [],
+    valueEngineeringAlternates: [],
+    longLeadEquipmentWeeks: 17,
+    leadTimePenalty: 123,
+    leadTimeTargetWeeks: 12,
+    coiComplianceStatus: "compliant",
+    coiPenalty: 0,
+    leveledTotalCost: 0,
+  });
+  const bids2: any = await rawByPackage(t, "bids", packageId);
+  expect(bids2[0].leadTimeTargetWeeks).toBe(12);
+  expect(bids2[0].leadTimePenalty).toBe(30_000);
+  expect(bids2[0].leveledTotalCost).toBe(837_450 + 30_000);
+});
+
+test("A6-05r: the extraction sanitizer recomputes penalties deterministically per division and drops model arithmetic", async () => {
+  const input = {
+    baseBidAmount: 500_000,
+    longLeadEquipmentWeeks: 16,
+    leadTimePenalty: 999_999, // adversarial model value must be ignored
+    coiComplianceStatus: "compliant",
+    coiPenalty: 0,
+    identifiedExclusions: [],
+  };
+  const div26 = sanitizeBidLevelingOutput({ ...input }, { division: "26 00 00" });
+  expect(div26.leadTimeTargetWeeks).toBe(12);
+  expect(div26.leadTimePenalty).toBe(24_000);
+  expect(div26.leveledTotalCost).toBe(524_000);
+
+  const div26Again = sanitizeBidLevelingOutput({ ...input }, { division: "26 00 00" });
+  expect(div26Again.leadTimePenalty).toBe(div26.leadTimePenalty);
+  expect(div26Again.leveledTotalCost).toBe(div26.leveledTotalCost);
+
+  const div22 = sanitizeBidLevelingOutput(
+    { ...input, longLeadEquipmentWeeks: 17, leadTimePenalty: 0 },
+    { division: "22 11 23" }
+  );
+  expect(div22.leadTimeTargetWeeks).toBe(16);
+  expect(div22.leadTimePenalty).toBe(6_000);
+  expect(div22.leveledTotalCost).toBe(506_000);
 });

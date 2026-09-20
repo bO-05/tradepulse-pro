@@ -91,6 +91,8 @@ export interface Bid {
   valueEngineeringAlternates?: ValueEngineeringAlternate[];
   longLeadEquipmentWeeks: number;
   leadTimePenalty: number;
+  /** GC-owned baseline the penalty was computed against (12 Div 26 / 16 Div 22-23). */
+  leadTimeTargetWeeks?: number;
   coiComplianceStatus: "compliant" | "deficiency_detected";
   coiPenalty: number;
   leveledTotalCost: number;

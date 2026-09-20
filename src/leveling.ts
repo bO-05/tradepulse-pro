@@ -1,4 +1,27 @@
 import { Agreement, Bid, TradePackage } from "./types.ts";
+import { LEAD_TIME_PENALTY_PER_WEEK, targetWeeksForDivision } from "../convex/terms.ts";
+
+/**
+ * A6-05r/A6-54: the schedule penalty is computed from the persisted weeks and the
+ * GC-owned baseline (12 weeks Div 26 / 16 weeks Div 22-23). Older records without a
+ * persisted target fall back to the package division so the arithmetic shown in the
+ * UI always matches the number the engine produced.
+ */
+export function leadTargetWeeksFor(
+  bid: Pick<Bid, "leadTimeTargetWeeks">,
+  csiDivision?: string
+): number {
+  return bid.leadTimeTargetWeeks ?? targetWeeksForDivision(csiDivision);
+}
+
+export function leadPenaltyArithmetic(
+  bid: Pick<Bid, "longLeadEquipmentWeeks" | "leadTimePenalty" | "leadTimeTargetWeeks">,
+  csiDivision?: string
+): string {
+  const target = leadTargetWeeksFor(bid, csiDivision);
+  if (bid.leadTimePenalty <= 0) return `within ${target}-wk baseline`;
+  return `(${bid.longLeadEquipmentWeeks} − ${target}) × $${LEAD_TIME_PENALTY_PER_WEEK.toLocaleString("en-US")} = +$${bid.leadTimePenalty.toLocaleString("en-US")}`;
+}
 
 export function calculateLeveledCost(
   bid: Pick<Bid, "baseBidAmount" | "identifiedExclusions" | "valueEngineeringAlternates" | "leadTimePenalty" | "coiPenalty">

@@ -104,6 +104,8 @@ export default defineSchema({
     ),
     longLeadEquipmentWeeks: v.number(),
     leadTimePenalty: v.number(),
+    /** GC-owned schedule baseline the penalty was computed against (12 Div 26 / 16 Div 22-23). */
+    leadTimeTargetWeeks: v.optional(v.number()),
     coiComplianceStatus: v.string(), // "compliant" | "deficiency_detected"
     coiPenalty: v.number(),
     leveledTotalCost: v.number(), // True normalized cost = base + un-waived scope gaps + penalties - accepted alternates

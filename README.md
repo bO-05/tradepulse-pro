@@ -30,7 +30,7 @@ In commercial construction (hospitals, labs, towers), General Contractors (GCs) 
 - Non-compliant Certificate of Insurance ($1M limit vs required $5M, +$15,000 penalty)
 - 16-week long-lead equipment delays (+$24,000 schedule delay impact)
 
-When GCs award purely based on base price, they suffer **six-figure change orders** and schedule blowouts. Furthermore, trades frequently **double-buy equipment** (e.g. both Division 26 Electrical and Division 23 HVAC bidding Variable Frequency Drives, causing $38,500 in redundant spend) or leave **scope voids** (e.g. low-voltage control wiring excluded by both).
+When GCs award purely based on base price, they suffer **six-figure change orders** and schedule blowouts. Furthermore, trades frequently **double-buy equipment** (e.g. both Division 26 Electrical and Division 23 HVAC bidding Variable Frequency Drives — a **$38,500 VFD line item**, part of the demo's **$50,500 total double-buys**, alongside $46,500 in scope voids) or leave **scope voids** (e.g. low-voltage control wiring excluded by both).
 
 ---
 
@@ -42,7 +42,7 @@ TradePulse Pro automates the entire MEP subcontractor buyout lifecycle end-to-en
 3. **Dynamic Pre-Bid Q&A (AgentMail & OpenAI)**: Ingests subcontractor email RFIs via AgentMail with cryptographic Svix verification, answers technical questions against the spec, and compiles binding **CSI Addendum No. 01** documents stored in Convex File Storage (`_storage`).
 4. **Forensic Bid Leveling Engine (ADR-0003)**: Automatically parses proposals, normalizes hidden exclusions, applies lead-time delay adjustments and COI penalties, and accounts for Value Engineering (VE) alternates.
 5. **Cross-Trade Scope Clash Engine**: Detects Double-Buys and Scope Voids between electrical and mechanical trades with 1-click buyout deductions.
-6. **AIA Document A401 Contract Generator**: Instantly produces standard 10-article AIA subcontracts with financial attestations, retainage terms, and liquidated damages.
+6. **A401-Style Contract Draft Generator**: Instantly produces a standard 10-article subcontract draft following the AIA A401 article structure (explicitly labeled as not an official AIA-licensed form) with financial attestations, retainage terms, and liquidated damages.
 
 ---
 
@@ -60,7 +60,7 @@ graph TD
     E -->|Pre-Bid Inquiries| F[OpenAI Pre-Bid RFI Engine]
     F -->|Binding Addenda| G[Convex File Storage _storage]
     E -->|Quote Proposals| H[ADR-0003 Bid Leveling Engine]
-    H -->|AIA A401 Generator| I[Standard Subcontract Agreements]
+    H -->|A401-Style Draft Generator| I[Subcontract Agreement Drafts]
     H -->|Cross-Trade Clash Detection| J[Double-Buy & Scope Void Resolver]
 ```
 
@@ -90,13 +90,17 @@ graph TD
 
 $$\text{Leveled Total Cost} = \text{Base Bid} + \sum(\text{Active Exclusions}) + \text{Lead Time Penalty} + \text{COI Deficiency Penalty} - \sum(\text{Accepted VE Alternates})$$
 
+The lead-time term is deterministic: the engine extracts the bidder's lead time in weeks and computes
+`max(0, weeks − baseline) × $6,000` in code (Division 26 baseline: 12 weeks; Divisions 22/23: 16 weeks),
+rendering the arithmetic on the leveling card. The model never returns a dollar penalty.
+
 ### The Alterman vs. Rosendin Electric Case Study:
 * **Alterman, Inc.**:
   * Base Bid: $\$1,100,000$ *(Looks like the lowest bidder!)*
   * Crane Hoisting Excluded: $+\$45,000$
   * UL 1479 Firestopping Excluded: $+\$22,000$
   * Seismic Bracing Excluded: $+\$55,000$
-  * Schedule Lead Time Penalty (16 wks vs 12 wks target @ \$6,000/wk): $+\$24,000$
+  * Schedule Lead Time Penalty (16 wks vs the Division 26 12-wk baseline @ \$6,000/wk, computed in code): $+\$24,000$
   * COI Penalty (\$1M policy vs \$5M required): $+\$15,000$
   * **Normalized Leveled Cost: $\$1,286,000$**
 * **Rosendin Electric, Inc.**:
@@ -119,7 +123,7 @@ Want to experience the complete platform in 60 seconds?
    * Discovers contractors and provisions AgentMail inboxes.
    * Clarifies RFIs and generates binding CSI Addendum No. 01.
    * Compares bids in the ADR-0003 Side-by-Side Leveling Matrix.
-   * Awards Rosendin Electric and generates an authentic **AIA Document A401 Subcontract Agreement**.
+   * Awards Rosendin Electric and generates an **A401-style subcontract draft** (follows the AIA A401 article structure; not an official AIA-licensed form).
 4. Click **Scope Clash Engine**: Review cross-trade coordination catching the **$38,500 VFD Double-Buy** and click **"Deduct Credit"**.
 
 ---

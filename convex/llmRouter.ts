@@ -2,7 +2,7 @@
 import { v } from "convex/values";
 import { inflate } from "pako";
 import { internal } from "./_generated/api";
-import { leadTimePenaltyFor } from "./terms";
+import { leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
 export interface ReasoningResult {
   provider: string;
@@ -429,7 +429,10 @@ export function tryParseJson(text: string): any {
   }
 }
 
-export function sanitizeBidLevelingOutput(parsedJson: any): any {
+export function sanitizeBidLevelingOutput(
+  parsedJson: any,
+  opts?: { division?: string | null; targetWeeks?: number }
+): any {
   if (!parsedJson || typeof parsedJson !== "object") return parsedJson;
   const rawBase =
     parsedJson.baseBidAmount ??
@@ -440,7 +443,14 @@ export function sanitizeBidLevelingOutput(parsedJson: any): any {
     parsedJson.basePrice;
   let baseBidAmount = cleanNumber(rawBase, 0);
   const leadWeeks = cleanNumber(parsedJson.longLeadEquipmentWeeks ?? parsedJson.leadWeeks, 12);
-  const leadPenalty = cleanNumber(parsedJson.leadTimePenalty, 0);
+  // A6-05r/A6-54: never trust a model-computed dollar penalty. The schedule
+  // penalty is computed in code from the extracted weeks and the GC-owned
+  // division baseline, so identical input always produces the same number.
+  const leadTargetWeeks =
+    Number.isFinite(opts?.targetWeeks) && (opts?.targetWeeks as number) > 0
+      ? (opts?.targetWeeks as number)
+      : targetWeeksForDivision(opts?.division);
+  const leadPenalty = leadTimePenaltyFor(leadWeeks, leadTargetWeeks);
   const coiPenalty = cleanNumber(parsedJson.coiPenalty, 0);
 
   const lineItems = Array.isArray(parsedJson.lineItems)
@@ -551,7 +561,10 @@ export function sanitizeBidLevelingOutput(parsedJson: any): any {
   const valueEngineeringAlternates = rawVe.map((ve: any) => ({
     description: String(ve?.description || ve?.title || ve?.item || "Value Engineering alternate"),
     costDeduct: cleanNumber(ve?.costDeduct ?? ve?.savings ?? ve?.amount ?? ve?.cost ?? ve?.deduct, 0),
-    isAccepted: Boolean(ve?.isAccepted),
+    // A6-51/top-10 #10: ingested VE alternates default to NOT accepted so the
+    // ranking is never distorted by a model inference; the GC accepts them
+    // explicitly in the leveling adjustment panel.
+    isAccepted: false,
   }));
 
   const activeExclusionsTotal = identifiedExclusions.reduce(
@@ -578,6 +591,7 @@ export function sanitizeBidLevelingOutput(parsedJson: any): any {
     valueEngineeringAlternates,
     longLeadEquipmentWeeks: leadWeeks,
     leadTimePenalty: leadPenalty,
+    leadTimeTargetWeeks: leadTargetWeeks,
     coiComplianceStatus: effectiveCoiStatus,
     coiPenalty: effectiveCoiPenalty,
     leveledTotalCost,
@@ -664,6 +678,8 @@ export const executeReasoning = internalAction({
     prompt: v.string(),
     systemPrompt: v.optional(v.string()),
     preferredProvider: v.optional(v.string()), // "openai" | "gemini" | "claude"
+    /** Trade-package CSI division (e.g. "22 00 00"); pins the lead-time baseline. */
+    division: v.optional(v.string()),
   },
   handler: async (_ctx, args): Promise<ReasoningResult> => {
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -681,7 +697,6 @@ export const executeReasoning = internalAction({
   "identifiedExclusions": [{"canonicalCode": string (e.g. "CSI_26_CRANE"), "description": string, "costImpact": number, "severity": "critical"|"moderate"|"minor", "isWaived": boolean (optional)}],
   "valueEngineeringAlternates": [{"description": string, "costDeduct": number, "isAccepted": boolean}],
   "longLeadEquipmentWeeks": number,
-  "leadTimePenalty": number,
   "coiComplianceStatus": "compliant"|"deficiency_detected",
   "coiPenalty": number,
   "leveledTotalCost": number
@@ -691,10 +706,7 @@ Ensure all numbers are pure numeric values (no currency symbols or commas).
 CRITICAL FORENSIC LEVELING RULES:
 1. ONLY identify exclusions that are EXPLICITLY stated as excluded, omitted, or "by others" in the proposal text. If the proposal does NOT state an exclusion, DO NOT invent, assume, or add one. Clean compliant proposals with no exclusions must return an empty array: "identifiedExclusions": [].
 2. Do NOT include insurance, ACORD 25, or statutory coverage qualifications in identifiedExclusions. Insurance deficiencies belong strictly under coiComplianceStatus ("deficiency_detected") and coiPenalty (15000). Only physical construction trade scope exclusions belong in identifiedExclusions.
-3. Schedule baseline milestone targets by trade division:
-   - Division 26 Electrical: 12-week baseline. Lead penalty = max(0, longLeadEquipmentWeeks - 12) * 6000.
-   - Division 23 HVAC: 16-week baseline. Lead penalty = max(0, longLeadEquipmentWeeks - 16) * 6000.
-   - Division 22 Plumbing: 16-week baseline. Lead penalty = max(0, longLeadEquipmentWeeks - 16) * 6000.
+3. Extract the long-lead equipment duration as an integer number of weeks in "longLeadEquipmentWeeks". Report it exactly as stated in the proposal (for example "17 weeks" -> 17). Do NOT compute any dollar penalty; the application computes the schedule penalty from the extracted weeks and the GC-owned division baseline (Division 26: 12 weeks; Division 22/23: 16 weeks). Never invent or adjust a week count.
 4. If explicit exclusions in the proposal are unpriced, apply certified ASPE / RSMeans commercial benchmark rates and standardized CSI canonicalCode:
    Division 26 Electrical:
    - Penthouse crane rigging/hoisting (CSI_26_CRANE): 45000
@@ -711,8 +723,7 @@ CRITICAL FORENSIC LEVELING RULES:
    - Municipal backflow inspection / certification (CSI_22_BACKFLOW): 8500
    - Booster pump factory certified technician startup (CSI_22_BOOSTER_STARTUP): 12000
    - Penthouse crane hoisting of pump skid (CSI_22_CRANE): 25000
-5. In bid leveling, evaluate valid proposed Value Engineering alternates as accepted (isAccepted: true) to calculate the minimum responsible leveled cost:
-   leveledTotalCost = baseBidAmount + sum(unwaived exclusions) + leadTimePenalty + coiPenalty - sum(accepted valueEngineeringAlternates costDeduct).`
+5. Report every proposed Value Engineering alternate under "valueEngineeringAlternates" with its costDeduct. Do not decide acceptance; the GC reviews and accepts alternates in the application, so ingested alternates always start unaccepted.`
         : args.taskType === "spec_generation"
         ? `You are TradePulse Pro, an expert construction cost engineer and CSI MasterFormat specialist. Output ONLY a valid JSON object with the following schema:
 {
@@ -840,7 +851,8 @@ Ensure all cost numbers are pure numeric primitives.`
                 args.taskType === "bid_leveling" || args.taskType === "spec_generation" || args.taskType === "clash_detection"
                   ? { type: "json_object" }
                   : undefined,
-              temperature: 0.2,
+              temperature: args.taskType === "bid_leveling" ? 0 : 0.2,
+              seed: args.taskType === "bid_leveling" ? 12345 : undefined,
             }),
           });
 
@@ -850,7 +862,7 @@ Ensure all cost numbers are pure numeric primitives.`
             let parsedJson = tryParseJson(content);
             if (parsedJson) {
               if (args.taskType === "bid_leveling") {
-                parsedJson = sanitizeBidLevelingOutput(parsedJson);
+                parsedJson = sanitizeBidLevelingOutput(parsedJson, { division: args.division });
               } else if (args.taskType === "spec_generation") {
                 parsedJson = sanitizeSpecGenerationOutput(parsedJson);
               } else if (args.taskType === "clash_detection") {
@@ -897,7 +909,7 @@ Ensure all cost numbers are pure numeric primitives.`
                 },
               ],
               generationConfig: {
-                temperature: 0.2,
+                temperature: args.taskType === "bid_leveling" ? 0 : 0.2,
                 maxOutputTokens: 4096,
               },
             };
@@ -922,7 +934,7 @@ Ensure all cost numbers are pure numeric primitives.`
               let parsedJson = tryParseJson(content);
               if (parsedJson) {
                 if (args.taskType === "bid_leveling") {
-                  parsedJson = sanitizeBidLevelingOutput(parsedJson);
+                  parsedJson = sanitizeBidLevelingOutput(parsedJson, { division: args.division });
                 } else if (args.taskType === "spec_generation") {
                   parsedJson = sanitizeSpecGenerationOutput(parsedJson);
                 } else if (args.taskType === "clash_detection") {
@@ -967,6 +979,7 @@ Ensure all cost numbers are pure numeric primitives.`
               };
               if (args.taskType === "bid_leveling" || args.taskType === "spec_generation" || args.taskType === "clash_detection") {
                 reqBody.generationConfig = { responseMimeType: "application/json" };
+                if (args.taskType === "bid_leveling") reqBody.generationConfig.temperature = 0;
               }
 
               let response = await fetchWithTimeout(url, {
@@ -990,7 +1003,7 @@ Ensure all cost numbers are pure numeric primitives.`
                 let parsedJson = tryParseJson(content);
                 if (parsedJson) {
                   if (args.taskType === "bid_leveling") {
-                    parsedJson = sanitizeBidLevelingOutput(parsedJson);
+                    parsedJson = sanitizeBidLevelingOutput(parsedJson, { division: args.division });
                   } else if (args.taskType === "spec_generation") {
                     parsedJson = sanitizeSpecGenerationOutput(parsedJson);
                   } else if (args.taskType === "clash_detection") {
@@ -1030,6 +1043,7 @@ Ensure all cost numbers are pure numeric primitives.`
               max_tokens: 4096,
               system: effectiveSystemPrompt,
               messages: [{ role: "user", content: args.prompt }],
+              ...(args.taskType === "bid_leveling" ? { temperature: 0 } : {}),
             }),
           });
 
@@ -1042,7 +1056,7 @@ Ensure all cost numbers are pure numeric primitives.`
             let parsedJson = tryParseJson(content);
             if (parsedJson) {
               if (args.taskType === "bid_leveling") {
-                parsedJson = sanitizeBidLevelingOutput(parsedJson);
+                parsedJson = sanitizeBidLevelingOutput(parsedJson, { division: args.division });
               } else if (args.taskType === "spec_generation") {
                 parsedJson = sanitizeSpecGenerationOutput(parsedJson);
               } else if (args.taskType === "clash_detection") {
@@ -1510,7 +1524,7 @@ Ensure all cost numbers are pure numeric primitives.`
       // Division 26 electrical switchgear milestone: 12 weeks
       // Division 23 custom mechanical chillers milestone: 16 weeks
       // Division 22 triplex booster pumps milestone: 16 weeks
-      const targetWeeks = isDiv23 ? 16 : isDiv22 ? 16 : 12;
+      const targetWeeks = targetWeeksForDivision(isDiv23 ? "23 00 00" : isDiv22 ? "22 00 00" : "26 00 00");
       const leadTimePenalty = leadTimePenaltyFor(leadWeeks, targetWeeks);
 
       // Detect COI compliance
@@ -1646,7 +1660,9 @@ Ensure all cost numbers are pure numeric primitives.`
         leveledTotalCost,
       };
 
-      const structuredResult = sanitizeBidLevelingOutput(rawResult);
+      const structuredResult = sanitizeBidLevelingOutput(rawResult, {
+        division: isDiv23 ? "23 00 00" : isDiv22 ? "22 00 00" : "26 00 00",
+      });
 
       return {
         provider: "OpenAI-SimulationEngine",
@@ -2104,6 +2120,8 @@ Total Leveled Normalization Target: $908,500.`;
       taskType,
       prompt: samplePrompt,
       preferredProvider: args.model,
+      division:
+        args.promptType === "hvac_bacnet" ? "23 00 00" : args.promptType === "plumbing_drainage" ? "22 00 00" : "26 00 00",
     });
 
     const latencyMs = Math.max(Date.now() - t0, 1);
