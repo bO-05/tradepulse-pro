@@ -544,7 +544,7 @@ export const App: React.FC = () => {
           };
         });
         showToast(
-          "RFQs dispatched to all verified commercial contractors via AgentMail (Zero-Cloud Standalone Engine)!"
+          "Contractors marked invited in the local snapshot — no email is sent in standalone mode."
         );
       }
     } catch (err: any) {
@@ -730,7 +730,10 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleGeneratePackagesFromSpec = async (specText: string) => {
+  const handleGeneratePackagesFromSpec = async (
+    specText: string,
+    opts?: { previewOnly?: boolean; confirmedPackages?: any[] }
+  ): Promise<{ packagesCount: number; packages?: any[] }> => {
     if (!currentProject) return { packagesCount: 0 };
     try {
       if (isRealConvexProject && !currentProject._id.startsWith("proj_")) {
@@ -738,6 +741,8 @@ export const App: React.FC = () => {
           generateTradePackagesAction({
             projectId: currentProject._id as any,
             specDocumentTextOverride: specText,
+            previewOnly: opts?.previewOnly,
+            confirmedPackages: opts?.confirmedPackages as any,
           }),
           new Promise<never>((_, reject) =>
             window.setTimeout(
@@ -751,7 +756,7 @@ export const App: React.FC = () => {
             )
           ),
         ]);
-        return { packagesCount: res.packagesCount };
+        return { packagesCount: res.packagesCount, packages: (res as any).packages };
       }
 
       const lower = (specText || "").toLowerCase();
@@ -908,37 +913,55 @@ export const App: React.FC = () => {
         ];
       }
 
-      const newPkgId = `pkg_spec_${Date.now()}`;
-      const newPkg: TradePackage = {
-        _id: newPkgId,
-        projectId: currentProject._id,
+      const derivedPackage = {
         csiDivision,
         tradeName,
         budgetEstimate,
-        agentMailbox: getDynamicMailbox(currentProject.location, csiDivision),
-        agentMailboxId: `inbox_${Date.now()}`,
         scopeSummary,
         mandatoryInclusions,
         bidDeadline: "2026-10-15",
-        status: "draft",
       };
-      const newAudit: AuditLog = {
-        _id: `audit_${Date.now()}`,
+      // A6-42: preview returns the detected package(s) without writing; the write
+      // only happens after the GC confirms the echoed divisions/scope.
+      const packagesToWrite: any[] =
+        opts?.confirmedPackages && opts.confirmedPackages.length > 0
+          ? opts.confirmedPackages
+          : [derivedPackage];
+      if (opts?.previewOnly) {
+        return { packagesCount: packagesToWrite.length, packages: packagesToWrite };
+      }
+
+      const stamp = Date.now();
+      const newPkgs: TradePackage[] = packagesToWrite.map((p, idx) => ({
+        _id: `pkg_spec_${stamp}_${idx}`,
         projectId: currentProject._id,
-        tradePackageId: newPkgId,
+        csiDivision: p.csiDivision,
+        tradeName: p.tradeName,
+        budgetEstimate: p.budgetEstimate,
+        agentMailbox: getDynamicMailbox(currentProject.location, p.csiDivision),
+        agentMailboxId: `inbox_${stamp}_${idx}`,
+        scopeSummary: p.scopeSummary,
+        mandatoryInclusions: p.mandatoryInclusions,
+        bidDeadline: p.bidDeadline || "2026-10-15",
+        status: "draft",
+      }));
+      const newAudits: AuditLog[] = newPkgs.map((pkg) => ({
+        _id: `audit_${stamp}_${pkg._id}`,
+        projectId: currentProject._id,
+        tradePackageId: pkg._id,
         eventType: "spec_parsed",
-        title: `AI Spec Breakdown: CSI Division ${csiDivision} Generated`,
-        description: `Generated trade package for ${tradeName} from specifications via Gemini Flash with AgentMail mailbox provisioned.`,
-        actor: "Gemini Flash Spec Reasoner",
-        timestamp: Date.now(),
-      };
+        title: `AI Spec Breakdown: CSI Division ${pkg.csiDivision} Generated`,
+        description: `Generated trade package for ${pkg.tradeName} from GC-confirmed specification parsing with AgentMail mailbox provisioned.`,
+        actor: "AI Spec Scoping Agent (GC-confirmed)",
+        timestamp: stamp,
+      }));
       updateStandaloneAndPersist((prev) => ({
         ...prev,
-        tradePackages: [...prev.tradePackages, newPkg],
-        auditLogs: [newAudit, ...prev.auditLogs],
+        tradePackages: [...prev.tradePackages, ...newPkgs],
+        auditLogs: [...newAudits, ...prev.auditLogs],
       }));
-      setSelectedPackageId(newPkgId);
-      return { packagesCount: 1 };
+      setSelectedPackageId(newPkgs[0]?._id || "");
+      return { packagesCount: newPkgs.length };
     } catch (err) {
       throw err;
     }
@@ -1102,8 +1125,8 @@ export const App: React.FC = () => {
             projectId: currentProject?._id || "proj_domain_tower_b",
             tradePackageId: target?.tradePackageId,
             eventType: "rfq_dispatched",
-            title: `Individual RFQ Dispatched: ${target?.companyName || "Contractor"}`,
-            description: `Transmitted digital invitation to bid with live spec link via AgentMail to ${target?.contactEmail || "email"}.`,
+            title: `RFQ Invitation Recorded: ${target?.companyName || "Contractor"}`,
+            description: `Marked ${target?.companyName || "contractor"} as invited in the local snapshot. No email is sent from standalone mode; delivery is unavailable here.`,
             actor: "AgentMail Subcontractor Dispatcher",
             timestamp: Date.now(),
           };
@@ -1115,8 +1138,8 @@ export const App: React.FC = () => {
             auditLogs: [newAudit, ...prev.auditLogs],
           };
         });
+        showToast("Contractor marked invited in the local snapshot — no email is sent in standalone mode.", "info");
       }
-      showToast("Invitation to bid dispatched via AgentMail.");
     } catch (err: any) {
       showToast(`RFQ invitation failed: ${getErrorMessage(err) || "The invitation was not sent."}`);
       throw err;
@@ -3541,7 +3564,7 @@ export const App: React.FC = () => {
         await handleDispatchRfqs(activePackage._id);
       }
       setActiveTab("qna");
-      showToast("Dispatched RFQs via AgentMail. Advanced to Pre-Bid Q&A.");
+      showToast("Advanced to Pre-Bid Q&A. See the audit stream for the real RFQ delivery result.");
     } else if (sceneId === "qna") {
       setActiveTab("leveling");
       showToast("Pre-Bid RFIs clarified into Addendum No. 01. Advanced to Forensic Bid Leveling.");
@@ -3601,6 +3624,14 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
+      {/* A6-18: public/shared-instance disclosure (auth is intentionally out of scope). */}
+      <div
+        role="note"
+        className="w-full bg-amber-950/90 border-b border-amber-800/70 text-amber-100 text-[11px] sm:text-xs px-4 py-1.5 text-center font-medium"
+      >
+        Public shared demo — everything here is visible to anyone with this URL. Do not enter confidential or real bid data.
+      </div>
+
       {/* Toast Notification */}
       {toastMessage && (
         <div

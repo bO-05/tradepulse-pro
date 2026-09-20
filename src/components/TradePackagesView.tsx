@@ -16,7 +16,7 @@ import {
   Check,
   Trash2,
 } from "lucide-react";
-import { useAction } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api.js";
 import { TradePackage, Project } from "../types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
@@ -43,7 +43,10 @@ interface TradePackagesViewProps {
     mandatoryInclusions: string[];
     bidDeadline: string;
   }) => Promise<void>;
-  onGenerateTradePackagesFromSpec?: (specText: string) => Promise<{ packagesCount: number }>;
+  onGenerateTradePackagesFromSpec?: (
+    specText: string,
+    opts?: { previewOnly?: boolean; confirmedPackages?: any[] }
+  ) => Promise<{ packagesCount: number; packages?: any[] }>;
   onDeletePackage?: (packageId: string) => Promise<void>;
   onNavigateToDiscovery?: () => void;
   isLoading?: boolean;
@@ -75,6 +78,8 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   useEscapeToClose(isSpecModalOpen, () => setIsSpecModalOpen(false), !isGeneratingPackages);
   const [generationSuccessMessage, setGenerationSuccessMessage] = useState<string | null>(null);
   const [generationErrorMessage, setGenerationErrorMessage] = useState<string | null>(null);
+  // A6-42: parsed divisions must be echoed and confirmed before anything is written.
+  const [previewPackages, setPreviewPackages] = useState<any[] | null>(null);
   const [packageToDelete, setPackageToDelete] = useState<TradePackage | null>(null);
   const [creationError, setCreationError] = useState<string | null>(null);
 
@@ -87,6 +92,11 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   const [bidDeadline, setBidDeadline] = useState("2026-09-30");
 
   const generateTradePackagesAction = useAction(api.tradePackages.generateTradePackagesFromSpec);
+  // A6-29: real per-package email delivery outcome from the audit trail.
+  const deliveryStatus = useQuery(
+    api.rfq.getProjectDeliveryStatus,
+    currentProject && !currentProject._id.startsWith("proj_") ? { projectId: currentProject._id as any } : "skip"
+  ) as Record<string, { sent: number; eligible: number; at: number }> | undefined;
 
   const handleDispatch = async (pkgId: string) => {
     setDispatchingId(pkgId);
@@ -117,27 +127,60 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
     }
   };
 
+  // A6-42 step 1: parse and echo detected divisions/scope; nothing is written yet.
   const handleSpecBreakdownSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentProject || !specInputText.trim()) return;
     setIsGeneratingPackages(true);
     setGenerationSuccessMessage(null);
     setGenerationErrorMessage(null);
+    setPreviewPackages(null);
     try {
-      let count = 2;
+      let packages: any[] = [];
       if (onGenerateTradePackagesFromSpec) {
-        const res = await onGenerateTradePackagesFromSpec(specInputText.trim());
+        const res = await onGenerateTradePackagesFromSpec(specInputText.trim(), { previewOnly: true });
+        packages = res.packages ?? [];
+      } else {
+        const res = await generateTradePackagesAction({
+          projectId: currentProject._id as any,
+          specDocumentTextOverride: specInputText.trim(),
+          previewOnly: true,
+        });
+        packages = (res as any).packages ?? [];
+      }
+      if (packages.length === 0) {
+        throw new Error("No trade divisions could be detected from that text. Review the specification and try again.");
+      }
+      setPreviewPackages(packages);
+    } catch (err: any) {
+      setGenerationErrorMessage(getErrorMessage(err) || "Specification breakdown failed.");
+    } finally {
+      setIsGeneratingPackages(false);
+    }
+  };
+
+  // A6-42 step 2: write exactly the packages the GC confirmed.
+  const handleConfirmGenerate = async () => {
+    if (!currentProject || !previewPackages || previewPackages.length === 0) return;
+    setIsGeneratingPackages(true);
+    setGenerationErrorMessage(null);
+    try {
+      let count = previewPackages.length;
+      if (onGenerateTradePackagesFromSpec) {
+        const res = await onGenerateTradePackagesFromSpec(specInputText.trim(), { confirmedPackages: previewPackages });
         count = res.packagesCount;
       } else {
         const res = await generateTradePackagesAction({
           projectId: currentProject._id as any,
           specDocumentTextOverride: specInputText.trim(),
+          confirmedPackages: previewPackages as any,
         });
-        count = res.packagesCount;
+        count = (res as any).packagesCount;
       }
       setGenerationSuccessMessage(
-        `Successfully generated ${count} CSI MasterFormat trade packages with AgentMail inboxes!`
+        `Generated ${count} GC-confirmed CSI MasterFormat trade package(s) with AgentMail inboxes!`
       );
+      setPreviewPackages(null);
       setTimeout(() => {
         setIsSpecModalOpen(false);
         setGenerationSuccessMessage(null);
@@ -151,6 +194,8 @@ export const TradePackagesView: React.FC<TradePackagesViewProps> = ({
   };
 
   const populateSampleSpec = () => {
+    setPreviewPackages(null);
+    setGenerationErrorMessage(null);
     setSpecInputText(
       `SECTION 01 00 00 - SUMMARY OF WORK
 General Contractor shall furnish all temporary site utilities, crane access, and safety coordination.
@@ -230,6 +275,8 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
               <button
                 onClick={() => {
                   // A18-01: start each breakdown from a clean draft.
+                  setPreviewPackages(null);
+                  setGenerationErrorMessage(null);
                   setSpecInputText("");
                   setIsSpecModalOpen(true);
                   populateSampleSpec();
@@ -363,6 +410,12 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                       <div className="text-[10px] text-amber-300 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
                         Inbox not provisioned — AgentMail unavailable
+                      </div>
+                    )}
+                    {deliveryStatus?.[pkg._id]?.sent === 0 && deliveryStatus[pkg._id].eligible > 0 && (
+                      <div className="text-[10px] text-rose-300 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Email delivery unavailable — last dispatch delivered 0 of {deliveryStatus[pkg._id].eligible} (see audit)
                       </div>
                     )}
                   </div>
@@ -526,6 +579,47 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                 required
               />
 
+              {previewPackages && previewPackages.length > 0 && (
+                <div className="bg-slate-950 border border-emerald-800/60 rounded-lg p-3 space-y-2">
+                  <div className="text-emerald-300 font-semibold text-xs">
+                    Step 2 of 2 — review the {previewPackages.length} detected package(s). Nothing is written until you confirm.
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                    {previewPackages.map((p, i) => (
+                      <div key={i} className="border border-slate-800 rounded-lg p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-[11px] font-bold text-white">Div {String(p.csiDivision || "?")}</span>
+                          <span className="font-mono text-[11px] text-emerald-300">
+                            ${Number(p.budgetEstimate || 0).toLocaleString("en-US")}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-200 font-semibold">{String(p.tradeName || "")}</div>
+                        <div className="text-[10px] text-slate-400 line-clamp-2">{String(p.scopeSummary || "")}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewPackages(null)}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold transition"
+                    >
+                      Re-parse
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmGenerate}
+                      disabled={isGeneratingPackages}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg transition shadow-sm"
+                    >
+                      {isGeneratingPackages
+                        ? "Generating..."
+                        : `Generate ${previewPackages.length} Trade Package${previewPackages.length === 1 ? "" : "s"}`}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {generationSuccessMessage && (
                 <div className="bg-emerald-950/60 border border-emerald-800 text-emerald-400 p-3 rounded-lg flex items-center gap-2 text-xs font-semibold">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -556,7 +650,11 @@ Furnish and install domestic cold, hot, and recirculated water piping, sanitary 
                     className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:opacity-50 text-slate-950 font-bold rounded-lg flex items-center gap-1.5 transition shadow-sm"
                   >
                     <Sparkles className="w-4 h-4 fill-slate-950" />
-                    {isGeneratingPackages ? "Analyzing Specs & Creating Packages..." : "Auto-Generate Trade Packages"}
+                    {isGeneratingPackages
+                      ? "Analyzing Specs..."
+                      : previewPackages
+                      ? "Re-parse Specifications"
+                      : "Analyze Specifications & Preview"}
                   </button>
                 </div>
               </div>

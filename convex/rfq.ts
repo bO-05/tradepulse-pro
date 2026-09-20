@@ -13,6 +13,31 @@ export const listConversations = query({
   },
 });
 
+/**
+ * A6-29: the real outcome of the last RFQ email dispatch per package, so the UI
+ * can state "delivery unavailable" instead of implying email was sent.
+ */
+export const getProjectDeliveryStatus = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const logs = await ctx.db
+      .query("auditLogs")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const byPackage: Record<string, { sent: number; eligible: number; at: number }> = {};
+    for (const log of logs) {
+      if (!log.tradePackageId) continue;
+      const match = /^AgentMail Delivery:\s*(\d+)\s+of\s+(\d+)/i.exec(log.title);
+      if (!match) continue;
+      const previous = byPackage[log.tradePackageId];
+      if (!previous || log.timestamp > previous.at) {
+        byPackage[log.tradePackageId] = { sent: Number(match[1]), eligible: Number(match[2]), at: log.timestamp };
+      }
+    }
+    return byPackage;
+  },
+});
+
 export const listClarifiedConversationsForProject = internalQuery({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -148,7 +173,7 @@ export const dispatchRfqsInternal = internalMutation({
       title: `RFQ Invitations Recorded: Division ${tradePkg.csiDivision} (${tradePkg.tradeName})`,
       description:
         dispatchedCount > 0
-          ? `Dispatched invitations to bid to ${dispatchedCount} commercial contractor(s) via AgentMail (${tradePkg.agentMailbox}).`
+          ? `Recorded ${dispatchedCount} commercial contractor(s) as invited for ${tradePkg.agentMailbox}; email delivery is attempted and logged separately.`
           : `No new invitations were required: ${totalNotified} contractor(s) are already invited. Package marked as RFQs dispatched (${tradePkg.agentMailbox}).`,
       actor: "Lead Project Manager",
       timestamp: now,
@@ -185,8 +210,8 @@ export const markSingleContractorInvitedInternal = internalMutation({
       projectId: tradePkg.projectId,
       tradePackageId: tradePkg._id,
       eventType: "rfq_dispatched",
-      title: `Individual RFQ Dispatched: ${contractor.companyName}`,
-      description: `Transmitted digital invitation to bid with live spec link via AgentMail to ${contractor.contactEmail}.`,
+      title: `RFQ Invitation Prepared: ${contractor.companyName}`,
+      description: `Marked ${contractor.companyName} as invited for ${tradePkg.tradeName} (${tradePkg.csiDivision}); the invitation targets ${contractor.contactEmail}. Email delivery is attempted and logged separately.`,
       actor: "AgentMail Subcontractor Dispatcher",
       timestamp: now,
     });

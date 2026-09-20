@@ -199,6 +199,21 @@ export const generateTradePackagesFromSpec = action({
   args: {
     projectId: v.id("projects"),
     specDocumentTextOverride: v.optional(v.string()),
+    /** A6-42: parse and return detected packages without writing, for GC confirmation. */
+    previewOnly: v.optional(v.boolean()),
+    /** A6-42: write exactly these GC-confirmed packages instead of re-running extraction. */
+    confirmedPackages: v.optional(
+      v.array(
+        v.object({
+          csiDivision: v.string(),
+          tradeName: v.string(),
+          budgetEstimate: v.number(),
+          scopeSummary: v.string(),
+          mandatoryInclusions: v.array(v.string()),
+          bidDeadline: v.string(),
+        })
+      )
+    ),
   },
   handler: async (ctx, args): Promise<any> => {
     let specText: string = args.specDocumentTextOverride || "";
@@ -209,61 +224,76 @@ export const generateTradePackagesFromSpec = action({
       specText = project?.specDocumentText || "Commercial MEP specifications";
     }
 
-    // The LLM route is best-effort: if every provider fails or returns unusable JSON,
-    // fall back to the deterministic multi-trade package set so the workflow always completes.
     let pkgs: any[] = [];
-    try {
-      const reasoningResult: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
-        taskType: "spec_generation",
-        prompt: specText,
-        systemPrompt:
-          "You are TradePulse Pro, an expert construction cost engineer and CSI MasterFormat specialist. Analyze the building specifications and deconstruct them into discrete commercial trade packages with CSI division numbers, trade titles, budget estimates, and mandatory inclusions.",
-      });
-      const parsed = reasoningResult?.parsedJson;
-      pkgs = (Array.isArray(parsed?.packages) && parsed.packages.length > 0)
-        ? parsed.packages
-        : (Array.isArray(parsed) && parsed.length > 0)
-        ? parsed
-        : [];
-    } catch (reasoningErr) {
-      console.warn("CSI spec reasoning failed; using deterministic package generation:", reasoningErr);
+    if (args.confirmedPackages && args.confirmedPackages.length > 0) {
+      // A6-42: the GC confirmed the parsed result; write exactly those packages.
+      pkgs = args.confirmedPackages;
+    } else {
+      // The LLM route is best-effort: if every provider fails or returns unusable JSON,
+      // fall back to the deterministic multi-trade package set so the workflow always completes.
+      try {
+        const reasoningResult: any = await ctx.runAction(internal.llmRouter.executeReasoning, {
+          taskType: "spec_generation",
+          prompt: specText,
+          systemPrompt:
+            "You are TradePulse Pro, an expert construction cost engineer and CSI MasterFormat specialist. Analyze the building specifications and deconstruct them into discrete commercial trade packages with CSI division numbers, trade titles, budget estimates, and mandatory inclusions.",
+        });
+        const parsed = reasoningResult?.parsedJson;
+        pkgs = (Array.isArray(parsed?.packages) && parsed.packages.length > 0)
+          ? parsed.packages
+          : (Array.isArray(parsed) && parsed.length > 0)
+          ? parsed
+          : [];
+      } catch (reasoningErr) {
+        console.warn("CSI spec reasoning failed; using deterministic package generation:", reasoningErr);
+      }
+
+      if (pkgs.length === 0) {
+        pkgs = [
+          {
+            csiDivision: "01 00 00",
+            tradeName: "General Requirements & Site Logistics",
+            budgetEstimate: 450000,
+            scopeSummary: "Site logistics, crane hoisting coordination, daily cleanup, and temporary utilities.",
+            mandatoryInclusions: ["Continuous jobsite cleanup", "Crane staging coordination", "OSHA 30 safety compliance"],
+            bidDeadline: "2026-10-31",
+          },
+          {
+            csiDivision: "26 00 00",
+            tradeName: "Electrical & Lighting Systems",
+            budgetEstimate: 1250000,
+            scopeSummary: "Main switchgear, emergency lighting, seismic bracing, and temporary power.",
+            mandatoryInclusions: ["Crane hoisting", "Seismic bracing", "UL 1479 firestopping"],
+            bidDeadline: "2026-10-31",
+          },
+          {
+            csiDivision: "23 00 00",
+            tradeName: "HVAC Mechanical Systems",
+            budgetEstimate: 1650000,
+            scopeSummary: "Rooftop air handling units, VAV terminal boxes, hydronic chiller loops, and BACnet controls.",
+            mandatoryInclusions: ["Certified TAB report", "BACnet MS/TP gateway", "Spring vibration isolation"],
+            bidDeadline: "2026-10-31",
+          },
+          {
+            csiDivision: "22 00 00",
+            tradeName: "Plumbing Systems",
+            budgetEstimate: 920000,
+            scopeSummary: "Domestic water piping, sanitary waste and venting, and triplex booster pump system.",
+            mandatoryInclusions: ["Factory certified pump startup", "Backflow certification", "Seismic snubbers"],
+            bidDeadline: "2026-10-31",
+          },
+        ];
+      }
     }
 
-    if (pkgs.length === 0) {
-      pkgs = [
-        {
-          csiDivision: "01 00 00",
-          tradeName: "General Requirements & Site Logistics",
-          budgetEstimate: 450000,
-          scopeSummary: "Site logistics, crane hoisting coordination, daily cleanup, and temporary utilities.",
-          mandatoryInclusions: ["Continuous jobsite cleanup", "Crane staging coordination", "OSHA 30 safety compliance"],
-          bidDeadline: "2026-10-31",
-        },
-        {
-          csiDivision: "26 00 00",
-          tradeName: "Electrical & Lighting Systems",
-          budgetEstimate: 1250000,
-          scopeSummary: "Main switchgear, emergency lighting, seismic bracing, and temporary power.",
-          mandatoryInclusions: ["Crane hoisting", "Seismic bracing", "UL 1479 firestopping"],
-          bidDeadline: "2026-10-31",
-        },
-        {
-          csiDivision: "23 00 00",
-          tradeName: "HVAC Mechanical Systems",
-          budgetEstimate: 1650000,
-          scopeSummary: "Rooftop air handling units, VAV terminal boxes, hydronic chiller loops, and BACnet controls.",
-          mandatoryInclusions: ["Certified TAB report", "BACnet MS/TP gateway", "Spring vibration isolation"],
-          bidDeadline: "2026-10-31",
-        },
-        {
-          csiDivision: "22 00 00",
-          tradeName: "Plumbing Systems",
-          budgetEstimate: 920000,
-          scopeSummary: "Domestic water piping, sanitary waste and venting, and triplex booster pump system.",
-          mandatoryInclusions: ["Factory certified pump startup", "Backflow certification", "Seismic snubbers"],
-          bidDeadline: "2026-10-31",
-        },
-      ];
+    if (args.previewOnly) {
+      // A6-42: echo the detected divisions/scope and let the GC confirm before any write.
+      return {
+        success: true,
+        preview: true,
+        packagesCount: pkgs.length,
+        packages: pkgs,
+      };
     }
 
     const createdIds: string[] = [];
