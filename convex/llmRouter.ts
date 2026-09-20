@@ -612,26 +612,77 @@ export function sanitizeBidLevelingOutput(
  */
 export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: string | undefined): number {
   if (!proposalText) return modelWeeks;
-  // A7CONV-R5A-1: a stated lead time in the text always wins over the model's
-  // number, so a model-returned 0 can never erase "lead time: 12 weeks".
+  const leadKeyword = "(?:lead\\s*time|delivery|procurement|shipment|fabrication)";
+  // A7CONV-R6C-1: compound "3 months and 2 weeks" statements must sum both parts.
+  const compoundMatch = proposalText.match(
+    new RegExp(`${leadKeyword}[^.\\n\\r]{0,60}?\\(?\\s*(\\d+(?:\\.\\d+)?)\\s*\\)?\\s*months?\\s*(?:and|,)?\\s*\\(?\\s*(\\d+(?:\\.\\d+)?)\\s*\\)?\\s*weeks?`, "i")
+  );
+  if (compoundMatch) {
+    const total = parseFloat(compoundMatch[1]) * 4.33 + parseFloat(compoundMatch[2]);
+    if (Number.isFinite(total) && total > 0 && total <= 520) return Math.max(1, Math.round(total));
+  }
+  // A7CONV-R6C-3: allow parenthesized numerals ("approximately eighteen (18) weeks").
+  const monthMatch = proposalText.match(
+    new RegExp(`${leadKeyword}[^.\\n\\r]{0,60}?\\(?\\s*(\\d+(?:\\.\\d+)?)\\s*\\)?\\s*months?`, "i")
+  );
+  if (monthMatch) {
+    const months = parseFloat(monthMatch[1]);
+    if (Number.isFinite(months) && months > 0 && months <= 120) return Math.max(1, Math.round(months * 4.33));
+  }
+  // A7CONV-R5A-1: a stated week count always wins over the model's number.
   const weekMatch =
     proposalText.match(
-      /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?(\d+(?:\.\d+)?)\s*weeks?/i
+      new RegExp(`${leadKeyword}[^.\\n\\r]{0,60}?\\(?\\s*(\\d+(?:\\.\\d+)?)\\s*\\)?\\s*weeks?`, "i")
     ) ||
     proposalText.match(
-      /(\d+(?:\.\d+)?)[\s-]*(?:week|wk)s?\s*(?:lead|delivery|procurement|fabrication|turnaround)/i
+      /\(?\s*(\d+(?:\.\d+)?)\s*\)?[\s-]*(?:week|wk)s?\s*(?:lead|delivery|procurement|fabrication|turnaround)/i
     );
   if (weekMatch) {
     const weeks = parseFloat(weekMatch[1]);
     if (Number.isFinite(weeks) && weeks > 0 && weeks <= 520) return Math.round(weeks);
   }
-  const monthMatch = proposalText.match(
-    /(?:lead\s*time|delivery|procurement|shipment|fabrication)[^.\n\r]{0,60}?(\d+(?:\.\d+)?)\s*months?/i
-  );
-  if (!monthMatch) return modelWeeks;
-  const months = parseFloat(monthMatch[1]);
-  if (!Number.isFinite(months) || months <= 0 || months > 120) return modelWeeks;
-  return Math.round(months * 4.33);
+  return modelWeeks;
+}
+
+/**
+ * Deterministic COI deficiency detection from the proposal text so a model can
+ * never return "compliant" for a proposal that explicitly withholds coverage
+ * (A7CONV-R6C-2). Affirmative compliance wording suppresses the deficiency only
+ * when no exclusion phrasing is present.
+ */
+export function detectCoiDeficiency(proposalText: string | undefined): boolean {
+  if (!proposalText) return false;
+  const lower = proposalText.toLowerCase();
+  const deficiency =
+    lower.includes("umbrella endorsement fee not included") ||
+    lower.includes("excess umbrella liability not provided") ||
+    lower.includes("umbrella liability endorsement excluded") ||
+    lower.includes("umbrella endorsement excluded") ||
+    lower.includes("umbrella endorsement not provided") ||
+    lower.includes("umbrella liability not provided") ||
+    lower.includes("statutory insurance only") ||
+    lower.includes("statutory worker's comp only") ||
+    lower.includes("statutory worker's compensation only") ||
+    lower.includes("standard statutory limits only") ||
+    lower.includes("standard statutory insurance limits only") ||
+    lower.includes("subrogation waived") ||
+    lower.includes("subrogation excluded") ||
+    lower.includes("waiver of subrogation excluded") ||
+    lower.includes("additional insured excluded") ||
+    lower.includes("additional insured endorsement excluded") ||
+    lower.includes("insurance deficiency") ||
+    lower.includes("coi deficiency") ||
+    (lower.includes("umbrella") &&
+      (lower.includes("excluded") || lower.includes("not included") || lower.includes("not provided")));
+  if (!deficiency) return false;
+  const affirmative =
+    lower.includes("fully compliant acord 25") ||
+    lower.includes("$5,000,000 commercial umbrella") ||
+    lower.includes("$5m umbrella") ||
+    lower.includes("$10m umbrella") ||
+    lower.includes("umbrella included") ||
+    lower.includes("subrogation included");
+  return !affirmative;
 }
 
 /**

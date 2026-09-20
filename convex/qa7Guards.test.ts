@@ -8,7 +8,12 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import { sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, normalizeLeadWeeksFromText } from "./llmRouter";
+import {
+  sanitizeBidLevelingOutput,
+  applyExplicitExclusionAmounts,
+  normalizeLeadWeeksFromText,
+  detectCoiDeficiency,
+} from "./llmRouter";
 
 const modules = import.meta.glob("./**/*.ts");
 type T = ReturnType<typeof convexTest>;
@@ -674,6 +679,19 @@ test("A7CONV-R4C-2: month-based lead times convert deterministically at 4.33 wee
   // A7CONV-R5A-1: a model-returned 0 can never erase a stated week count.
   expect(normalizeLeadWeeksFromText(0, "Material lead time: 12 weeks.")).toBe(12);
   expect(normalizeLeadWeeksFromText(0, "20-week lead time for switchgear.")).toBe(20);
+  // A7CONV-R6C-1: compound month+week statements sum both parts.
+  expect(normalizeLeadWeeksFromText(2, "LEAD TIME: 3 months and 2 weeks from notice to proceed.")).toBe(15);
+  // A7CONV-R6C-3: parenthesized numerals are read.
+  expect(normalizeLeadWeeksFromText(12, "Lead time: approximately eighteen (18) weeks.")).toBe(18);
+});
+
+test("A7CONV-R6C-2: subrogation wording is a COI deficiency in raw text detection", () => {
+  expect(detectCoiDeficiency("Insurance: additional insured included but subrogation waived.")).toBe(true);
+  expect(detectCoiDeficiency("Umbrella liability endorsement excluded.")).toBe(true);
+  expect(detectCoiDeficiency("Fully compliant ACORD 25 with $5M umbrella included.")).toBe(false);
+  expect(detectCoiDeficiency("Standard statutory limits only.")).toBe(true);
+  expect(detectCoiDeficiency("Insurance: compliant ACORD 25 attached.")).toBe(false);
+  expect(detectCoiDeficiency(undefined)).toBe(false);
 });
 
 test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {

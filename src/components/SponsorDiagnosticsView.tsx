@@ -597,7 +597,7 @@ export const SponsorDiagnosticsView: React.FC = () => {
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Dynamically routes tasks across Gemini Flash, OpenAI GPT-4o, and Claude Sonnet 5 for maximum throughput and forensic precision.
+                Dynamically routes tasks across Gemini Flash, Claude Sonnet 5, and OpenAI GPT-4o (BYOK) when configured, for maximum throughput and forensic precision.
               </p>
             </div>
           </div>

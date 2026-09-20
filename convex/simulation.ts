@@ -255,7 +255,7 @@ export const createSimulatedContractor = internalMutation({
       contactEmail: args.fromEmail,
       phone: "+1 (512) 835-2400",
       licenseNumber: `${statePrefix}-LIC-${Math.floor(10000 + Math.random() * 90000)}`,
-      licenseStatus: `Active / Verified (${statePrefix} Licensing)`,
+      licenseStatus: `Unverified — demo record; ${statePrefix} registry lookup not performed`,
       sourceUrl: `https://${domain}`,
       rfqStatus: "invited",
       dispatchedAt: Date.now(),
@@ -490,7 +490,7 @@ export const runFullProcurementCycle = mutation({
         contactEmail: c1Email,
         phone: "+1 (512) 835-2400",
         licenseNumber: c1License,
-        licenseStatus: "Active / Verified (TDLR)",
+        licenseStatus: "Unverified — demo record; state registry lookup not performed",
         sourceUrl: c1Url,
         rfqStatus: "discovered",
       });
@@ -509,7 +509,7 @@ export const runFullProcurementCycle = mutation({
         contactEmail: c2Email,
         phone: "+1 (512) 346-3022",
         licenseNumber: c2License,
-        licenseStatus: "Active / Verified (TDLR)",
+        licenseStatus: "Unverified — demo record; state registry lookup not performed",
         sourceUrl: c2Url,
         rfqStatus: "discovered",
       });
@@ -776,7 +776,7 @@ export const runFullProcurementCycle = mutation({
       subName: c1Name,
       contactEmail: c1Email,
       licenseNumber: c1License,
-      licenseStatus: "Active / Verified",
+      licenseStatus: "Unverified — demo record; registry lookup not performed",
       projectTitle: project?.title || "The Domain Tower B - Commercial MEP",
       projectLocation: project?.location || "Austin, TX",
       projectType: project?.projectType || "Class-A Commercial Mixed-Use",
@@ -802,7 +802,7 @@ export const runFullProcurementCycle = mutation({
     const executedAgreement = packageAgreementsBefore.find((a) => a.status === "executed");
     if (executedAgreement) {
       throw new ConvexError(
-        `This package has an executed subcontract (${executedAgreement.agreementNumber}). The full-cycle simulation cannot run here — choose a package without an executed contract.`
+        `This package has an executed subcontract (${executedAgreement.agreementNumber}). The full-cycle simulation cannot run here â€” choose a package without an executed contract.`
       );
     }
 
@@ -818,7 +818,7 @@ export const runFullProcurementCycle = mutation({
       bidId: bid1Id,
       contractorId: c1!._id,
       agreementNumber,
-      documentTitle: "Subcontract Agreement (A401-style structure) — generated draft, not an AIA-licensed form",
+      documentTitle: "Subcontract Agreement (A401-style structure) â€” generated draft, not an AIA-licensed form",
       subcontractorName: c1Name,
       generalContractorName: "Austin Commercial, LP",
       projectTitle: project?.title || "The Domain Tower B - Commercial MEP",

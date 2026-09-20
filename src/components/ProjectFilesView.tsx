@@ -599,7 +599,7 @@ export const ProjectFilesView: React.FC<ProjectFilesViewProps> = ({
                     <button
                       onClick={() => setPreviewFile(file)}
                       className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition text-xs flex items-center gap-1"
-                      title="Preview authentic specification/document text"
+                      title="Preview stored specification/document text"
                     >
                       <Eye className="w-3.5 h-3.5 text-emerald-400" />
                       <span className="hidden sm:inline">Preview</span>
