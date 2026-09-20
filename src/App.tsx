@@ -43,6 +43,18 @@ import {
 } from "./standaloneStore.ts";
 import { calculateLeveledCost, computeProcurementMetrics, getEffectiveBid } from "./leveling.ts";
 
+/**
+ * A6-35: honest defaults for quote-created contractors. A company named in a
+ * proposal never inherits another company's contact email, license number, or
+ * verification badge; the GC supplies those before the record is used.
+ */
+const UNPUBLISHED_CONTRACTOR_FIELDS = {
+  contactEmail: "not-published@verify-required.invalid",
+  licenseNumber: "Not verified",
+  licenseStatus: "Unverified - quote intake",
+  sourceUrl: "",
+};
+
 export { extractTextFromPdfStream, cleanNumber, getStateAbbreviation, parseCityAndState, generateAiaA401AgreementText, numberToWords };
 
 function getDynamicMailbox(location?: string, csiDivision?: string): string {
@@ -2073,48 +2085,20 @@ export const App: React.FC = () => {
         !currentProject._id.startsWith("proj_") &&
         !activePackage._id.startsWith("pkg_");
 
-      const resolveRealTradeContact = (name: string, stPrefix: string) => {
-        const n = name.toLowerCase();
-        if (n.includes("rosendin") || n.includes("electric") || n.includes("power")) {
-          return { email: "estimating@rosendin.com", url: "https://www.rosendin.com" };
-        }
-        if (n.includes("alterman")) {
-          return { email: "estimating@goalterman.com", url: "https://goalterman.com" };
-        }
-        if (n.includes("tdindustries") || n.includes("hvac") || n.includes("chiller") || n.includes("mechanical")) {
-          return { email: "estimating@tdindustries.com", url: "https://www.tdindustries.com" };
-        }
-        if (n.includes("clarke") || n.includes("plumb") || n.includes("piping")) {
-          return { email: "dispatch@clarkekentplumbing.com", url: "https://clarkekentplumbing.com" };
-        }
-        if (n.includes("baker") || n.includes("concrete")) {
-          return { email: "bids@bakerconcrete.com", url: "https://www.bakerconcrete.com/" };
-        }
-        if (n.includes("centimark") || n.includes("roof")) {
-          return { email: "contactus@centimark.com", url: "https://www.centimark.com/" };
-        }
-        if (n.includes("marek") || n.includes("drywall")) {
-          return { email: "bids@marekbros.com", url: "https://www.marekbros.com/" };
-        }
-        const fallbackUrl = stPrefix === "TX" ? "https://pels.texas.gov/" : stPrefix === "CA" ? "https://www.cslb.ca.gov/" : "https://www.agc.org/";
-        return { email: "bids@agc.org", url: fallbackUrl };
-      };
+      // A6-35: a quote-created contractor must never inherit another company's
+  // contact data or a fabricated verification badge. The record stays explicitly
+  // unpublished/unverified until the GC supplies the real details.
 
-      if (canRunConvex) {
-        if (!targetContractorId || targetContractorId === "new_contractor" || targetContractorId.startsWith("ctr_")) {
-          const rawName = data.newContractorName || (data.fileName ? data.fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") : "Commercial Subcontractor Inc.");
-          const statePrefix = currentProject?.location?.match(/\b([A-Z]{2})\b/)?.[1] || "COMM";
-          const contact = resolveRealTradeContact(rawName, statePrefix);
-          targetContractorId = await createContractorMutation({
-            tradePackageId: activePackage._id as any,
-            companyName: rawName,
-            contactEmail: contact.email,
-            licenseNumber: `${statePrefix}-LIC-VERIFIED`,
-            licenseStatus: "active",
-            sourceUrl: contact.url,
-            rfqStatus: "invited",
-          });
-        }
+  if (canRunConvex) {
+    if (!targetContractorId || targetContractorId === "new_contractor" || targetContractorId.startsWith("ctr_")) {
+      const rawName = data.newContractorName || (data.fileName ? data.fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") : "Commercial Subcontractor Inc.");
+      targetContractorId = await createContractorMutation({
+        tradePackageId: activePackage._id as any,
+        companyName: rawName,
+        ...UNPUBLISHED_CONTRACTOR_FIELDS,
+        rfqStatus: "bid_received",
+      });
+    }
         const result: any = await extractBidAction({
           projectId: currentProject._id as any,
           tradePackageId: activePackage._id as any,
@@ -2134,16 +2118,11 @@ export const App: React.FC = () => {
 
         if (!contractor) {
           const rawName = subNameMatch || "Commercial Subcontractor LLC";
-          const statePrefix = currentProject?.location?.match(/\b([A-Z]{2})\b/)?.[1] || "COMM";
-          const contact = resolveRealTradeContact(rawName, statePrefix);
           createdContractor = {
             _id: `contractor_${Date.now()}`,
             tradePackageId: activePackage._id,
             companyName: rawName,
-            contactEmail: contact.email,
-            licenseNumber: `${statePrefix}-LIC-VERIFIED`,
-            licenseStatus: "active",
-            sourceUrl: contact.url,
+            ...UNPUBLISHED_CONTRACTOR_FIELDS,
             rfqStatus: "bid_received",
           };
           contractor = createdContractor;
@@ -3199,43 +3178,14 @@ export const App: React.FC = () => {
         let contractorId = matchedContractor?._id;
         let createdContractor: Contractor | null = null;
         if (!matchedContractor) {
-          const locParsed = parseCityAndState(currentProject.location);
-          const resolveContract = (name: string) => {
-            const n = name.toLowerCase();
-            if (n.includes("rosendin") || n.includes("electric") || n.includes("power")) {
-              return { email: "estimating@rosendin.com", url: "https://www.rosendin.com" };
-            }
-            if (n.includes("alterman")) {
-              return { email: "estimating@goalterman.com", url: "https://goalterman.com" };
-            }
-            if (n.includes("tdindustries") || n.includes("hvac") || n.includes("chiller") || n.includes("mechanical")) {
-              return { email: "estimating@tdindustries.com", url: "https://www.tdindustries.com" };
-            }
-            if (n.includes("clarke") || n.includes("plumb") || n.includes("piping")) {
-              return { email: "dispatch@clarkekentplumbing.com", url: "https://clarkekentplumbing.com" };
-            }
-            if (n.includes("baker") || n.includes("concrete")) {
-              return { email: "bids@bakerconcrete.com", url: "https://www.bakerconcrete.com/" };
-            }
-            if (n.includes("centimark") || n.includes("roof")) {
-              return { email: "contactus@centimark.com", url: "https://www.centimark.com/" };
-            }
-            if (n.includes("marek") || n.includes("drywall")) {
-              return { email: "bids@marekbros.com", url: "https://www.marekbros.com/" };
-            }
-            const fallbackUrl = locParsed.stateAbbr === "TX" ? "https://pels.texas.gov/" : locParsed.stateAbbr === "CA" ? "https://www.cslb.ca.gov/" : "https://www.agc.org/";
-            return { email: "bids@agc.org", url: fallbackUrl };
-          };
-          const contact = resolveContract(subName);
+          // A6-35: quote-created contractors never inherit another company's
+          // contact data or a fabricated verification badge.
           contractorId = `ctr_${Date.now()}`;
           createdContractor = {
             _id: contractorId,
             tradePackageId: targetPkgId,
             companyName: subName,
-            contactEmail: contact.email,
-            licenseNumber: `${locParsed.stateAbbr}-LIC-${Math.floor(10000 + Math.random() * 90000)}`,
-            licenseStatus: `Active / Verified (${locParsed.stateAbbr} Licensing Board)`,
-            sourceUrl: contact.url,
+            ...UNPUBLISHED_CONTRACTOR_FIELDS,
             rfqStatus: "bid_received",
           };
         }

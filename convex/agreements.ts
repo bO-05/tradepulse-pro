@@ -110,8 +110,8 @@ export const generateAgreement = mutation({
         contactEmail:
           contractor?.contactEmail ??
           `estimating@${subName.toLowerCase().replace(/[^a-z0-9]/g, "") || "contractor"}.com`,
-        licenseNumber: contractor?.licenseNumber ?? `${stateAbbr}-COMM-VERIFIED`,
-        licenseStatus: contractor?.licenseStatus ?? "Active / Verified",
+        licenseNumber: contractor?.licenseNumber ?? "Not verified",
+        licenseStatus: contractor?.licenseStatus ?? "Unverified - verify before execution",
         projectTitle: project.title,
         projectLocation: project.location,
         projectType: project.projectType,
@@ -165,8 +165,8 @@ export const generateAgreement = mutation({
       contactEmail:
         contractor?.contactEmail ??
         `estimating@${subName.toLowerCase().replace(/[^a-z0-9]/g, "") || "contractor"}.com`,
-      licenseNumber: contractor?.licenseNumber ?? `${stateAbbr}-COMM-VERIFIED`,
-      licenseStatus: contractor?.licenseStatus ?? "Active / Verified",
+      licenseNumber: contractor?.licenseNumber ?? "Not verified",
+      licenseStatus: contractor?.licenseStatus ?? "Unverified - verify before execution",
       projectTitle: project.title,
       projectLocation: project.location,
       projectType: project.projectType,
@@ -547,8 +547,8 @@ export async function syncAgreementForBid(ctx: any, bidId: any): Promise<any> {
     contactEmail:
       contractor.contactEmail ||
       `estimating@${subcontractorName.toLowerCase().replace(/[^a-z0-9]/g, "") || "contractor"}.com`,
-    licenseNumber: contractor.licenseNumber || `${stateAbbr}-COMM-VERIFIED`,
-    licenseStatus: contractor.licenseStatus || "Active / Verified",
+    licenseNumber: contractor.licenseNumber || "Not verified",
+    licenseStatus: contractor.licenseStatus || "Unverified - verify before execution",
     projectTitle: project.title,
     projectLocation: project.location,
     projectType: project.projectType,
@@ -652,7 +652,11 @@ BETWEEN the Contractor:
 
 and the Subcontractor:
   ${params.subName}
-  Contact: ${params.contactEmail}
+  Contact: ${
+    /\.invalid$/i.test(params.contactEmail)
+      ? "not published — obtain the subcontractor's notice address before execution"
+      : params.contactEmail
+  }
   License No: ${params.licenseNumber} (${params.licenseStatus})
 
 The Prime Project:
