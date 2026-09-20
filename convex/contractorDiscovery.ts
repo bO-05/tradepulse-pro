@@ -67,6 +67,14 @@ function looksLikeSeoListFragment(title: string): boolean {
   ) {
     return true;
   }
+  // A6-27: government/registry page titles ("Electrical Permits", "Individual and
+  // contractor licenses", "Title 26 Electrical Regulations") are not companies.
+  if (
+    /\b(?:permits?|licenses?|licensing|regulations?|code|ordinances?|statutes?|directory|directories)\b/i.test(trimmed) &&
+    !hasLegalSuffix(trimmed)
+  ) {
+    return true;
+  }
   // Comma/semicolon lists with no legal suffix and several words are SEO copy,
   // not a legal entity name.
   if (/[,;]/.test(trimmed) && !hasLegalSuffix(trimmed) && trimmed.split(/\s+/).length >= 5) return true;
@@ -169,6 +177,72 @@ function isHostIn(url: string | undefined, hosts: string[]): boolean {
   return hosts.some((entry) => host === entry || host.endsWith(`.${entry}`));
 }
 
+// A6-27: government, union and association pages are never contractor company sites.
+const GOVERNMENT_HOST_RX = /(?:\.gov|\.mil)$/i;
+const STATE_GOVERNMENT_HOST_RX = /\.state\.[a-z]{2}\.us$/i;
+const UNION_OR_ASSOCIATION_HOST_RX = /(?:^|\.)(?:ibew|neca|smacna|liuna)\d*\.(?:com|org|net)$/i;
+const NON_COMPANY_PATH_RX =
+  /\/(?:contractor|member|business|vendor|company)?-?director(?:y|ies)(?:\/|$)|(?:^|\/)(?:permits?|licensing|regulations?|ordinances?|statutes?)(?:\/|$)|(?:^|\/)(?:blog|news|articles?|resources)(?:\/|$)/i;
+
+function isGovernmentOrAssociationHost(url: string | undefined): boolean {
+  const host = hostOf(url);
+  if (!host) return false;
+  return (
+    GOVERNMENT_HOST_RX.test(host) ||
+    STATE_GOVERNMENT_HOST_RX.test(host) ||
+    UNION_OR_ASSOCIATION_HOST_RX.test(host)
+  );
+}
+
+function isNonCompanyPage(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const path = new URL(url).pathname;
+    return NON_COMPANY_PATH_RX.test(path);
+  } catch {
+    return false;
+  }
+}
+
+// Words that describe a trade rather than identify a legal entity. They cannot
+// establish that a page belongs to the named company on their own.
+const NAME_STOP_TOKENS = new Set([
+  "the", "and", "of", "for", "inc", "llc", "l.l.c", "corp", "corporation", "co", "company",
+  "companies", "ltd", "limited", "group", "associates", "partners", "systems", "services",
+  "service", "solutions", "technologies", "technology", "industries", "industrial", "commercial",
+  "residential", "quality", "affordable", "reliable", "trusted", "local", "expert", "professional",
+  "licensed", "insured", "electric", "electrical", "plumbing", "mechanical", "hvac", "contractors",
+  "contractor", "construction", "engineering", "builders", "building", "supply", "supplies", "sons",
+  "brothers", "enterprises", "design", "build", "new", "repair", "installation", "maintenance",
+]);
+
+function tokenizeEntity(value: string): string[] {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3 && !NAME_STOP_TOKENS.has(t));
+}
+
+/**
+ * A6-27: a record is only attributable when the company name shares a significant
+ * token with the site it cites (name <-> domain agreement). The audited failures
+ * were pages of OTHER entities (a union directory, a city code page) or service
+ * pages whose title did not describe the domain's owner.
+ */
+export function nameMatchesDomain(name: string, url: string | undefined): boolean {
+  const host = hostOf(url);
+  if (!host) return false;
+  const nameTokens = tokenizeEntity(name);
+  const hostBase = host.split(".").slice(0, -1).join(".");
+  const domainTokens = tokenizeEntity(hostBase);
+  if (nameTokens.length === 0 || domainTokens.length === 0) return false;
+  const significant = nameTokens.filter((t) => t.length >= 4);
+  const pool = significant.length > 0 ? significant : nameTokens;
+  return pool.some((nt) => domainTokens.some((dt) => dt.includes(nt) || nt.includes(dt)));
+}
+
 /** Heuristic: is this title plausibly a company name rather than SEO copy? */
 export function looksLikeCompanyName(title: string): boolean {
   if (!title) return false;
@@ -213,6 +287,11 @@ function mapSearchItemToContractor(item: any, registryUrl: string): DiscoveredCo
   if (isHostIn(item?.url, DIRECTORY_HOSTS) || isHostIn(item?.url, REGISTRY_HOSTS)) {
     return null;
   }
+  // A6-27: government/union/association sites and directory/blog/service pages are
+  // not contractor company pages, no matter how company-like the title looks.
+  if (isGovernmentOrAssociationHost(item?.url) || isNonCompanyPage(item?.url)) {
+    return null;
+  }
   const cleanTitle = sanitizeContractorCompanyName(item?.title, "");
   if (!cleanTitle || !looksLikeCompanyName(cleanTitle)) {
     return null;
@@ -232,6 +311,11 @@ function mapSearchItemToContractor(item: any, registryUrl: string): DiscoveredCo
   const headingCandidate = headingMatch ? sanitizeContractorCompanyName(headingMatch[1], "") : "";
   const finalName = brandAcronym || (looksLikeCompanyName(headingCandidate) ? headingCandidate : cleanTitle);
   if (!brandAcronym && (!finalName || !looksLikeCompanyName(finalName))) {
+    return null;
+  }
+  // A6-27: require name <-> domain agreement so a record can never cite another
+  // entity's site. Pages whose title cannot be tied to the domain are dropped.
+  if (!nameMatchesDomain(finalName, item?.url)) {
     return null;
   }
   const sourceUrl: string = item?.url || registryUrl;
