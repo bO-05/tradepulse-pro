@@ -191,7 +191,7 @@ The full audit trail lives in [`docs/audits/`](./docs/audits/README.md) — self
 | [audit-4-ui.html](./docs/audits/audit-4-ui.html) | Human-operator UI audit (F1…F12). The [.md copy](./docs/audits/audit-4-ui.md) is machine-readable. |
 | [audit-5-remediation.html](./docs/audits/audit-5-remediation.html) | Remediation pass 2: F1–F12 verification table, new findings, claim-change decisions, convergence log, before/after evidence. |
 | [audit-6-usefulness.html](./docs/audits/audit-6-usefulness.html) / [.md](./docs/audits/audit-6-usefulness.md) | Independent adversarial usefulness audit (AUDIT-6) of the live app: demo + BYO verdicts, C1–C15 claims, A6-xx findings. |
-| [audit-6-remediation.html](./docs/audits/audit-6-remediation.html) | Remediation pass 3: reproduction status for every A6-xx, before/after evidence, 25 convergence rounds, decisions, BYO proof, regression output. |
+| [audit-6-remediation.html](./docs/audits/audit-6-remediation.html) / [.md](./docs/audits/audit-6-remediation.md) | Remediation pass 3: reproduction status for every A6-xx, before/after evidence, 25 convergence rounds, decisions, BYO proof, regression output, and a browser-only re-verification guide. |
 
 **Current state (audit 6 remediation, pass 3).** Every AUDIT-6 finding was reproduced live before
 fixing; the one that no longer reproduces is marked UNREPRODUCED rather than "fixed." The core
