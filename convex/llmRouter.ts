@@ -763,9 +763,10 @@ export function detectCoiAffirmativeCompliance(proposalText: string | undefined)
 export function detectCoiDeficiency(proposalText: string | undefined): boolean {
   if (!proposalText) return false;
   const lower = proposalText.toLowerCase();
-  // A7CONV-R13B-F4: umbrella/exclusion wording is only a deficiency when both
-  // appear in the SAME sentence, so "umbrella included" plus an unrelated
-  // "excluded" elsewhere is not a deficiency.
+  // A7CONV-R13B-F4/R18B-F1: umbrella/exclusion wording is only a deficiency when
+  // both appear in the SAME sentence, and an affirmative phrase clears ONLY the
+  // coverage class it names ("subrogation included" cannot clear an umbrella
+  // exclusion).
   const umbrellaNegatedNearby = proposalText
     .split(/[.;](?=\s|$)|\n+/)
     .some(
@@ -773,7 +774,7 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
         /\bumbrella\b/i.test(sentence) &&
         /\b(?:excluded?|not\s+included|not\s+provided|fee\s+not\s+included)\b/i.test(sentence)
     );
-  const deficiency =
+  const umbrellaDeficiency =
     umbrellaNegatedNearby ||
     lower.includes("umbrella endorsement fee not included") ||
     lower.includes("excess umbrella liability not provided") ||
@@ -781,32 +782,38 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
     lower.includes("umbrella endorsement excluded") ||
     lower.includes("umbrella endorsement not provided") ||
     lower.includes("umbrella liability not provided") ||
+    /\b\d{1,3}\s*%\s*(?:of\s+)?(?:the\s+)?(?:required\s+)?umbrella/i.test(proposalText);
+  const statutoryDeficiency =
     lower.includes("statutory insurance only") ||
     lower.includes("statutory worker's comp only") ||
     lower.includes("statutory worker's compensation only") ||
     lower.includes("statutory wc only") ||
     lower.includes("wc only") ||
-    /\b\d{1,3}\s*%\s*(?:of\s+)?(?:the\s+)?(?:required\s+)?umbrella/i.test(proposalText) ||
     lower.includes("workers comp only") ||
     lower.includes("workers' compensation only") ||
     lower.includes("standard statutory limits only") ||
-    lower.includes("standard statutory insurance limits only") ||
+    lower.includes("standard statutory insurance limits only");
+  const subrogationDeficiency =
     lower.includes("subrogation waived") ||
     lower.includes("subrogation excluded") ||
-    lower.includes("waiver of subrogation excluded") ||
-    lower.includes("additional insured excluded") ||
-    lower.includes("additional insured endorsement excluded") ||
-    lower.includes("insurance deficiency") ||
-    lower.includes("coi deficiency");
-  if (!deficiency) return false;
-  const affirmative =
-    lower.includes("fully compliant acord 25") ||
-    lower.includes("$5,000,000 commercial umbrella") ||
+    lower.includes("waiver of subrogation excluded");
+  const additionalInsuredDeficiency =
+    lower.includes("additional insured excluded") || lower.includes("additional insured endorsement excluded");
+  const genericDeficiency = lower.includes("insurance deficiency") || lower.includes("coi deficiency");
+  const umbrellaAffirmative =
+    /\bumbrella\b[^.\n]{0,80}?\$\s*5[0-9,.]*/i.test(proposalText) ||
+    /\$\s*5[0-9,.]*[^.\n]{0,40}?\bumbrella\b/i.test(proposalText) ||
     lower.includes("$5m umbrella") ||
     lower.includes("$10m umbrella") ||
-    lower.includes("umbrella included") ||
-    lower.includes("subrogation included");
-  return !affirmative;
+    lower.includes("umbrella included");
+  const subrogationAffirmative = lower.includes("subrogation included");
+  return (
+    (umbrellaDeficiency && !umbrellaAffirmative) ||
+    (subrogationDeficiency && !subrogationAffirmative) ||
+    statutoryDeficiency ||
+    additionalInsuredDeficiency ||
+    genericDeficiency
+  );
 }
 
 /** A7CONV-R11A-F-SEV-PRICE: severity follows the FINAL priced impact. */

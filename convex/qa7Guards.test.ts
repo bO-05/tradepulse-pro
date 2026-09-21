@@ -888,6 +888,12 @@ test("A7CONV-R15A: the deterministic scope-gap net restores a dropped exclusion 
   expect(
     detectCoiAffirmativeCompliance("coverage with umbrella liability limits of $5,000,000.00 are included.")
   ).toBe(true);
+  // A7CONV-R18B-F1: "subrogation included" cannot clear an umbrella exclusion.
+  expect(
+    detectCoiDeficiency("Workers' compensation only. Umbrella liability endorsement excluded. Subrogation included.")
+  ).toBe(true);
+  expect(detectCoiDeficiency("Umbrella liability endorsement excluded. Subrogation included.")).toBe(true);
+  expect(detectCoiDeficiency("$5,000,000 umbrella included. Subrogation included.")).toBe(false);
 });
 
 test("A7CONV-R13B: position-aware binding, allowance exemptions, and sentence-local COI deficiency", () => {
