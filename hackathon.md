@@ -12,11 +12,11 @@
 - **Auth:** none
 - **AI models:** gpt-4o (BYOK), gemini-3.6-flash (pinned; gemini-3.8-flash returns 429), claude-sonnet-5
 - **Started:** 2026-09-09T12:41:52Z
-- **Last updated:** 2026-09-19T08:49:00Z
+- **Last updated:** 2026-09-21T10:33:32Z
 
 ## Submission Summary
 
-**What it is.** TradePulse Pro is an autonomous subcontractor procurement platform for commercial construction general contractors. One project, one causal loop: decompose a specification into CSI MasterFormat trade packages, discover candidate subcontractors with provenance, dispatch RFQ invitations, answer pre-bid RFIs against the spec, level every proposal with the ADR-0003 normalization formula, resolve cross-trade double-buys and scope voids, generate an AIA Document A401 subcontract, and log every action to a realtime audit stream.
+**What it is.** TradePulse Pro is an autonomous subcontractor procurement platform for commercial construction general contractors. One project, one causal loop: decompose a specification into CSI MasterFormat trade packages, discover candidate subcontractors with provenance, dispatch RFQ invitations, answer pre-bid RFIs against the spec, level every proposal with the ADR-0003 normalization formula, resolve cross-trade double-buys and scope voids, generate an A401-style subcontract draft (not an official AIA form), and log every action to a realtime audit stream.
 
 **Stack (all four sponsors, verified live).**
 - **Convex** — schema, indexed queries, mutations, actions, HTTP router, file storage (`_storage`), scheduled crons, and realtime `useQuery` with zero polling. Static hosting via `@convex-dev/static-hosting`.
@@ -26,7 +26,7 @@
 
 **What makes it credible.** Derived numbers are computed once (`src/leveling.ts`) and read by every surface; the eval suite includes three holdout cases whose proposals state no total, so the model must do the arithmetic; claims-integrity is enforced by a source-level honesty test suite; every mutation is validated server-side; and the audit trail is immutable.
 
-**Verification snapshot (2026-09-18).** `tsc -b` clean; `npm test` 22/22; eval run `eval_1789711637426` 13/13 with holdout 3/3 at 0.00% MAPE on live Claude traces; adversarial pass (triple-click create, zero-recipient dispatch, refresh race, Back, 720px zoom, keyboard-only) green; demo project byte-stable; all `AUDIT-*` fixtures removed.
+**Verification snapshot (2026-09-21).** `tsc -b` clean; `npx vitest run` 113/113; `python tests/test_tradepulse.py` 36/36; `python tests/verify_setup.py` green; eval run `eval_1789900335453` 13/13 with holdout 3/3 at 0.00% MAPE on live Claude traces; audit-6 remediation re-verified across 25 independent convergence rounds (two consecutive clean); demo project byte-stable; all `AUDIT-*` fixtures removed.
 
 **Links.** Live app <https://brainy-skunk-440.convex.site> · Repo <https://github.com/bO-05/tradepulse-pro> · API manifest `/llms.txt` · Health `/api/health`.
 

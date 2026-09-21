@@ -43,7 +43,7 @@
 
 ## Evidence you can cite in the submission text
 
-- `npm test` → 22/22 (regression + derived-number + claims-honesty suites).
-- Holdout eval run `eval_1789711637426`: 13/13 cases, holdout 3/3, MAPE 0.00%, live Claude traces, prompts verified to contain no answer.
+- `npx vitest run` → 113/113 (regression, leveling/derived-number, discovery-guard, and claims-honesty suites).
+- Holdout eval run `eval_1789900335453`: 13/13 cases, holdout 3/3, MAPE 0.00%, live Claude traces, prompts verified to contain no answer.
 - Adversarial pass: triple-click create → 1 project; zero-recipient RFQ dispatch leaves the package `draft` with zero dispatched events; mid-submit refresh does not duplicate or lose the RFI; 720px (200% zoom) → 0px overflow; keyboard-only dialog open/close with focus restore.
 - Demo project byte-stable after every test; all `AUDIT-*` fixtures deleted.

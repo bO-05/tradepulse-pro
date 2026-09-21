@@ -162,7 +162,7 @@ python tests/test_tradepulse.py
 # Hackathon setup and log verification -> expect ALL VERIFICATION TESTS PASSED
 python tests/verify_setup.py
 
-# Unit + integration tests -> expect 80/80
+# Unit + integration tests -> expect 113/113
 npx vitest run
 
 # Type-check -> expect no output, exit 0
