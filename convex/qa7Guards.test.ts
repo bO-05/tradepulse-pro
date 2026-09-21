@@ -834,6 +834,40 @@ test("A7CONV-R11B/R11A: explicit firestop wording, pump-skid crane, base-line gu
   expect(detectCoiDeficiency("Insurance: we carry 90% of the required umbrella.")).toBe(true);
 });
 
+test("A7CONV-R12B: base/retainage amounts never bind as exclusions; scope collisions resolve by head noun", () => {
+  // A base amount named in the exclusion sentence is not the exclusion cost.
+  const baseLeak = applyExplicitExclusionAmounts(
+    [{ description: "Penthouse crane rigging and hoisting excluded", costImpact: 45_000 }],
+    "The base proposal price for Division 26 is $1,024,500.00 and penthouse crane rigging and hoisting is excluded."
+  );
+  expect(baseLeak[0].costImpact).toBe(45_000);
+  // A retainage amount never prices a percentage-only exclusion.
+  const retainage = applyExplicitExclusionAmounts(
+    applyUnpricedExclusionBenchmarks(
+      [{ description: "Seismic structural bracing per IBC Section 1613 is excluded", costImpact: 0 }],
+      "Seismic structural bracing per IBC Section 1613 is excluded (3.5% of contract value) and a 10% retainage of $115,300 will be withheld.",
+      "26 00 00"
+    ),
+    "Seismic structural bracing per IBC Section 1613 is excluded (3.5% of contract value) and a 10% retainage of $115,300 will be withheld."
+  );
+  expect(retainage[0].costImpact).toBe(55_000);
+  // Head-noun precedence for core/firestop collisions.
+  expect(benchmarkExclusionAmount("22 00 00", "Core drilling of firestopping sleeves excluded")).toBe(16_000);
+  expect(benchmarkExclusionAmount("26 00 00", "UL 1479 firestopping of plumbing riser sleeves excluded")).toBe(22_000);
+  // A rooftop cooling-tower lift takes the Div 23 line even in a Div 22 package.
+  expect(benchmarkExclusionAmount("22 00 00", "Rooftop crane pick and rigging of the cooling tower excluded")).toBe(48_000);
+  // A word-amount tail naming a different scope binds to THAT scope, not the previous one.
+  const wordSwap = applyExplicitExclusionAmounts(
+    [
+      { description: "Penthouse crane hoisting of the pump skid is excluded", costImpact: 25_000 },
+      { description: "Firestopping work at riser penetrations is excluded", costImpact: 22_000 },
+    ],
+    "Penthouse crane hoisting of the pump skid is excluded. The GC carry for the firestopping work is one hundred and twenty-five thousand dollars."
+  );
+  expect(wordSwap[0].costImpact).toBe(25_000);
+  expect(wordSwap[1].costImpact).toBe(125_000);
+});
+
 test("A7CONV-R5C-1/2: next-line amounts bind to the bulleted exclusion and subrogation is a COI deficiency", async () => {
   const t = convexTest(schema, modules);
   const res: any = await t.action(internal.llmRouter.executeReasoning, {

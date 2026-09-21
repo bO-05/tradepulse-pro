@@ -707,12 +707,25 @@ export function normalizeExclusionSeverity<T extends { description: string; cost
   );
 }
 
+/**
+ * A7CONV-R12B-F1/F2: base, retainage, insurance and liquidated-damages amounts
+ * are never exclusion costs, even inside an exclusion sentence.
+ */
+export function isNonExclusionMoneyContext(text: string, amountIndex: number): boolean {
+  const start = Math.max(0, amountIndex - 48);
+  return /\b(?:base|contract|proposal|total|retainage|withheld|umbrella|insurance|coverage|bond|liquidated|per\s*diem)\b/i.test(
+    text.slice(start, amountIndex)
+  );
+}
+
 /** Benchmark schedule for unpriced exclusions, keyed by scope signature. */
 export function benchmarkExclusionAmount(division: string | undefined, description: string): number {
   const prefix = String(division || "").trim().slice(0, 2);
   switch (exclusionScopeSignature(description)) {
     case "CRANE":
-      // A7CONV-R11B-F3: a pump-skid lift takes the documented pump-skid line.
+      // A7CONV-R12B-F4: cooling-tower/chiller lifts take the Div 23 line;
+      // A7CONV-R11B-F3: pump-skid lifts take the documented pump-skid line.
+      if (/cooling\s*tower|chiller|ahu|air\s*handler/i.test(description)) return 48_000;
       if (/pump|skid|booster/i.test(description)) return 25_000;
       return prefix === "23" ? 48_000 : prefix === "22" ? 25_000 : 45_000;
     case "FIRESTOP":
@@ -769,17 +782,25 @@ export function applyUnpricedExclusionBenchmarks<T extends { description: string
     const overlap = exTokens.filter((t) => sentenceTokens.some((s) => s.includes(t) || t.includes(s))).length;
     return overlap >= (strict ? 3 : 2);
   };
-  const baseLikeSentenceRx = /\b(?:base\s*(?:bid|price|proposal)|contract\s*(?:sum|price)|proposal\s*(?:price|amount)|total\s*(?:bid|proposal)?\s*price)\b/i;
+  const baseLikeSentenceRx = /\b(?:base\s*(?:bid|price|proposal)|retainage|withheld|umbrella|coverage|bond|liquidated)\b/i;
   return exclusions.map((ex) => {
     const signature = exclusionScopeSignature(ex.description);
     const exTokens = tokens(ex.description);
-    // A7CONV-R11A-2b: the base-bid line is never a stated exclusion amount.
-    const dollarSentence = sentences.find(
-      (sentence) =>
+    // A7CONV-R11A-2b/R12B: a dollar amount in non-exclusion context (base,
+    // retainage, insurance) never suppresses the benchmark; a stated allowance
+    // or cap does.
+    const dollarSentence = sentences.find((sentence) => {
+      if (!/\$\s*[0-9]/.test(sentence)) return false;
+      const amounts = [...sentence.matchAll(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g)];
+      const hasExclusionContextAmount = amounts.some(
+        (m) => !isNonExclusionMoneyContext(sentence, m.index ?? 0)
+      );
+      return (
+        hasExclusionContextAmount &&
         !baseLikeSentenceRx.test(sentence) &&
-        /\$\s*[0-9]/.test(sentence) &&
         scopeMatches(sentence, signature, exTokens, true)
-    );
+      );
+    });
     if (dollarSentence) return ex; // stated amount wins (bound by applyExplicitExclusionAmounts)
     const percentSentence = sentences.find(
       (sentence) => /\d+(?:\.\d+)?\s*%/.test(sentence) && scopeMatches(sentence, signature, exTokens, false)
@@ -802,7 +823,12 @@ export function exclusionScopeSignature(value: string): string | null {
   const v = (value || "").toLowerCase();
   if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) return "BACNET";
   if (/crane|rigging|hoisting/.test(v)) return "CRANE";
-  // A7CONV-R11B-F2: explicit firestop wording beats sleeve/penetration nouns.
+  // A7CONV-R11B-F2 / R12B-F3: head-noun precedence resolves collisions between
+  // firestop wording and sleeve/penetration nouns.
+  const startsFirestop = /^\s*(?:ul\s*)?(?:firestop|firestopping|1479)/i.test(v) || /1479/.test(v);
+  const startsCore = /^\s*(?:ul\s*)?(?:core|drill)/i.test(v);
+  if (startsFirestop) return "FIRESTOP";
+  if (startsCore) return "CORE";
   if (/firestop|firestopping|1479/.test(v)) return "FIRESTOP";
   if (/core|drill|sleeve/.test(v)) return "CORE";
   if (/penetration/.test(v)) return "FIRESTOP";
@@ -892,47 +918,59 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
     const value = total + current;
     return found && value > 0 ? value : null;
   };
-  // A7CONV-R4C-1: re-join an orphaned amount tail ("… ; allowance: $6,120") to
-  // its exclusion clause before filtering, so the stated amount stays bindable.
+  // A7CONV-R12B-F1/F2: base, retainage, insurance and liquidated-damages amounts
+  // are never exclusion costs, even inside an exclusion sentence.
+  const amountIsNonExclusion = (segment: string, index: number) =>
+    isNonExclusionMoneyContext(segment, index);
+  // A7CONV-R7C-1/R10B-F2: a segment's single stated amount (dollar or words).
+  const statedAmountOf = (segment: string): number | null => {
+    const amounts = [...segment.matchAll(amountRx)]
+      .filter((m) => !amountIsNonExclusion(segment, m.index ?? 0))
+      .map((m) => Number(m[1].replace(/[,\s]/g, "")));
+    if (amounts.length === 1 && Number.isFinite(amounts[0]) && amounts[0] > 0) return amounts[0];
+    if (amounts.length === 0) return wordsToAmount(segment);
+    return null;
+  };
+  // A7CONV-R4C-1/R12A-F1: re-join an orphaned amount tail ("… ; allowance: $6,120")
+  // to its exclusion clause, but never merge a tail that names a DIFFERENT scope.
   const rawSegments = proposalText
     .split(/[;\n]+|(?<=\.)\s+/)
     .map((s) => s.trim())
     .filter(Boolean);
   const joined: string[] = [];
   for (const seg of rawSegments) {
-    const hasAmount = /\$\s*[0-9]/.test(seg);
-    const hasWordAmount = wordsToAmount(seg) !== null;
+    const stated = statedAmountOf(seg);
     const prev = joined[joined.length - 1];
     const isCredit = veOrCreditRx.test(seg);
+    const segSignatures = exclusionScopeSignatures(seg);
+    const prevSignatures = prev ? exclusionScopeSignatures(prev) : new Set<string>();
+    const sameScope =
+      segSignatures.size === 0 ||
+      (prevSignatures.size > 0 && [...segSignatures].every((s) => prevSignatures.has(s)));
     if (
       !isCredit &&
       !exclusionWordSegmentRx.test(seg) &&
-      (hasAmount || hasWordAmount) &&
+      stated !== null &&
       prev &&
-      !/\$\s*[0-9]/.test(prev) &&
-      wordsToAmount(prev) === null
+      statedAmountOf(prev) === null &&
+      sameScope
     ) {
       joined[joined.length - 1] = `${prev}; ${seg}`;
     } else {
       joined.push(seg);
     }
   }
-  const segments = joined.filter((s) => exclusionWordSegmentRx.test(s) && !veOrCreditRx.test(s));
+  const segments = joined.filter(
+    (s) =>
+      !veOrCreditRx.test(s) &&
+      (exclusionWordSegmentRx.test(s) ||
+        (statedAmountOf(s) !== null && exclusionScopeSignatures(s).size === 1))
+  );
   const explicit: Array<{ segment: string; amount: number; used: boolean }> = [];
   for (const seg of segments) {
-    // A7CONV-R7C-1: support space-separated thousands ("$ 12 345") as well as
-    // comma-separated amounts; negatives are credits and never bind.
-    const amounts = [...seg.matchAll(amountRx)].map((m) => Number(m[1].replace(/[,\s]/g, "")));
-    if (amounts.length === 1 && Number.isFinite(amounts[0]) && amounts[0] > 0) {
-      explicit.push({ segment: seg, amount: amounts[0], used: false });
-      continue;
-    }
-    // A7CONV-R10B-F2: words-only stated amounts ("thirty-three thousand dollars").
-    if (amounts.length === 0) {
-      const wordAmount = wordsToAmount(seg);
-      if (wordAmount !== null) {
-        explicit.push({ segment: seg, amount: wordAmount, used: false });
-      }
+    const amount = statedAmountOf(seg);
+    if (amount !== null) {
+      explicit.push({ segment: seg, amount, used: false });
     }
   }
   if (explicit.length === 0) return exclusions;
@@ -952,6 +990,9 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
     explicit.forEach((seg, segIndex) => {
       const segTokens = tokenize(seg.segment);
       const segSignatures = exclusionScopeSignatures(seg.segment);
+      // A7CONV-R12A-F1: an amount clause naming multiple scopes cannot be
+      // attributed to one exclusion; the benchmark schedule handles it instead.
+      if (segSignatures.size > 1) return;
       const sigMatch =
         exSignature !== null && segSignatures.size === 1 && segSignatures.has(exSignature);
       const tokenScore = exTokens.filter((t) => segTokens.some((s) => s.includes(t) || t.includes(s))).length;
@@ -1945,9 +1986,22 @@ Ensure all cost numbers are pure numeric primitives.`
                 return overlap.length >= 2;
               });
               if (!alreadyMatched) {
-                // A7CONV-R7C-1: support space-separated thousands in exclusion amounts.
-                const costMatch = cleanDesc.match(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/);
-                let costImpact = costMatch ? parseFloat(costMatch[1].replace(/[,\s]/g, "")) : 0;
+                // A7CONV-R7C-1/A7CONV-R12B-F1: support space-separated thousands and never
+                // take a base/retainage/insurance amount as an exclusion cost.
+                let costImpact = 0;
+                const amountMatches = [...cleanDesc.matchAll(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g)];
+                for (const m of amountMatches) {
+                  const contextStart = Math.max(0, (m.index ?? 0) - 48);
+                  const before = cleanDesc.slice(contextStart, m.index ?? 0);
+                  if (/\b(?:base|contract|proposal|total|retainage|withheld|umbrella|insurance|coverage|bond|liquidated|per\s*diem)\b/i.test(before)) {
+                    continue;
+                  }
+                  const parsedAmount = parseFloat(m[1].replace(/[,\s]/g, ""));
+                  if (Number.isFinite(parsedAmount) && parsedAmount > 0) {
+                    costImpact = parsedAmount;
+                    break;
+                  }
+                }
                 let severity = "moderate";
                 const descLower = cleanDesc.toLowerCase();
 
