@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
+import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency, detectCoiAffirmativeCompliance } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
@@ -450,11 +450,17 @@ async function doExtractBid(
   const parsed = sanitizeBidLevelingOutput(reasoningResult.parsedJson, {
     division: tradePackage.csiDivision,
   });
-  // A7CONV-R6C-2: the proposal text is the source of truth for a stated COI
-  // deficiency, even when the model reports "compliant".
+  // A7CONV-R6C-2/R14A-F1: the proposal text is the source of truth for a stated
+  // COI position, in both directions.
   if (detectCoiDeficiency(proposalText)) {
     parsed.coiComplianceStatus = "deficiency_detected";
-    if (!(Number(parsed.coiPenalty) > 0)) parsed.coiPenalty = COI_DEFICIENCY_PENALTY;
+    parsed.coiPenalty = COI_DEFICIENCY_PENALTY;
+  } else if (
+    parsed.coiComplianceStatus === "deficiency_detected" &&
+    detectCoiAffirmativeCompliance(proposalText)
+  ) {
+    parsed.coiComplianceStatus = "compliant";
+    parsed.coiPenalty = 0;
   }
   let subName = selectedContractorName || args.contractorName || parsed?.subcontractorName;
   if (!subName || subName === "Commercial Subcontractor") {

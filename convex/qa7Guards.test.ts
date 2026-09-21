@@ -16,6 +16,7 @@ import {
   normalizeExclusionSeverity,
   normalizeLeadWeeksFromText,
   detectCoiDeficiency,
+  detectCoiAffirmativeCompliance,
 } from "./llmRouter";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -875,6 +876,22 @@ test("A7CONV-R13B: position-aware binding, allowance exemptions, and sentence-lo
     )
   ).toBe(false);
   expect(detectCoiDeficiency("Umbrella liability endorsement excluded.")).toBe(true);
+  // A7CONV-R14A-F1: text affirmative compliance is detected in $5,000,000.00 form.
+  expect(
+    detectCoiAffirmativeCompliance("ACORD 25 attached; $5,000,000.00 commercial umbrella liability included.")
+  ).toBe(true);
+  // A model-declared deficiency penalty is clamped to the documented constant.
+  const clamped = sanitizeBidLevelingOutput(
+    {
+      baseBidAmount: 500_000,
+      longLeadEquipmentWeeks: 10,
+      coiComplianceStatus: "deficiency_detected",
+      coiPenalty: 43_800,
+    },
+    { division: "26 00 00" }
+  );
+  expect(clamped.coiComplianceStatus).toBe("deficiency_detected");
+  expect(clamped.coiPenalty).toBe(15_000);
 });
 
 test("A7CONV-R12B: base/retainage amounts never bind as exclusions; scope collisions resolve by head noun", () => {

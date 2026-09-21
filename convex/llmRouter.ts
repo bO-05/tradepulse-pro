@@ -2,7 +2,7 @@ import { internalAction, action, query } from "./_generated/server";
 import { v } from "convex/values";
 import { inflate } from "pako";
 import { internal } from "./_generated/api";
-import { leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
+import { COI_DEFICIENCY_PENALTY, leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
 export interface ReasoningResult {
   provider: string;
@@ -578,6 +578,12 @@ export function sanitizeBidLevelingOutput(
     isAccepted: false,
   }));
 
+  // A7CONV-R14A-F1: the COI deficiency penalty is the documented constant, never
+  // an arbitrary model amount.
+  if (effectiveCoiStatus === "deficiency_detected") {
+    effectiveCoiPenalty = COI_DEFICIENCY_PENALTY;
+  }
+
   const activeExclusionsTotal = identifiedExclusions.reduce(
     (s: number, x: any) => (x.isWaived ? s : s + x.costImpact),
     0
@@ -646,6 +652,23 @@ export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: str
     if (Number.isFinite(weeks) && weeks > 0 && weeks <= 520) return Math.round(weeks);
   }
   return modelWeeks;
+}
+
+/**
+ * A7CONV-R14A-F1: affirmative compliance wording, used to clear a model-declared
+ * COI deficiency when the proposal text actually shows coverage.
+ */
+export function detectCoiAffirmativeCompliance(proposalText: string | undefined): boolean {
+  if (!proposalText) return false;
+  const lower = proposalText.toLowerCase();
+  return (
+    lower.includes("fully compliant acord 25") ||
+    /\$\s*5\s*(?:m(?:illion)?|[0-9,.]*)\s*commercial\s+umbrella/i.test(proposalText) ||
+    lower.includes("$5m umbrella") ||
+    lower.includes("$10m umbrella") ||
+    lower.includes("umbrella included") ||
+    lower.includes("subrogation included")
+  );
 }
 
 /**

@@ -1,7 +1,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency } from "./llmRouter";
+import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency, detectCoiAffirmativeCompliance } from "./llmRouter";
 import { sendAgentmailMessage } from "./agentmailApi";
 import { COI_DEFICIENCY_PENALTY, leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
@@ -463,10 +463,17 @@ export const handleBidProcessing = internalAction({
         )
       );
     }
-    // A7CONV-R6C-2: the proposal text is the source of truth for a stated COI deficiency.
+    // A7CONV-R6C-2/R14A-F1: the proposal text is the source of truth for a stated
+    // COI position, in both directions.
     if (detectCoiDeficiency(args.text)) {
       bidData.coiComplianceStatus = "deficiency_detected";
-      if (!(Number(bidData.coiPenalty) > 0)) bidData.coiPenalty = COI_DEFICIENCY_PENALTY;
+      bidData.coiPenalty = COI_DEFICIENCY_PENALTY;
+    } else if (
+      bidData.coiComplianceStatus === "deficiency_detected" &&
+      detectCoiAffirmativeCompliance(args.text)
+    ) {
+      bidData.coiComplianceStatus = "compliant";
+      bidData.coiPenalty = 0;
     }
 
     const effectiveBaseBid = bidData.baseBidAmount ?? 0;
