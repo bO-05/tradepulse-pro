@@ -649,6 +649,26 @@ test("A7CONV-R3C-2/3/4/5: inclusion-negatives are not exclusions; plugs are not 
   expect(keptImpacts.length).toBeGreaterThanOrEqual(2);
 });
 
+test("A7CONV-R23A: a model-supplied waiver can never zero an exclusion", () => {
+  const res = sanitizeBidLevelingOutput(
+    {
+      baseBidAmount: 500_000,
+      longLeadEquipmentWeeks: 10,
+      identifiedExclusions: [
+        {
+          description: "Crane hoisting and rigging excluded",
+          costImpact: 45_000,
+          severity: "critical",
+          isWaived: true,
+        },
+      ],
+    },
+    { division: "26 00 00" }
+  );
+  expect(res.identifiedExclusions[0].isWaived).toBe(false);
+  expect(res.leveledTotalCost).toBe(545_000);
+});
+
 test("A7CONV-R20A: the scope named first in the text wins over later modifiers", () => {
   // A TAB row that mentions commissioning is TAB, not BACNET.
   expect(

@@ -554,7 +554,10 @@ export function sanitizeBidLevelingOutput(
         // A7CONV-R10A-F-SEV: severity is derived from the priced impact so two
         // runs of the same text cannot label the same exclusion differently.
         severity: impact >= 30000 ? "critical" : impact >= 15000 ? "moderate" : "minor",
-        isWaived: Boolean(ex?.isWaived),
+        // A7CONV-R23A: waivers are a GC decision in the adjustment panel; a
+        // model-supplied isWaived could silently zero a real exclusion and swing
+        // the leveled total between runs of the same text.
+        isWaived: false,
       });
     }
   }
@@ -1289,7 +1292,7 @@ export const executeReasoning = internalAction({
   "subcontractorName": string,
   "baseBidAmount": number,
   "lineItems": [{"item": string, "unit": string, "quantity": number, "unitCost": number, "totalCost": number}],
-  "identifiedExclusions": [{"canonicalCode": string (e.g. "CSI_26_CRANE"), "description": string, "costImpact": number, "severity": "critical"|"moderate"|"minor", "isWaived": boolean (optional)}],
+  "identifiedExclusions": [{"canonicalCode": string (e.g. "CSI_26_CRANE"), "description": string, "costImpact": number, "severity": "critical"|"moderate"|"minor"}],
   "valueEngineeringAlternates": [{"description": string, "costDeduct": number, "isAccepted": boolean}],
   "longLeadEquipmentWeeks": number,
   "coiComplianceStatus": "compliant"|"deficiency_detected",
