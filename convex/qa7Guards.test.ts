@@ -649,6 +649,30 @@ test("A7CONV-R3C-2/3/4/5: inclusion-negatives are not exclusions; plugs are not 
   expect(keptImpacts.length).toBeGreaterThanOrEqual(2);
 });
 
+test("A7CONV-R19B: updateBidAdjustments accepts and preserves canonicalCode on exclusion rows", async () => {
+  const t = convexTest(schema, modules);
+  const projectId = await makeProject(t, "A7 Adjustments CanonicalCode Project");
+  const packageId = await makePackage(t, projectId, "26 00 00", 1_250_000);
+  const contractorId = await makeContractor(t, packageId, "A7 Adjustment Bidder");
+  const bidId = await makeBid(t, packageId, contractorId, "A7 Adjustment Bidder", 1_000_000);
+  const result: any = await t.mutation(api.bids.updateBidAdjustments, {
+    bidId,
+    identifiedExclusions: [
+      {
+        canonicalCode: "CSI_26_CRANE",
+        description: "Crane hoisting and rigging excluded",
+        costImpact: 45_000,
+        severity: "critical",
+      },
+    ],
+    coiComplianceStatus: "compliant",
+  });
+  expect(result.leveledTotalCost).toBe(1_045_000);
+  const stored: any = await t.run(async (ctx) => await ctx.db.get(bidId));
+  expect(stored.identifiedExclusions[0].canonicalCode).toBe("CSI_26_CRANE");
+  expect(stored.leveledTotalCost).toBe(1_045_000);
+});
+
 test("A7CONV-R3C-6: inferred canonical codes never cross the package division", async () => {
   const t = convexTest(schema, modules);
   const res: any = await t.action(internal.llmRouter.executeReasoning, {

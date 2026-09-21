@@ -297,6 +297,7 @@ export const updateBidLeveling = mutation({
     identifiedExclusions: v.optional(
       v.array(
         v.object({
+          canonicalCode: v.optional(v.string()),
           description: v.string(),
           costImpact: v.number(),
           severity: v.string(),
@@ -381,6 +382,7 @@ export const updateBidAdjustments = mutation({
     bidId: v.id("bids"),
     identifiedExclusions: v.array(
       v.object({
+        canonicalCode: v.optional(v.string()),
         description: v.string(),
         costImpact: v.number(),
         severity: v.string(),
