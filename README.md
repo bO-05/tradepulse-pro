@@ -190,10 +190,20 @@ The full audit trail lives in [`docs/audits/`](./docs/audits/README.md) — self
 | [audit-3-adversarial.html](./docs/audits/audit-3-adversarial.html) | Independent audit v3 with adversarial passes (AUD-01…AUD-05). |
 | [audit-4-ui.html](./docs/audits/audit-4-ui.html) | Human-operator UI audit (F1…F12). The [.md copy](./docs/audits/audit-4-ui.md) is machine-readable. |
 | [audit-5-remediation.html](./docs/audits/audit-5-remediation.html) | Remediation pass 2: F1–F12 verification table, new findings, claim-change decisions, convergence log, before/after evidence. |
+| [audit-6-usefulness.html](./docs/audits/audit-6-usefulness.html) / [.md](./docs/audits/audit-6-usefulness.md) | Independent adversarial usefulness audit (AUDIT-6) of the live app: demo + BYO verdicts, C1–C15 claims, A6-xx findings. |
+| [audit-6-remediation.html](./docs/audits/audit-6-remediation.html) | Remediation pass 3: reproduction status for every A6-xx, before/after evidence, 25 convergence rounds, decisions, BYO proof, regression output. |
 
-**Current state (audit 5).** All Critical/High/Medium findings were fixed and re-verified live;
-F10/F11 could not be reproduced and are marked as such rather than "fixed." Regression is green:
-`npx tsc -b` clean, `npx vitest run` 80/80, `python tests/test_tradepulse.py` 36/36. Live
+**Current state (audit 6 remediation, pass 3).** Every AUDIT-6 finding was reproduced live before
+fixing; the one that no longer reproduces is marked UNREPRODUCED rather than "fixed." The core
+claim now holds deterministically: the lead-time penalty is computed in code from the extracted
+weeks and a GC-owned division baseline (12 wks Div 26 / 16 wks Div 22–23), persisted per bid with
+the baseline, and rendered as auditable arithmetic. Stated exclusion amounts bind positionally,
+unpriced scopes take division-correct benchmarks, COI is a text-driven $15,000 in both directions,
+and VE/waiver acceptance is GC-only. Identical input twice is byte-identical live (repeated-ingest
+sha checks). Regression is green: `npx tsc -b` clean, `npx vitest run` 113/113,
+`python tests/test_tradepulse.py` 36/36, `python tests/verify_setup.py`, `npm run verify:docs`,
+`npm run verify:reports`, `npm run smoke:live` 7/7. The BYO journey was re-run end to end with our
+own spec, numbers, and documents, then cleaned up (only the demo project remains). Live
 verification harness: [`scripts/qa/`](./scripts/qa/README.md).
 
 ---

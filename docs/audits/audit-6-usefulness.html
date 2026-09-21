@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradePulse Pro — Adversarial Usefulness Audit (AUDIT-6)</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel2:#0f1728; --ink:#e8eefc; --mut:#9fb0d0;
+    --line:#243150; --real:#22c55e; --part:#f59e0b; --bad:#ef4444; --info:#38bdf8; --crit:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0a1020,#0b1220 40%);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:28px}
+  .wrap{max-width:1180px;margin:0 auto}
+  header.top{border:1px solid var(--line);background:linear-gradient(180deg,#101a30,#0d1526);border-radius:16px;padding:22px 24px}
+  h1{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
+  .sub{color:var(--mut);font-size:13px}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--mut);margin-right:6px}
+  h2{margin:30px 0 12px;font-size:19px;border-left:4px solid #4f7cff;padding-left:10px}
+  h3{margin:20px 0 8px;font-size:15.5px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .card{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:16px 18px}
+  .verdict{border-radius:14px;padding:16px 18px;border:1px solid var(--line);background:var(--panel)}
+  .verdict .tag{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+  .verdict .v{font-size:22px;font-weight:700;margin:4px 0 8px}
+  .v.part{color:var(--part)} .v.real{color:var(--real)} .v.bad{color:var(--bad)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 4px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#0e1830;color:#cdd9f3;font-weight:600;position:sticky;top:0}
+  tr:nth-child(even) td{background:#0d1628}
+  .b{font-weight:600}
+  .k{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11.5px;font-weight:700;border:1px solid transparent;white-space:nowrap}
+  .k.real{background:rgba(34,197,94,.14);color:#4ade80;border-color:rgba(34,197,94,.35)}
+  .k.part{background:rgba(245,158,11,.14);color:#fbbf24;border-color:rgba(245,158,11,.35)}
+  .k.bad{background:rgba(239,68,68,.14);color:#f87171;border-color:rgba(239,68,68,.35)}
+  .k.info{background:rgba(56,189,248,.14);color:#7dd3fc;border-color:rgba(56,189,248,.35)}
+  .k.high{background:rgba(220,38,38,.18);color:#fca5a5;border-color:rgba(220,38,38,.4)}
+  .k.med{background:rgba(245,158,11,.16);color:#fcd34d;border-color:rgba(245,158,11,.35)}
+  .k.low{background:rgba(148,163,184,.16);color:#cbd5e1;border-color:rgba(148,163,184,.35)}
+  .k.crit{background:rgba(220,38,38,.3);color:#fff;border-color:#dc2626}
+  ul{margin:6px 0 4px 18px;padding:0}
+  li{margin:3px 0}
+  .mut{color:var(--mut)}
+  .finding{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0;background:var(--panel2)}
+  .finding .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .finding .id{font-weight:800;letter-spacing:.02em}
+  .finding .body{font-size:13.5px}
+  .finding .body b{color:#dbe6ff}
+  .callout{border:1px solid var(--line);background:#0e1830;border-radius:12px;padding:12px 14px;margin:12px 0;font-size:13.5px}
+  .callout.risk{border-color:rgba(239,68,68,.45);background:rgba(239,68,68,.07)}
+  .callout.good{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.06)}
+  code{background:#0a1224;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12.5px}
+  .foot{color:var(--mut);font-size:12.5px;margin:26px 0 8px;text-align:center}
+  .kv{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .kv span{border:1px solid var(--line);background:#0a1224;border-radius:8px;padding:5px 10px;font-size:12.5px}
+  details{margin:8px 0}
+  summary{cursor:pointer;color:#cdd9f3;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>TradePulse Pro — Adversarial Usefulness Audit <span class="mut">(AUDIT-6)</span></h1>
+  <div class="sub">Live app: <b>brainy-skunk-440.convex.site</b> · repo: <b>github.com/bO-05/tradepulse-pro</b> · 2026-09-20 (UTC) · browser-only evaluation</div>
+  <div class="kv">
+    <span>Judging deadline: Sep 22, 12:00 PM PT</span>
+    <span>Scope: product truth — demo usefulness + bring-your-own (BYO) viability</span>
+    <span>Deep second pass (supersedes first draft)</span>
+  </div>
+</header>
+
+<div class="callout good" style="margin-top:14px">
+  <b>CODING-AGENT START HERE (do these first, in order).</b> The app is genuinely good; it does not need a rewrite. These 5 changes protect the demo you already built — each is small and each removes a thing a judge or a real GC can catch.
+  <ol style="margin:8px 0 4px 18px">
+    <li><b>Deterministic lead-time penalty</b> (Critical, S): take the already-extracted <code>leadTimeWeeks</code> integer (UI shows "16 wks"/"17 wks") and compute <code>penalty = max(0, leadTimeWeeks − 12) × 6000</code> in plain code — do <b>not</b> let the model return the dollar penalty; set extraction decoding to temperature 0; render the arithmetic. Fixes the headline ADR-0003 claim. (A6-05r, A6-54)</li>
+    <li><b>RFQ toast must tell the delivery truth</b> (High, S): read the per-recipient delivery result already in the audit log and show "delivered to N of M" or "delivery failed." (A6-29)</li>
+    <li><b>Public-demo banner</b> (High, XS): "Public shared demo — everything here is visible to anyone with this URL. Do not enter confidential or real bid data." (A6-18)</li>
+    <li><b>Fix the two dead controls</b> (Medium, S): wire "Record Execution Status" to a real dialog or remove it (A6-34); make Auto-Scope echo parsed divisions and confirm before writing (A6-42).</li>
+    <li><b>Doc/copy truth pass</b> (Medium, XS–S): README "AIA Document A401" → "A401-style"; qualify "$38,500" as the VFD item; fetch <code>/llms.txt</code> live in the panel (A6-13); fix the "auto-classifies" copy (A6-38).</li>
+  </ol>
+  Everything else in §5 is real but lower priority. §6 ranks all ten; §7 lists what <b>not</b> to touch.
+</div>
+
+<h2>1 · Verdict card</h2>
+<div class="grid2">
+  <div class="verdict">
+    <div class="tag">(a) Demo verdict</div>
+    <div class="v part">PARTLY</div>
+    <div class="mut" style="font-size:13.5px">The seeded story lands in ~3 minutes and the demo's leveling arithmetic is exact to the dollar — but the demo's most trust-building surfaces (Judge Dock, generated A401/addendum, discovery) carry fabricated parties/figures or non-contractor pages, so a careful evaluator trusts it less the longer they look.</div>
+  </div>
+  <div class="verdict">
+    <div class="tag">(b) BYO verdict</div>
+    <div class="v part">PARTLY</div>
+    <div class="mut" style="font-size:13.5px">A GC can create their own project, scope their own spec, upload their own documents and ingest their own proposals — all verified — but the <b>leveling engine mis-prices BYO proposals</b>: the lead-time penalty doesn't follow the app's own documented $6,000/week rate and can change run-to-run for identical input. A GC cannot yet trust a BYO buyout decision.</div>
+  </div>
+</div>
+
+<div class="callout risk">
+  <b>Single biggest credibility risk:</b> the <b>lead-time penalty</b> inside ADR-0003 leveling. The app publishes a rate ($6,000/week over a 12-week target; README example 16w→+$24,000), yet on identical inputs it returned <b>$24,000, $6,000, and $0</b> across runs, and never matched the formula on a non-16-week input. Lead-time is one of only four terms in the leveled-cost equation — an unstable term silently under-collects delay exposure and can flip the "true cheapest bid" ranking.
+</div>
+<div class="callout"><b>Runner-up risk:</b> discovery imports non-contractor pages (a city permits office, an IBEW directory, a contractor's blog post) and binds names that don't match the cited source domain, contradicting the stated rule "Directory and aggregator pages are skipped." The rows <i>are</i> labeled "Not verified — from web search result" (honest).</div>
+
+<h2>2 · Prior-audit digest (all six sources read)</h2>
+<div class="card" style="font-size:13.5px">
+  <p><b>Read:</b> <code>docs/audits/README.md</code> (index) · <code>audit-1-ux</code> (NO-GO, 5 P1) · <code>audit-2-user-journey</code> (5 personas, BUG-01…36) · <code>audit-3-adversarial</code> (27 re-verified: 25 pass / 2 artifact / 0 regressed; AUD-01…05) · <code>audit-4-ui</code> (.md + html, F1–F12, "Partly") · <code>audit-5-remediation</code> (F1–F12 table, 77 FIX-NEW / 17 USE, 18 clean rounds).</p>
+  <p><b>Claimed status:</b> all Critical/High/Medium fixed &amp; re-verified; F10/F11 UNREPRODUCED; regression <code>tsc</code> clean / <code>vitest 80/80</code> / Python <code>36/36</code>; demo byte-stable; fixtures deleted.</p>
+  <p><b>Live spot-checks re-run today (12):</b> New-Project field fidelity · 0-bid project honesty · renamed "Open Demo Simulation…" · addendum disabled at 0 RFIs · addendum refuses uncertified RFIs · high-confidence RFI still PM-gated · dialog aria/Escape contract · 0 overflow at 375/720 · deep-link URL sync · CSV integrity · eval case-mep-02 $46,500 resolved · executed-contract immutability — <span class="k real">ALL STILL HOLD</span></p>
+</div>
+
+<details>
+<summary>2b · Corrigenda — what the deeper pass changed vs my own first draft</summary>
+<table>
+<tr><th>First-draft claim</th><th>Now</th><th>Truth</th></tr>
+<tr><td>A6-05 "BYO lead-time penalty never fires"</td><td><span class="k part">CORRECTED</span></td><td>It fires sometimes; the real defects are <b>nondeterminism</b> + a penalty that ignores the documented rate.</td></tr>
+<tr><td>A6-05 "every VE auto-accepted"</td><td><span class="k part">CORRECTED</span></td><td>On the demo, Rosendin's VE shows <b>"(Declined)"</b>. VE accept-state is inconsistent between demo and ingested bids, not a blanket auto-accept.</td></tr>
+<tr><td>A6-06 "Auto-Scope silently does nothing"</td><td><span class="k part">CORRECTED</span></td><td>Works on a clean spec (Div 26 25 created correctly); produced one wrong division with no warning. Real issue = no parse confirmation.</td></tr>
+<tr><td>A6-02 "Judge Dock hardcodes GC on real projects"</td><td><span class="k part">NARROWED</span></td><td>Only the labeled demo-slate path. Normal path derives the GC from the project record correctly.</td></tr>
+<tr><td>A6-04 "A401 hardcodes demo GC + fake license"</td><td><span class="k part">NARROWED</span></td><td>Judge-Dock path only; normal award used my own GC name. Contact cross-contamination still observed.</td></tr>
+<tr><td>C13 "8 packages from 8-division spec"</td><td><span class="k part">NOT RE-REPRODUCED</span></td><td>This pass used single-division and plumbing specs; multi-division breadth not re-run.</td></tr>
+</table>
+</details>
+
+<h2>3 · Claim-vs-reality (C1–C15)</h2>
+<table>
+<tr><th>#</th><th>Claim (source)</th><th>Observed live</th><th>Verdict</th></tr>
+<tr><td>C1</td><td>Demo <code>Leveled Buyout $3,918,500</code>; <code>Buyout 1/3 Awarded</code></td><td>Present, reload-stable</td><td><span class="k real">REAL</span></td></tr>
+<tr><td>C2</td><td>Reconciled $4,250,000 / $3,918,500 / +$331,500 (7.8%) / +$186,000</td><td>All four agree across strip + 6-card view</td><td><span class="k real">REAL</span></td></tr>
+<tr><td>C3</td><td>Alterman $1.1M→$1,286,000; Rosendin $1,225,000; VE −$35,000</td><td>Alterman math exact ($1,100,000+$147,000+$24,000+$15,000); Rosendin VE shown <b>Declined</b> → $1,225,000 (README states both)</td><td><span class="k real">REAL</span></td></tr>
+<tr><td>C4</td><td>Clash README <code>$38,500</code> vs script <code>$50,500 / $46,500</code></td><td>Demo shows $50,500 double-buys / $46,500 voids; the $38,500 is the VFD credit item on another project</td><td><span class="k real">REAL (no conflict)</span></td></tr>
+<tr><td>C5</td><td>Discovery provenance; "Unverified" unless registry-sourced</td><td>Labels honest, but non-contractor pages imported and name ≠ source domain</td><td><span class="k part">PARTIAL</span></td></tr>
+<tr><td>C6</td><td>AgentMail shared-inbox disclosure</td><td>6th+ package: <code>Shared inbox — AgentMail plan inbox limit reached</code></td><td><span class="k real">REAL</span></td></tr>
+<tr><td>C7</td><td>OpenAI BYOK; Gemini/Claude live</td><td>OpenAI "key not set"; live runs <code>Anthropic · claude-sonnet-5</code></td><td><span class="k real">REAL</span></td></tr>
+<tr><td>C8</td><td>1-click lifecycle works</td><td>Works + confirmation; writes <b>fixed demo figures/parties</b> onto the active project</td><td><span class="k bad">THEATER (labeled)</span></td></tr>
+<tr><td>C9</td><td>Holdout 3/3, MAPE 0.00%, traces inspectable</td><td>Re-ran live: Run ID Sep 18→Sep 20, 13/13, MAPE 0.00%; holdouts have <b>no total in the prompt</b></td><td><span class="k real">REAL — strong</span></td></tr>
+<tr><td>C10</td><td>Video shot list exists, ≤3:00</td><td>All numbers exist on screen; live LLM waits push past 3:00 if shown</td><td><span class="k part">PARTIAL</span></td></tr>
+<tr><td>C11</td><td>Test counts (80/80, 36/36; script 22/22)</td><td>Not runnable browser-only; docs cite three suites</td><td><span class="k info">NOT TESTABLE</span></td></tr>
+<tr><td>C12</td><td>Real-time, zero polling</td><td>Two contexts: <b>23 ms</b> propagation (observer), 0→1 counter, no reload/poll</td><td><span class="k real">REAL — both contexts</span></td></tr>
+<tr><td>C13</td><td>Auto-parses architectural specifications</td><td>Clean Div 26 25 spec → correct package; ambiguous plumbing spec → unrelated Div 05 package, no warning</td><td><span class="k part">PARTIAL</span></td></tr>
+<tr><td>C14</td><td>Parses your proposals / Direct Quote ingestion</td><td>Exclusions exact (+$35,950) &amp; COI correct (+$15,000); <b>lead-time wrong</b> (17w→+$6,000, should be $30,000)</td><td><span class="k part">PARTIAL</span></td></tr>
+<tr><td>C15</td><td>Upload your files, persist, re-open; labels say what they are</td><td>Upload/persist/preview/download verified; label follows <b>manual dropdown</b> (not auto); storage URL public-read</td><td><span class="k part">PARTIAL</span></td></tr>
+</table>
+
+<h2>4 · Feature &amp; screen value map</h2>
+<table>
+<tr><th>Screen / feature</th><th>Class</th><th>Note</th></tr>
+<tr><td>6-stage stepper + live counts</td><td><span class="k real">REAL VALUE</span></td><td>Best UX decision; real per-stage counts</td></tr>
+<tr><td>Executive KPI band (compact + 6-card)</td><td><span class="k real">REAL VALUE</span></td><td>Honest basis labels; numbers reconcile</td></tr>
+<tr><td>CSI Scoping cards</td><td><span class="k real">REAL VALUE</span></td><td>Includes shared-inbox honesty</td></tr>
+<tr><td>AI Spec Breakdown (Auto-Scope)</td><td><span class="k part">REAL, not self-verifying</span></td><td>Correct on clean spec; no parse echo; one bad silent outcome</td></tr>
+<tr><td>Direct Quote / PDF ingestion</td><td><span class="k part">REAL (seeded) / UNCLEAR (BYO)</span></td><td>Exclusions + COI exact; lead-time unreliable</td></tr>
+<tr><td>Spread Table View + CSV export</td><td><span class="k real">REAL VALUE</span></td><td>Backend-matching, escaped</td></tr>
+<tr><td>Scope Clash engine</td><td><span class="k real">REAL VALUE</span></td><td>Project-scoped; prices double-buys &amp; voids</td></tr>
+<tr><td>RFI → AI clarification → PM certify → Addendum</td><td><span class="k real">REAL VALUE</span></td><td>Spec-grounded; PM gate genuinely enforced; filed to storage</td></tr>
+<tr><td>Live Activity Audit stream</td><td><span class="k real">REAL VALUE</span></td><td>Actor+timestamp causal log; discloses failures</td></tr>
+<tr><td>Deadline + Compliance crons</td><td><span class="k real">REAL VALUE</span></td><td>Run and log honestly</td></tr>
+<tr><td>Convex <code>_storage</code> register</td><td><span class="k real">REAL VALUE</span></td><td>Upload/persist/preview/download verified; public-read caveat</td></tr>
+<tr><td>Judge Dock (60s)</td><td><span class="k bad">THEATER (labeled)</span></td><td>Fixed figures; writes real records; confirmation present</td></tr>
+<tr><td>Generated A401-style draft</td><td><span class="k part">REAL text / THEATER identity</span></td><td>Full 10-article structure; contact cross-contamination</td></tr>
+<tr><td>Generated Addendum No. 01</td><td><span class="k part">REAL, generic Article 1</span></td><td>Real storage artifact</td></tr>
+<tr><td>"Record Execution Status"</td><td><span class="k bad">DEAD</span></td><td>No dialog/toast/state change (reproduced)</td></tr>
+<tr><td>Evals &amp; Architecture / Diagnostics</td><td><span class="k real">REAL VALUE</span></td><td>Re-runs live; per-case raw prompt/response; honest BYOK</td></tr>
+<tr><td>Discovery "Discover Trade Contractors"</td><td><span class="k info">UNCLEAR</span></td><td>Finds vendors, but also city offices/directories/blogs</td></tr>
+<tr><td>"Open source page"</td><td><span class="k info">UNCLEAR</span></td><td>No visible result on click</td></tr>
+<tr><td>"Why GCs Care" panels</td><td><span class="k low">BLOAT</span></td><td>Repeated on every stage</td></tr>
+<tr><td>Invite-to-bid content</td><td><span class="k bad">MISSING</span></td><td>No preview/contact/due date/reminders; real delivery fails</td></tr>
+<tr><td>Subcontractor-facing view</td><td><span class="k bad">MISSING</span></td><td>None; subs only receive email</td></tr>
+<tr><td>Notifications / assignees / revision history</td><td><span class="k bad">MISSING</span></td><td>Table-stakes for teams</td></tr>
+<tr><td>Per-project commercial terms</td><td><span class="k bad">MISSING</span></td><td>Hardcoded 10% retainage / $1,200-day LD</td></tr>
+<tr><td>"ADR-0003", "forensic", "holdout"</td><td><span class="k med">JARGON</span></td><td>Only ADR-0003 has a gloss</td></tr>
+<tr><td>Public/shared-instance disclosure</td><td><span class="k info">MISSING (AUTH-READY)</span></td><td>No banner that data is world-visible</td></tr>
+</table>
+
+<h2>5 · Findings (A6-xx)</h2>
+<p class="mut" style="font-size:13px">Severity: Critical = claim false/misleading or core flow broken, no workaround · High = real-usefulness blocker or judge-visible overclaim · Medium = friction/false-state/missing table-stakes · Low = polish · Info = observation. AUTH-READY tops out at Medium.</p>
+
+<h3>Credibility / core engine</h3>
+<div class="finding" style="border-color:rgba(220,38,38,.5)">
+  <div class="h"><span class="id">A6-05r</span><span class="k crit">CRITICAL</span><span class="k bad">BUG/CLAIM</span><span class="b">Lead-time penalty is nondeterministic and ignores the documented rate</span></div>
+  <div class="body"><b>Saw:</b> README states "16 wks vs 12 wks target @ $6,000/wk → +$24,000". Across runs: 16w→+$24,000 (correct); <b>16w→$0 (On Track)</b> for near-identical text; <b>17w→+$6,000</b> (should be $30,000); <b>20w→+$24,000</b> (should be $48,000). The exact same quote text produced $0 on one ingest and +$24,000 on another; each state was reload-stable.<br>
+  <b>Repro:</b> any project → Div 22/03 package → Ingest Quote → paste "N weeks from notice to proceed; target is 12 weeks".<br>
+  <b>Fix:</b> extract <code>leadWeeks</code> (already displayed), compute <code>max(0, leadWeeks − 12) × 6000</code> in code, decode at temperature 0, persist fields, and show the arithmetic so it is auditable.</div>
+</div>
+<div class="finding" style="border-color:rgba(220,38,38,.5)">
+  <div class="h"><span class="id">A6-54</span><span class="k crit">CRITICAL</span><span class="k bad">BUG</span><span class="b">Confirmed on MY OWN numbers: lead-time penalty wrong even when it fires</span></div>
+  <div class="body"><b>Saw</b> (project AUDIT6-3): base $837,450; exclusions +$35,950 <b>correct</b>; COI +$15,000 <b>correct</b>; lead "17 weeks… target 12 weeks" → <b>+$6,000</b>; leveled $894,400. Correct total = $918,400. Same fix as A6-05r.</div>
+</div>
+<div class="finding">
+  <div class="h"><span class="id">A6-27</span><span class="k high">HIGH</span><span class="k bad">CLAIM/UX</span><span class="b">Discovery imports non-contractor pages and mislabels the entity vs its source</span></div>
+  <div class="body"><b>Saw</b> (Div 26 &amp; 23, reproduced): "Electrical Permits" → <code>portland.gov</code>; "Contractor Directory" → <code>ibew48.com/contractor-directory/</code>; "New HVAC Design / Build" → a contractor blog post; "Vancouver &amp; Portland HVAC Contractors" → a company site; two records cited a different company's domain + email. Contradicts "Directory and aggregator pages are skipped."<br>
+  <b>Fix:</b> keep only company pages whose name matches the domain; drop gov/aggregator/blog URLs.</div>
+</div>
+
+<h3>Fabrication / honesty</h3>
+<div class="finding">
+  <div class="h"><span class="id">A6-29</span><span class="k high">HIGH</span><span class="k bad">CLAIM</span><span class="b">Real AgentMail delivery fails ("0 of N") while the toast says "dispatched"</span></div>
+  <div class="body"><b>Saw:</b> "Invite to Bid" → toast "Invitation to bid dispatched via AgentMail". Audit log: <code>AgentMail Delivery: 0 of 1 eligible recipient(s) … No email was delivered</code>; then 0 of 2; then 0 of 1 to a plausible address. Three attempts, zero deliveries. The <b>audit stream is honest</b>; the toast overstates.<br>
+  <b>Fix:</b> make the toast reflect the delivery result and show an explicit "delivery unavailable" state.</div>
+</div>
+<div class="finding"><div class="h"><span class="id">A6-35</span><span class="k med">MEDIUM</span><span class="k bad">BUG</span><span class="b">A401 draft contact cross-contamination</span></div>
+  <div class="body">Draft for "Willamette Mechanical Systems Inc." lists <code>estimating@tdindustries.com</code> — a different company. Fix: bind contact to the same record as the name.</div></div>
+
+<h3>Dead / silent controls</h3>
+<div class="finding"><div class="h"><span class="id">A6-34</span><span class="k med">MEDIUM</span><span class="k bad">DEAD</span><span class="b">"Record Execution Status" is a no-op</span></div>
+  <div class="body">Click → no dialog, no toast, no state change (header stays "0 / 1", row stays "Pending Execution"), reproduced twice and after reload. Fix: wire it to a status dialog or remove it.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-42</span><span class="k med">MEDIUM</span><span class="k bad">UX</span><span class="b">Auto-Scope gives no confirmation of what it parsed</span></div>
+  <div class="body">Clean "SECTION 26 25 00" spec → correct Div 26 25 package; ambiguous Div-22 spec → unrelated Div 05 12 00 Structural Steel package ($1,850,000) with no warning. Fix: echo parsed divisions + scope and require confirmation; make it reversible.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-22</span><span class="k med">MEDIUM</span><span class="k bad">UX/BUG</span><span class="b">Ingest modal state/index fragility</span></div>
+  <div class="body">"Subcontractor / Bidder" is free-text only with zero registered contractors, a select otherwise; field count flips 3↔4; fast fills land values in the wrong controls → "Unsupported file type". Fix: stable ids/labels, reset on package change.</div></div>
+
+<h3>Claim / doc</h3>
+<div class="finding"><div class="h"><span class="id">A6-38</span><span class="k low">LOW</span><span class="k bad">CLAIM</span><span class="b">Document type is manual, not "auto-classified"</span></div>
+  <div class="body">A CSI-spec PDF uploaded with the dropdown left at default was labeled "BLUEPRINT"; re-uploading set to "CSI Specification PDF" labeled it SPEC. Fix: classify by content or change the copy.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-13</span><span class="k low">LOW</span><span class="k info">DOC-STALE</span><span class="b">README overstates A401 + clash figure; panel embeds stale llms.txt</span></div>
+  <div class="body">README says "AIA Document A401 Contract Generator" (artifact says "A401-STYLE … not an official AIA document"); "$38,500 redundant spend" is one VFD item while demo double-buys total $50,500. Live <code>/llms.txt</code> is accurate; the panel copy is stale.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-14</span><span class="k low">LOW</span><span class="k info">CLAIM</span><span class="b">Retainage inconsistency</span></div>
+  <div class="body">A401/Contracts show 10%; audit-5/README reference 5%. Pick one and label it configurable.</div></div>
+
+<h3>AUTH-READY observations (never defects)</h3>
+<div class="finding"><div class="h"><span class="id">A6-18</span><span class="k info">INFO</span><span class="k info">AUTH-READY</span><span class="b">No disclosure the instance is public/shared</span></div>
+  <div class="body">Commercially sensitive data is world-visible to anyone with the URL. Smallest mitigation: a persistent banner — "Public shared demo — everything here is visible to anyone with this URL. Do not enter confidential or real bid data."</div></div>
+<div class="finding"><div class="h"><span class="id">A6-20</span><span class="k info">INFO</span><span class="k info">AUTH-READY</span><span class="b">No identity, attribution, or isolation</span></div>
+  <div class="body">All projects appear to every visitor; any visitor can create/delete/dispatch/certify. Audit actors are system labels only.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-21</span><span class="k info">INFO</span><span class="k info">AUTH-READY</span><span class="b">UI implies ownership it cannot deliver</span></div>
+  <div class="body">Roles like "Chief Estimator / Project PM" and an executive-titled execution dialog imply per-user accounts that don't exist.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-43</span><span class="k info">INFO</span><span class="k info">AUTH-READY</span><span class="b">Convex <code>_storage</code> files are public-read by URL</span></div>
+  <div class="body"><code>…/api/storage/&lt;id&gt;</code> returned the addendum HTTP 200 with no auth (verified via curl). Scope storage to tenant before real use.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-26</span><span class="k info">INFO</span><span class="k info">AUTH-READY</span><span class="b">No user/team/role/invite surface</span></div>
+  <div class="body">Swept all controls/text for invite|team|role|member|account|admin|setting → 0 matches. Consistent single-tenant scope.</div></div>
+
+<h3>Positives &amp; polish</h3>
+<div class="finding" style="border-color:rgba(34,197,94,.4)"><div class="h"><span class="id">A6-30</span><span class="k real">INFO+</span><span class="b">The audit stream is a genuine causal log</span></div>
+  <div class="body">Actor + timestamp + causation for every step; honestly records failures and "Discovery returned no usable contractors."</div></div>
+<div class="finding" style="border-color:rgba(34,197,94,.4)"><div class="h"><span class="id">A6-53</span><span class="k real">INFO+</span><span class="b">Responsive + console clean</span></div>
+  <div class="body">No horizontal scroll at 375px or 720px (200% reflow); zero console errors/exceptions across load and all 8 tabs.</div></div>
+<div class="finding"><div class="h"><span class="id">A6-10</span><span class="k med">MEDIUM</span><span class="k med">JARGON</span><span class="b">"ADR-0003", "forensic", "holdout"</span></div>
+  <div class="body">Only ADR-0003 has a gloss. Replace in user-facing titles with plain "Leveling formula: base + scope gaps + lead-time + COI − accepted VE credits".</div></div>
+<div class="finding"><div class="h"><span class="id">A6-07</span><span class="k med">MEDIUM</span><span class="k bad">CLAIM</span><span class="b">Upload says "Supports … TXT" but the input rejects it</span></div>
+  <div class="body"><code>accept=".pdf,.dwg,.dxf"</code> — add <code>.txt</code> or fix the copy.</div></div>
+
+<h2>6 · Top 10 fixes (impact ÷ effort, ~2.5 days)</h2>
+<table>
+<tr><th>#</th><th>Fix</th><th>Screen</th><th>Impact</th><th>Effort</th></tr>
+<tr><td>1</td><td>Deterministic lead-time: <code>max(0, leadWeeks−12)×6000</code>, temperature 0, show arithmetic</td><td>Leveling ingest</td><td><span class="k crit">CRITICAL</span></td><td>S</td></tr>
+<tr><td>2</td><td>Echo parsed divisions/scope and require confirmation before Auto-Scope writes; make undoable</td><td>CSI Scoping</td><td><span class="k high">HIGH</span></td><td>S–M</td></tr>
+<tr><td>3</td><td>Make the RFQ toast reflect delivery result; show "delivery unavailable"</td><td>Dispatch</td><td><span class="k high">HIGH</span></td><td>S</td></tr>
+<tr><td>4</td><td>Filter discovery to company pages matching their domain; drop gov/aggregator/blog URLs</td><td>Discovery</td><td><span class="k high">HIGH</span></td><td>M</td></tr>
+<tr><td>5</td><td>Wire "Record Execution Status" to a real dialog, or remove it</td><td>Contracts</td><td><span class="k med">MEDIUM</span></td><td>S</td></tr>
+<tr><td>6</td><td>Bind A401 contact email to the same contractor record as the name</td><td>Contracts</td><td><span class="k med">MEDIUM</span></td><td>S</td></tr>
+<tr><td>7</td><td>Add the public-shared-demo banner</td><td>Header/footer</td><td><span class="k high">HIGH</span></td><td>XS</td></tr>
+<tr><td>8</td><td>Fix ingest-modal field stability (stable ids/labels; reset on package change)</td><td>Ingest modal</td><td><span class="k med">MEDIUM</span></td><td>S</td></tr>
+<tr><td>9</td><td>Align copy ("A401-style"; qualify $38,500; fetch llms.txt live)</td><td>Docs + Diagnostics</td><td><span class="k med">MEDIUM</span></td><td>XS–S</td></tr>
+<tr><td>10</td><td>Default ingested VEs to not-accepted with explicit toggle; label type as chosen-not-auto</td><td>Leveling + Files</td><td><span class="k med">MEDIUM</span></td><td>S</td></tr>
+</table>
+<div class="callout"><b>Do-nothing (cut, don't fix):</b> "Why GCs Care" panels · "Open source page" if it can't show a result · static <code>/llms.txt</code> embed. &nbsp; <b>NEEDS-DECISION:</b> per-project terms editor · notifications/assignees · revision history · invite templates + reminders · sub-facing portal · tenant-scoped storage.</div>
+
+<h2>7 · Protect list (do not regress)</h2>
+<div class="callout good">
+  <ul>
+    <li>6-stage pipeline with live per-stage counts.</li>
+    <li><b>Per-exclusion and COI arithmetic</b> — exact to the dollar on seeded AND my own non-round numbers.</li>
+    <li>Two-context realtime: <b>23 ms</b> propagation, zero polling, no reload.</li>
+    <li><b>Live, re-runnable eval suite</b> with real tokens/latency/cost and inspectable raw prompts (holdouts have no total in the prompt).</li>
+    <li>The <b>PM-certification gate</b> on the addendum and its honest refusal message.</li>
+    <li><b>Append-only audit stream</b> that discloses failures ("0 delivered", "no usable contractors").</li>
+    <li>Shared-inbox disclosure and honest actor/delivery logging.</li>
+    <li>Executed-contract immutability guard and honest void path.</li>
+    <li>Project-create and project-delete confirmation dialogs; Judge Dock's context-aware confirm.</li>
+    <li>Responsive layout (0 overflow at 375/720) and a clean console.</li>
+  </ul>
+</div>
+
+<h2>8 · Honesty section</h2>
+<div class="card" style="font-size:13.5px">
+  <p><b>Could not test browser-only:</b> true external email send/receive at the provider (app-level 0-delivery observed; root cause is not); any test suite (<code>vitest 80/80</code>, Python <code>36/36</code>, script <code>22/22</code>) or build; repo source beyond README + docs; multi-user concurrency beyond two contexts.</p>
+  <p><b>Left behind:</b> <b>nothing but the demo project.</b> Created and deleted <code>AUDIT6-2 Riverside Water Reclamation Plant</code> and <code>AUDIT6-3 Cedar Ridge Booster Station</code>. Final Projects list verified = <b>"The Domain Tower B - Commercial MEP (Austin, TX)" only</b>. Demo state byte-identical before/after: 3 Pkgs / 4 Subs / 3 RFIs / 2 Bids / 4 Clashes / 1-3 Awarded, $4,250,000 / $3,918,500 / +$331,500 (7.8%) / +$186,000.</p>
+  <p><b>Disclosed constraints respected as non-defects:</b> no auth, OpenAI BYOK with no key, shared AgentMail inboxes, dark-only theme.</p>
+  <p><b>Evidence artifacts under <code>outputs/</code>:</b> <code>audit6-eval-traces.json</code> (82 KB real traces) · <code>audit6-evals-page.png</code> · <code>audit6-discovery-provenance.png</code> · <code>audit6-addendum-no-01.md</code> · <code>audit6-a401-draft-sample.txt</code> · <code>audit6-judgedock.png</code> · <code>audit6-mobile-375.png</code> · <code>audit6-delete-confirm.png</code>.</p>
+</div>
+
+<div class="foot">AUDIT-6 deep pass · generated 2026-09-20 UTC · every finding above was observed on the live deployment; suspected-flaky items were re-tested in two trials.</div>
+
+</div>
+</body>
+</html>

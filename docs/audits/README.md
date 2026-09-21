@@ -12,6 +12,8 @@ in-repo so judges can read them without cloning the raw evidence tree. Every HTM
 | [`audit-3-adversarial.html`](./audit-3-adversarial.html) | 2026-09-18 | Independent audit v3 (AUD-01…AUD-05) with adversarial passes. |
 | [`audit-4-ui.html`](./audit-4-ui.html) / [`audit-4-ui.md`](./audit-4-ui.md) | 2026-09-18 | Human-operator UI audit (F1…F12) — the input to the pass-2 remediation. The Markdown copy is the machine-readable version. |
 | [`audit-5-remediation.html`](./audit-5-remediation.html) | 2026-09-19 | Remediation report, pass 2: verification table for F1–F12, new findings, claim-change decisions, convergence log, before/after evidence. |
+| [`audit-6-usefulness.html`](./audit-6-usefulness.html) / [`audit-6-usefulness.md`](./audit-6-usefulness.md) | 2026-09-20 | Independent adversarial usefulness audit (AUDIT-6): demo + BYO verdicts, C1–C15 claims, A6-xx findings. The input to the pass-3 remediation. Markdown copy is machine-readable. |
+| [`audit-6-remediation.html`](./audit-6-remediation.html) | 2026-09-21 | Remediation report, pass 3: reproduction status for every A6-xx, before/after evidence, new findings from 25 convergence rounds, decisions (baseline weeks, VE/waive defaults, demo carry-overs), BYO proof, regression output, honesty section. |
 
 ## Where the raw evidence lives
 

@@ -67,6 +67,9 @@ recordings/
 # working tree's tracking (it remains in git history).
 scripts/audit2-rem/
 scripts/qa-rem/
+# Raw convergence-round scripts (audit-6 remediation). The curated repro harness
+# (scripts/audit7/lib.mjs, a7-*.mjs) is tracked; round-by-round scripts stay local.
+scripts/audit7/conv-*
 
 # Python artifacts (for tests & verification scripts)
 __pycache__/
