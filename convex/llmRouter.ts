@@ -787,6 +787,10 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
     lower.includes("statutory insurance only") ||
     lower.includes("statutory worker's comp only") ||
     lower.includes("statutory worker's compensation only") ||
+    lower.includes("statutory workers' compensation coverage only") ||
+    lower.includes("statutory workers compensation only") ||
+    lower.includes("workers' compensation coverage only") ||
+    lower.includes("workers compensation coverage only") ||
     lower.includes("statutory wc only") ||
     lower.includes("wc only") ||
     lower.includes("workers comp only") ||

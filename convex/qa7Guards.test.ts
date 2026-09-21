@@ -932,6 +932,8 @@ test("A7CONV-R15A: the deterministic scope-gap net restores a dropped exclusion 
     detectCoiDeficiency("Workers' compensation only. Umbrella liability endorsement excluded. Subrogation included.")
   ).toBe(true);
   expect(detectCoiDeficiency("Umbrella liability endorsement excluded. Subrogation included.")).toBe(true);
+  // A7CONV-R21B: plural "statutory workers' compensation coverage only" is a deficiency.
+  expect(detectCoiDeficiency("Insurance: statutory workers' compensation coverage only.")).toBe(true);
   expect(detectCoiDeficiency("$5,000,000 umbrella included. Subrogation included.")).toBe(false);
 });
 
