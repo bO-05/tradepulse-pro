@@ -1,7 +1,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { cleanNumber, sanitizeBidLevelingOutput, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency, detectCoiAffirmativeCompliance } from "./llmRouter";
+import { cleanNumber, sanitizeBidLevelingOutput, augmentExclusionsWithDeterministicGaps, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency, detectCoiAffirmativeCompliance } from "./llmRouter";
 import { sendAgentmailMessage } from "./agentmailApi";
 import { COI_DEFICIENCY_PENALTY, leadTimePenaltyFor, targetWeeksForDivision } from "./terms";
 
@@ -454,11 +454,19 @@ export const handleBidProcessing = internalAction({
 
     bidData = sanitizeBidLevelingOutput(bidData, { division: tradePkg?.csiDivision });
     if (Array.isArray(bidData?.identifiedExclusions)) {
-      // A7CONV-R9B: unpriced exclusions take the benchmark first; stated dollar
-      // amounts bind afterwards and always win; severity follows the final impact.
+      // A7CONV-R9B/R15A: scope-gap safety net, unpriced benchmarks, stated
+      // amounts (which always win), then severity.
       bidData.identifiedExclusions = normalizeExclusionSeverity(
         applyExplicitExclusionAmounts(
-          applyUnpricedExclusionBenchmarks(bidData.identifiedExclusions, args.text, tradePkg?.csiDivision),
+          applyUnpricedExclusionBenchmarks(
+            augmentExclusionsWithDeterministicGaps(
+              bidData.identifiedExclusions,
+              args.text,
+              tradePkg?.csiDivision
+            ),
+            args.text,
+            tradePkg?.csiDivision
+          ),
           args.text
         )
       );

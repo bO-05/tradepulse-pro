@@ -654,6 +654,73 @@ export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: str
   return modelWeeks;
 }
 
+const SCOPE_GAP_LABELS: Record<string, string> = {
+  CRANE: "Crane hoisting and rigging excluded (deterministic scope-gap check; benchmark applied)",
+  FIRESTOP: "UL 1479 firestopping excluded (deterministic scope-gap check; benchmark applied)",
+  SEISMIC: "Seismic structural bracing excluded (deterministic scope-gap check; benchmark applied)",
+  CORE: "Core drilling and penetration sleeves excluded (deterministic scope-gap check; benchmark applied)",
+  BACKFLOW: "Backflow certification excluded (deterministic scope-gap check; benchmark applied)",
+  BOOSTER: "Booster pump startup excluded (deterministic scope-gap check; benchmark applied)",
+  TAB: "TAB balancing report excluded (deterministic scope-gap check; benchmark applied)",
+  BACNET: "BACnet/DDC controls integration excluded (deterministic scope-gap check; benchmark applied)",
+  VIBRATION: "Vibration isolation excluded (deterministic scope-gap check; benchmark applied)",
+  OVERTIME: "Overtime/premium time excluded (deterministic scope-gap check; benchmark applied)",
+};
+
+/**
+ * A7CONV-R15A: deterministic safety net for known scope gaps. When the proposal
+ * text excludes a documented scope and no extraction produced a row for it, the
+ * GC still gets the benchmark-priced gap instead of silently losing it.
+ */
+export function augmentExclusionsWithDeterministicGaps<T extends { description: string; costImpact: number }>(
+  exclusions: T[],
+  proposalText: string | undefined,
+  division?: string
+): T[] {
+  if (!proposalText) return exclusions;
+  const segments = proposalText.split(/\.(?=\s|$)|\n+/);
+  const inclusionWordRx = /\b(?:included|in-house|self-perform|by\s+us|we\s+furnish)\b/i;
+  const hasExclusionNear = (keywordRx: RegExp): boolean => {
+    for (const segment of segments) {
+      const match = keywordRx.exec(segment);
+      if (!match) continue;
+      const after = segment.slice(match.index + match[0].length, match.index + match[0].length + 90);
+      const before = segment.slice(Math.max(0, match.index - 60), match.index);
+      const exAfter = after.search(EXCLUSION_WORD_SEGMENT_RX);
+      const incAfter = after.search(inclusionWordRx);
+      if (incAfter !== -1 && (exAfter === -1 || incAfter < exAfter)) continue;
+      if (exAfter !== -1 || EXCLUSION_WORD_SEGMENT_RX.test(before)) return true;
+    }
+    return false;
+  };
+  const scopeChecks: Array<{ signature: string; rx: RegExp }> = [
+    { signature: "CRANE", rx: /\b(?:crane|rigging|hoisting|hoist)\b/i },
+    { signature: "FIRESTOP", rx: /\b(?:firestop|firestopping|1479)\b/i },
+    { signature: "SEISMIC", rx: /\b(?:seismic|bracing|1613)\b/i },
+    { signature: "CORE", rx: /\b(?:core\s*drill|core|sleeves?)\b/i },
+    { signature: "BACKFLOW", rx: /\b(?:backflow)\b/i },
+    { signature: "BOOSTER", rx: /\b(?:booster|startup)\b/i },
+    { signature: "TAB", rx: /\b(?:tab|balancing|balance\s*report)\b/i },
+    { signature: "BACNET", rx: /\b(?:bacnet|gateway|ddc|automation)\b/i },
+    { signature: "VIBRATION", rx: /\b(?:vibration|spring\s*isolation)\b/i },
+    { signature: "OVERTIME", rx: /\b(?:overtime|premium\s*time|straight\s*time)\b/i },
+  ];
+  const existing = new Set(
+    exclusions.map((ex) => exclusionScopeSignature(ex.description)).filter((s): s is string => Boolean(s))
+  );
+  const added: T[] = [];
+  for (const { signature, rx } of scopeChecks) {
+    if (existing.has(signature)) continue;
+    if (!hasExclusionNear(rx)) continue;
+    const description = SCOPE_GAP_LABELS[signature] || `${signature} scope excluded (deterministic scope-gap check)`;
+    added.push({
+      description,
+      costImpact: benchmarkExclusionAmount(division, description),
+    } as T);
+  }
+  return added.length > 0 ? [...exclusions, ...added] : exclusions;
+}
+
 /**
  * A7CONV-R14A-F1: affirmative compliance wording, used to clear a model-declared
  * COI deficiency when the proposal text actually shows coverage.

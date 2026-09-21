@@ -1,7 +1,7 @@
 import { mutation, query, action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { sanitizeBidLevelingOutput, extractTextFromPdfStream, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency, detectCoiAffirmativeCompliance } from "./llmRouter";
+import { sanitizeBidLevelingOutput, extractTextFromPdfStream, augmentExclusionsWithDeterministicGaps, applyExplicitExclusionAmounts, applyUnpricedExclusionBenchmarks, normalizeExclusionSeverity, normalizeLeadWeeksFromText, detectCoiDeficiency, detectCoiAffirmativeCompliance } from "./llmRouter";
 import { getRealDocumentPdfBytes } from "./realDocuments";
 import {
   MAX_UPLOAD_BYTES,
@@ -577,12 +577,16 @@ async function doExtractBid(
   const lineItems = (parsed?.lineItems && parsed.lineItems.length > 0)
     ? parsed.lineItems
     : [{ item: "Base Commercial Scope", unit: "LS", quantity: 1, unitCost: baseBid, totalCost: baseBid }];
-  // A7CONV-R9B: unpriced exclusions take the benchmark first; stated dollar
-  // amounts bind afterwards and always win; severity follows the final impact.
+  // A7CONV-R9B/R15A: deterministic scope-gap safety net first, then unpriced
+  // benchmarks, then stated dollar amounts (which always win), then severity.
   const exclusions = normalizeExclusionSeverity(
     applyExplicitExclusionAmounts(
       applyUnpricedExclusionBenchmarks(
-        parsed?.identifiedExclusions ?? [],
+        augmentExclusionsWithDeterministicGaps(
+          parsed?.identifiedExclusions ?? [],
+          proposalText,
+          tradePackage.csiDivision
+        ),
         proposalText,
         tradePackage.csiDivision
       ),

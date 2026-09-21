@@ -12,6 +12,7 @@ import {
   sanitizeBidLevelingOutput,
   applyExplicitExclusionAmounts,
   applyUnpricedExclusionBenchmarks,
+  augmentExclusionsWithDeterministicGaps,
   benchmarkExclusionAmount,
   normalizeExclusionSeverity,
   normalizeLeadWeeksFromText,
@@ -833,6 +834,35 @@ test("A7CONV-R11B/R11A: explicit firestop wording, pump-skid crane, base-line gu
   ).toBe("moderate");
   // A percentage-of-required-umbrella statement is a COI deficiency.
   expect(detectCoiDeficiency("Insurance: we carry 90% of the required umbrella.")).toBe(true);
+});
+
+test("A7CONV-R15A: the deterministic scope-gap net restores a dropped exclusion and stated amounts still win", () => {
+  const text =
+    "Penthouse crane rigging and hoisting is excluded; the insurance-mandated crane allowance is $43,800.00.";
+  const augmented = augmentExclusionsWithDeterministicGaps<{ description: string; costImpact: number }>([], text, "26 00 00");
+  expect(augmented.length).toBe(1);
+  expect(augmented[0].costImpact).toBe(45_000);
+  const finalExclusions = applyExplicitExclusionAmounts(
+    applyUnpricedExclusionBenchmarks(augmented, text, "26 00 00"),
+    text
+  );
+  expect(finalExclusions[0].costImpact).toBe(43_800);
+  // Included scopes are never added.
+  expect(
+    augmentExclusionsWithDeterministicGaps<{ description: string; costImpact: number }>([], "Crane rigging and hoisting is included in the base bid.", "26 00 00")
+  ).toEqual([]);
+  // Existing rows are not duplicated.
+  expect(
+    augmentExclusionsWithDeterministicGaps(
+      [{ description: "Penthouse crane rigging excluded", costImpact: 45_000 }],
+      "Crane rigging is excluded.",
+      "26 00 00"
+    ).length
+  ).toBe(1);
+  // Negated scope statements are not gaps.
+  expect(
+    augmentExclusionsWithDeterministicGaps<{ description: string; costImpact: number }>([], "Nothing is excluded from this scope.", "26 00 00")
+  ).toEqual([]);
 });
 
 test("A7CONV-R13B: position-aware binding, allowance exemptions, and sentence-local COI deficiency", () => {
