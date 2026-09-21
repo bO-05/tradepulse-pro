@@ -657,7 +657,18 @@ export function normalizeLeadWeeksFromText(modelWeeks: number, proposalText: str
 export function detectCoiDeficiency(proposalText: string | undefined): boolean {
   if (!proposalText) return false;
   const lower = proposalText.toLowerCase();
+  // A7CONV-R13B-F4: umbrella/exclusion wording is only a deficiency when both
+  // appear in the SAME sentence, so "umbrella included" plus an unrelated
+  // "excluded" elsewhere is not a deficiency.
+  const umbrellaNegatedNearby = proposalText
+    .split(/[.;](?=\s|$)|\n+/)
+    .some(
+      (sentence) =>
+        /\bumbrella\b/i.test(sentence) &&
+        /\b(?:excluded?|not\s+included|not\s+provided|fee\s+not\s+included)\b/i.test(sentence)
+    );
   const deficiency =
+    umbrellaNegatedNearby ||
     lower.includes("umbrella endorsement fee not included") ||
     lower.includes("excess umbrella liability not provided") ||
     lower.includes("umbrella liability endorsement excluded") ||
@@ -680,9 +691,7 @@ export function detectCoiDeficiency(proposalText: string | undefined): boolean {
     lower.includes("additional insured excluded") ||
     lower.includes("additional insured endorsement excluded") ||
     lower.includes("insurance deficiency") ||
-    lower.includes("coi deficiency") ||
-    (lower.includes("umbrella") &&
-      (lower.includes("excluded") || lower.includes("not included") || lower.includes("not provided")));
+    lower.includes("coi deficiency");
   if (!deficiency) return false;
   const affirmative =
     lower.includes("fully compliant acord 25") ||
@@ -717,6 +726,19 @@ export function isNonExclusionMoneyContext(text: string, amountIndex: number): b
     text.slice(start, amountIndex)
   );
 }
+
+/** A7CONV-R13B-F2: an amount immediately labelled by an insurance term is not an exclusion cost. */
+export function isInsuranceLabelledAmount(text: string, amountEndIndex: number): boolean {
+  return /\b(?:umbrella|liability|insurance|retainage|withheld|bond|liquidated|premium)\b/i.test(
+    text.slice(amountEndIndex, amountEndIndex + 18)
+  );
+}
+
+/** Exclusion-clause wording shared by the benchmark guard and the amount binder. */
+const EXCLUSION_WORD_SEGMENT_RX =
+  /\b(?:exclud|excluded|omit|omitted|by\s+others|by\s+gc|by\s+the\s+gc|gc\s+to\s+(?:provide|furnish)|not\s+included|not\s+by\s+us|not\s+in\s+(?:our\s+)?scope)\b/i;
+/** A single dollar amount; a negative amount is a credit and never binds. */
+const AMOUNT_RX = /(?<![-\d])\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g;
 
 /** Benchmark schedule for unpriced exclusions, keyed by scope signature. */
 export function benchmarkExclusionAmount(division: string | undefined, description: string): number {
@@ -790,16 +812,19 @@ export function applyUnpricedExclusionBenchmarks<T extends { description: string
     // retainage, insurance) never suppresses the benchmark; a stated allowance
     // or cap does.
     const dollarSentence = sentences.find((sentence) => {
-      if (!/\$\s*[0-9]/.test(sentence)) return false;
-      const amounts = [...sentence.matchAll(/\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g)];
-      const hasExclusionContextAmount = amounts.some(
-        (m) => !isNonExclusionMoneyContext(sentence, m.index ?? 0)
+      // A7CONV-R13B: the stated amount must FOLLOW the exclusion clause and be
+      // in exclusion context; a quote/base amount earlier in the sentence does
+      // not suppress the benchmark.
+      const exclusionIndex = sentence.search(EXCLUSION_WORD_SEGMENT_RX);
+      if (exclusionIndex === -1) return false;
+      const amounts = [...sentence.matchAll(AMOUNT_RX)].filter(
+        (m) =>
+          (m.index ?? 0) > exclusionIndex &&
+          !isNonExclusionMoneyContext(sentence, m.index ?? 0) &&
+          !isInsuranceLabelledAmount(sentence, (m.index ?? 0) + m[0].length)
       );
-      return (
-        hasExclusionContextAmount &&
-        !baseLikeSentenceRx.test(sentence) &&
-        scopeMatches(sentence, signature, exTokens, true)
-      );
+      if (amounts.length === 0) return false;
+      return !baseLikeSentenceRx.test(sentence) && scopeMatches(sentence, signature, exTokens, true);
     });
     if (dollarSentence) return ex; // stated amount wins (bound by applyExplicitExclusionAmounts)
     const percentSentence = sentences.find(
@@ -875,7 +900,7 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   // A7CONV-R10B-F1: credit/deduct/VE lines are never exclusion amounts.
   const veOrCreditRx = /\b(?:value engineering|ve[-\s]?\d+|alternate|credit|deduct|savings)\b/i;
   // A7CONV-R10B-F1: a negative amount ("-$2,500") is a credit, never a cost.
-  const amountRx = /(?<![-\d])\$\s*([0-9][0-9,\s]*(?:\.[0-9]{2})?)/g;
+  const amountRx = AMOUNT_RX;
   // A7CONV-R10B-F2: stated amounts may be written in words.
   const WORD_SMALL: Record<string, number> = {
     one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
@@ -922,13 +947,21 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   // are never exclusion costs, even inside an exclusion sentence.
   const amountIsNonExclusion = (segment: string, index: number) =>
     isNonExclusionMoneyContext(segment, index);
-  // A7CONV-R7C-1/R10B-F2: a segment's single stated amount (dollar or words).
+  // A7CONV-R7C-1/R10B-F2/R13B-F3: a segment's single stated amount (dollar or
+  // words); an explicit allowance/cap survives non-exclusion money context.
   const statedAmountOf = (segment: string): number | null => {
-    const amounts = [...segment.matchAll(amountRx)]
-      .filter((m) => !amountIsNonExclusion(segment, m.index ?? 0))
-      .map((m) => Number(m[1].replace(/[,\s]/g, "")));
-    if (amounts.length === 1 && Number.isFinite(amounts[0]) && amounts[0] > 0) return amounts[0];
-    if (amounts.length === 0) return wordsToAmount(segment);
+    const candidates = [...segment.matchAll(amountRx)]
+      .filter((m) => {
+        const idx = m.index ?? 0;
+        if (isInsuranceLabelledAmount(segment, idx + m[0].length)) return false;
+        if (!amountIsNonExclusion(segment, idx)) return true;
+        const before = segment.slice(Math.max(0, idx - 32), idx);
+        return /\b(?:allowance|cap(?:ped)?|credit|stated)\b/i.test(before);
+      })
+      .map((m) => Number(m[1].replace(/[,\s]/g, "")))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (candidates.length === 1) return candidates[0];
+    if (candidates.length === 0) return wordsToAmount(segment);
     return null;
   };
   // A7CONV-R4C-1/R12A-F1: re-join an orphaned amount tail ("… ; allowance: $6,120")
@@ -968,9 +1001,34 @@ export function applyExplicitExclusionAmounts<T extends { description: string; c
   );
   const explicit: Array<{ segment: string; amount: number; used: boolean }> = [];
   for (const seg of segments) {
-    const amount = statedAmountOf(seg);
-    if (amount !== null) {
-      explicit.push({ segment: seg, amount, used: false });
+    // A7CONV-R13B: only an amount that follows the exclusion clause (or a
+    // scope-named allowance in a signature-only segment) is the exclusion's
+    // stated cost; an amount preceding the clause is a base/quote amount.
+    const exclusionIndex = seg.search(exclusionWordSegmentRx);
+    const dollarMatches = [...seg.matchAll(amountRx)].filter((m) => {
+      const idx = m.index ?? 0;
+      // A7CONV-R13B-F2: an amount labelled by an insurance term ("…umbrella
+      // liability requirement") is never the exclusion cost.
+      if (isInsuranceLabelledAmount(seg, idx + m[0].length)) return false;
+      if (!amountIsNonExclusion(seg, idx)) return true;
+      // A7CONV-R13B-F3: an explicit allowance/cap for the named scope binds
+      // even when its sentence mentions insurance or other contract terms.
+      const before = seg.slice(Math.max(0, idx - 32), idx);
+      return /\b(?:allowance|cap(?:ped)?|credit|stated)\b/i.test(before);
+    });
+    const dollarCandidates = dollarMatches
+      .filter((m) => exclusionIndex === -1 || (m.index ?? 0) > exclusionIndex)
+      .map((m) => Number(m[1].replace(/[,\s]/g, "")));
+    if (dollarCandidates.length === 1) {
+      explicit.push({ segment: seg, amount: dollarCandidates[0], used: false });
+      continue;
+    }
+    if (dollarCandidates.length === 0) {
+      const wordAmount = wordsToAmount(seg);
+      const dollarWordIndex = seg.search(/\b(?:dollars?|usd)\b/i);
+      if (wordAmount !== null && (exclusionIndex === -1 || dollarWordIndex > exclusionIndex)) {
+        explicit.push({ segment: seg, amount: wordAmount, used: false });
+      }
     }
   }
   if (explicit.length === 0) return exclusions;

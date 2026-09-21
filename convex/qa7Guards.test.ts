@@ -834,6 +834,49 @@ test("A7CONV-R11B/R11A: explicit firestop wording, pump-skid crane, base-line gu
   expect(detectCoiDeficiency("Insurance: we carry 90% of the required umbrella.")).toBe(true);
 });
 
+test("A7CONV-R13B: position-aware binding, allowance exemptions, and sentence-local COI deficiency", () => {
+  // R13B-F1: a quoted base before the exclusion clause never binds.
+  const quoted = applyExplicitExclusionAmounts(
+    [{ description: "Seismic structural bracing per IBC Section 1613 is excluded", costImpact: 0 }],
+    "Quoted at $1,182,500.00 for Division 26, seismic structural bracing per IBC Section 1613 is excluded at 3.5% of contract value."
+  );
+  expect(quoted[0].costImpact).toBe(0);
+  const quotedBench = applyUnpricedExclusionBenchmarks(
+    [{ description: "Seismic structural bracing per IBC Section 1613 is excluded", costImpact: 0 }],
+    "Quoted at $1,182,500.00 for Division 26, seismic structural bracing per IBC Section 1613 is excluded at 3.5% of contract value.",
+    "26 00 00"
+  );
+  expect(quotedBench[0].costImpact).toBe(55_000);
+  expect(quotedBench[0].description).toMatch(/percentage; benchmark applied/i);
+
+  // R13B-F2: a stated allowance binds even beside an umbrella requirement.
+  const umbrella = applyExplicitExclusionAmounts(
+    [{ description: "Penthouse crane rigging excluded", costImpact: 0 }],
+    "Penthouse crane rigging is excluded at $39,500.00 with a $5,000,000.00 umbrella liability insurance requirement."
+  );
+  expect(umbrella[0].costImpact).toBe(39_500);
+
+  // R13B-F3: "total"/"insurance-mandated" allowance clauses still bind.
+  const totalAllowance = applyExplicitExclusionAmounts(
+    [{ description: "Firestopping work excluded", costImpact: 0 }],
+    "The total firestopping allowance is $18,400.00."
+  );
+  expect(totalAllowance[0].costImpact).toBe(18_400);
+  const insuranceAllowance = applyExplicitExclusionAmounts(
+    [{ description: "Crane rigging excluded", costImpact: 0 }],
+    "The insurance-mandated crane allowance is $43,800.00."
+  );
+  expect(insuranceAllowance[0].costImpact).toBe(43_800);
+
+  // R13B-F4: "umbrella included" plus an unrelated "excluded" is compliant.
+  expect(
+    detectCoiDeficiency(
+      "Insurance: ACORD 25 attached; $5,000,000.00 commercial umbrella liability included. Seismic bracing is excluded."
+    )
+  ).toBe(false);
+  expect(detectCoiDeficiency("Umbrella liability endorsement excluded.")).toBe(true);
+});
+
 test("A7CONV-R12B: base/retainage amounts never bind as exclusions; scope collisions resolve by head noun", () => {
   // A base amount named in the exclusion sentence is not the exclusion cost.
   const baseLeak = applyExplicitExclusionAmounts(
