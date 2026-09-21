@@ -679,20 +679,12 @@ export function augmentExclusionsWithDeterministicGaps<T extends { description: 
 ): T[] {
   if (!proposalText) return exclusions;
   const segments = proposalText.split(/\.(?=\s|$)|\n+/);
-  const inclusionWordRx = /\b(?:included|in-house|self-perform|by\s+us|we\s+furnish)\b/i;
-  const hasExclusionNear = (keywordRx: RegExp): boolean => {
-    for (const segment of segments) {
-      const match = keywordRx.exec(segment);
-      if (!match) continue;
-      const after = segment.slice(match.index + match[0].length, match.index + match[0].length + 90);
-      const before = segment.slice(Math.max(0, match.index - 60), match.index);
-      const exAfter = after.search(EXCLUSION_WORD_SEGMENT_RX);
-      const incAfter = after.search(inclusionWordRx);
-      if (incAfter !== -1 && (exAfter === -1 || incAfter < exAfter)) continue;
-      if (exAfter !== -1 || EXCLUSION_WORD_SEGMENT_RX.test(before)) return true;
-    }
-    return false;
-  };
+  const inclusionWordRx = /\b(?:included|in-house|self-perform|by\s+us|we\s+furnish|provided\s+as\s+specified|as\s+specified)\b/i;
+  const negationSentenceRx =
+    /\b(?:no\s+(?:items?|scope|work|line\s*items?|services?|materials?)\s+(?:are|is|were|have\s+been)?\s*(?:excluded|omitted)|nothing\s+(?:is\s+|has\s+been\s+)?(?:excluded|omitted)|none\s+(?:are|is|were)\s+(?:excluded|omitted))\b/i;
+  const existing = new Set(
+    exclusions.map((ex) => exclusionScopeSignature(ex.description)).filter((s): s is string => Boolean(s))
+  );
   const scopeChecks: Array<{ signature: string; rx: RegExp }> = [
     { signature: "CRANE", rx: /\b(?:crane|rigging|hoisting|hoist)\b/i },
     { signature: "FIRESTOP", rx: /\b(?:firestop|firestopping|1479)\b/i },
@@ -705,14 +697,37 @@ export function augmentExclusionsWithDeterministicGaps<T extends { description: 
     { signature: "VIBRATION", rx: /\b(?:vibration|spring\s*isolation)\b/i },
     { signature: "OVERTIME", rx: /\b(?:overtime|premium\s*time|straight\s*time)\b/i },
   ];
-  const existing = new Set(
-    exclusions.map((ex) => exclusionScopeSignature(ex.description)).filter((s): s is string => Boolean(s))
-  );
+  // A7CONV-R16A-F1/R16B-F1: only the HEAD scope of an exclusion sentence can be
+  // a gap; modifier mentions ("vibration isolation on the booster skid") are not.
+  const headScopeOf = (segment: string): string | null => {
+    let best: { signature: string; index: number } | null = null;
+    for (const { signature, rx } of scopeChecks) {
+      const match = rx.exec(segment);
+      if (match && (!best || match.index < best.index)) best = { signature, index: match.index };
+    }
+    return best ? best.signature : null;
+  };
+  const addedSignatures = new Set<string>();
+  for (const segment of segments) {
+    if (negationSentenceRx.test(segment)) continue;
+    const head = headScopeOf(segment);
+    if (!head) continue;
+    const { rx } = scopeChecks.find((s) => s.signature === head)!;
+    const match = rx.exec(segment)!;
+    const after = segment.slice(match.index + match[0].length, match.index + match[0].length + 90);
+    const before = segment.slice(Math.max(0, match.index - 60), match.index);
+    const exAfter = after.search(EXCLUSION_WORD_SEGMENT_RX);
+    const incAfter = after.search(inclusionWordRx);
+    if (incAfter !== -1 && (exAfter === -1 || incAfter < exAfter)) continue;
+    const exclusionPresent = exAfter !== -1 || EXCLUSION_WORD_SEGMENT_RX.test(before);
+    if (!exclusionPresent) continue;
+    if (existing.has(head) || addedSignatures.has(head)) continue;
+    addedSignatures.add(head);
+  }
   const added: T[] = [];
-  for (const { signature, rx } of scopeChecks) {
-    if (existing.has(signature)) continue;
-    if (!hasExclusionNear(rx)) continue;
-    const description = SCOPE_GAP_LABELS[signature] || `${signature} scope excluded (deterministic scope-gap check)`;
+  for (const signature of addedSignatures) {
+    const description =
+      SCOPE_GAP_LABELS[signature] || `${signature} scope excluded (deterministic scope-gap check)`;
     added.push({
       description,
       costImpact: benchmarkExclusionAmount(division, description),
@@ -730,7 +745,8 @@ export function detectCoiAffirmativeCompliance(proposalText: string | undefined)
   const lower = proposalText.toLowerCase();
   return (
     lower.includes("fully compliant acord 25") ||
-    /\$\s*5\s*(?:m(?:illion)?|[0-9,.]*)\s*commercial\s+umbrella/i.test(proposalText) ||
+    /\bumbrella\b[^.\n]{0,80}?\$\s*5[0-9,.]*/i.test(proposalText) ||
+    /\$\s*5[0-9,.]*[^.\n]{0,40}?\bumbrella\b/i.test(proposalText) ||
     lower.includes("$5m umbrella") ||
     lower.includes("$10m umbrella") ||
     lower.includes("umbrella included") ||

@@ -861,8 +861,33 @@ test("A7CONV-R15A: the deterministic scope-gap net restores a dropped exclusion 
   ).toBe(1);
   // Negated scope statements are not gaps.
   expect(
-    augmentExclusionsWithDeterministicGaps<{ description: string; costImpact: number }>([], "Nothing is excluded from this scope.", "26 00 00")
+    augmentExclusionsWithDeterministicGaps<{ description: string; costImpact: number }>(
+      [],
+      "Nothing is excluded from this scope.",
+      "26 00 00"
+    )
   ).toEqual([]);
+  // A7CONV-R16A-F1: only the HEAD scope of the sentence is a candidate; a
+  // modifier mention ("vibration isolation on the booster skid") adds nothing.
+  expect(
+    augmentExclusionsWithDeterministicGaps(
+      [{ description: "Vibration isolation on the booster skid excluded", costImpact: 6_900 }],
+      "Vibration isolation on the booster skid is excluded at $6,900.00.",
+      "22 00 00"
+    ).length
+  ).toBe(1);
+  // A7CONV-R16B-F1: a negation sentence with an "as specified" inclusion adds nothing.
+  expect(
+    augmentExclusionsWithDeterministicGaps<{ description: string; costImpact: number }>(
+      [],
+      "No items are excluded from our Base Bid and crane rigging and hoisting is provided as specified.",
+      "23 00 00"
+    )
+  ).toEqual([]);
+  // A7CONV-R16B-F2: umbrella liability limits phrased after the amount are affirmative.
+  expect(
+    detectCoiAffirmativeCompliance("coverage with umbrella liability limits of $5,000,000.00 are included.")
+  ).toBe(true);
 });
 
 test("A7CONV-R13B: position-aware binding, allowance exemptions, and sentence-local COI deficiency", () => {
