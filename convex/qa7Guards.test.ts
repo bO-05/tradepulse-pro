@@ -649,6 +649,21 @@ test("A7CONV-R3C-2/3/4/5: inclusion-negatives are not exclusions; plugs are not 
   expect(keptImpacts.length).toBeGreaterThanOrEqual(2);
 });
 
+test("A7CONV-R20A: the scope named first in the text wins over later modifiers", () => {
+  // A TAB row that mentions commissioning is TAB, not BACNET.
+  expect(
+    benchmarkExclusionAmount("23 00 00", "TAB balancing and commissioning report excluded")
+  ).toBe(28_000);
+  // A booster row that mentions controls is BOOSTER, not BACNET.
+  expect(
+    benchmarkExclusionAmount("22 00 00", "Booster pump startup, alignment, and controls verification excluded")
+  ).toBe(12_000);
+  // Pure BACnet wording still resolves to BACNET.
+  expect(
+    benchmarkExclusionAmount("23 00 00", "Factory commissioning of DDC controls omitted")
+  ).toBe(18_000);
+});
+
 test("A7CONV-R19B: updateBidAdjustments accepts and preserves canonicalCode on exclusion rows", async () => {
   const t = convexTest(schema, modules);
   const projectId = await makeProject(t, "A7 Adjustments CanonicalCode Project");

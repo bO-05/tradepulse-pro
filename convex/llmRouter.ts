@@ -959,41 +959,45 @@ export function applyUnpricedExclusionBenchmarks<T extends { description: string
  */
 export function exclusionScopeSignature(value: string): string | null {
   const v = (value || "").toLowerCase();
-  if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) return "BACNET";
-  if (/crane|rigging|hoisting/.test(v)) return "CRANE";
-  // A7CONV-R11B-F2 / R12B-F3: head-noun precedence resolves collisions between
-  // firestop wording and sleeve/penetration nouns.
-  const startsFirestop = /^\s*(?:ul\s*)?(?:firestop|firestopping|1479)/i.test(v) || /1479/.test(v);
-  const startsCore = /^\s*(?:ul\s*)?(?:core|drill)/i.test(v);
-  if (startsFirestop) return "FIRESTOP";
-  if (startsCore) return "CORE";
-  if (/firestop|firestopping|1479/.test(v)) return "FIRESTOP";
-  if (/core|drill|sleeve/.test(v)) return "CORE";
-  if (/penetration/.test(v)) return "FIRESTOP";
-  if (/seismic|bracing|1613/.test(v)) return "SEISMIC";
-  if (/overtime|premium|straight\s*time/.test(v)) return "OVERTIME";
-  if (/tab|balanc/.test(v)) return "TAB";
-  if (/vibration|isolation|spring/.test(v)) return "VIBRATION";
-  if (/backflow/.test(v)) return "BACKFLOW";
-  if (/booster|startup/.test(v)) return "BOOSTER";
-  return null;
+  // A7CONV-R20A: the scope named FIRST in the text wins, so "TAB balancing and
+  // commissioning" is TAB (not BACNET) and "Booster startup and controls" is
+  // BOOSTER (not BACNET).
+  const candidates: Array<{ signature: string; rx: RegExp }> = [
+    { signature: "CRANE", rx: /\b(?:crane|rigging|hoisting|hoist)\b/ },
+    { signature: "FIRESTOP", rx: /\b(?:firestop|firestopping|1479)\b/ },
+    { signature: "CORE", rx: /\b(?:core|drill|sleeve)s?\b/ },
+    { signature: "SEISMIC", rx: /\b(?:seismic|bracing|1613)\b/ },
+    { signature: "OVERTIME", rx: /\b(?:overtime|premium|straight\s*time)\b/ },
+    { signature: "TAB", rx: /\b(?:tab|balanc)/ },
+    { signature: "BACNET", rx: /\b(?:bacnet|ddc|commissioning|controls|automation|gateway)\b/ },
+    { signature: "VIBRATION", rx: /\b(?:vibration|isolation|spring)\b/ },
+    { signature: "BACKFLOW", rx: /\b(?:backflow)\b/ },
+    { signature: "BOOSTER", rx: /\b(?:booster|startup)\b/ },
+  ];
+  let best: { signature: string; index: number } | null = null;
+  for (const { signature, rx } of candidates) {
+    const match = rx.exec(v);
+    if (match && (!best || match.index < best.index)) best = { signature, index: match.index };
+  }
+  if (best) return best.signature;
+  return /\bpenetration\b/.test(v) ? "FIRESTOP" : null;
 }
 
 /** All scope signatures present in a text; used to avoid ambiguous matches. */
 export function exclusionScopeSignatures(value: string): Set<string> {
   const v = (value || "").toLowerCase();
   const found = new Set<string>();
-  if (/bacnet|ddc|commissioning|controls|automation|gateway/.test(v)) found.add("BACNET");
-  if (/crane|rigging|hoisting/.test(v)) found.add("CRANE");
-  if (/firestop|firestopping|1479/.test(v)) found.add("FIRESTOP");
-  if (/core|drill|sleeve/.test(v)) found.add("CORE");
-  if (!found.has("FIRESTOP") && !found.has("CORE") && /penetration/.test(v)) found.add("FIRESTOP");
-  if (/seismic|bracing|1613/.test(v)) found.add("SEISMIC");
-  if (/overtime|premium|straight\s*time/.test(v)) found.add("OVERTIME");
-  if (/tab|balanc/.test(v)) found.add("TAB");
-  if (/vibration|isolation|spring/.test(v)) found.add("VIBRATION");
-  if (/backflow/.test(v)) found.add("BACKFLOW");
-  if (/booster|startup/.test(v)) found.add("BOOSTER");
+  if (/\b(?:crane|rigging|hoisting|hoist)\b/.test(v)) found.add("CRANE");
+  if (/\b(?:firestop|firestopping|1479)\b/.test(v)) found.add("FIRESTOP");
+  if (/\b(?:core|drill|sleeve)s?\b/.test(v)) found.add("CORE");
+  if (!found.has("FIRESTOP") && !found.has("CORE") && /\bpenetration\b/.test(v)) found.add("FIRESTOP");
+  if (/\b(?:seismic|bracing|1613)\b/.test(v)) found.add("SEISMIC");
+  if (/\b(?:overtime|premium|straight\s*time)\b/.test(v)) found.add("OVERTIME");
+  if (/\b(?:tab|balanc)/.test(v)) found.add("TAB");
+  if (/\b(?:bacnet|ddc|commissioning|controls|automation|gateway)\b/.test(v)) found.add("BACNET");
+  if (/\b(?:vibration|isolation|spring)\b/.test(v)) found.add("VIBRATION");
+  if (/\b(?:backflow)\b/.test(v)) found.add("BACKFLOW");
+  if (/\b(?:booster|startup)\b/.test(v)) found.add("BOOSTER");
   return found;
 }
 
