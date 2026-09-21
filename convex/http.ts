@@ -94,6 +94,11 @@ TradePulse Pro automates the $1.8T commercial construction subcontractor procure
 - Discoverability: GET ${siteUrl}/llms.txt
 - Reactive Engine: Convex Realtime WebSockets (Zero Polling Invariant)
 
+## Verification & Audit Trail
+- Public repository: https://github.com/bO-05/tradepulse-pro
+- Independent audit + remediation reports: docs/audits/ (audit-6-usefulness, audit-6-remediation)
+- Browser-only re-verification guide for auditors: docs/audits/audit-6-remediation.md (section 9)
+
 ## Normalization Formula (ADR-0003)
 Leveled Cost = Base Bid + Sum(Scope Gaps) + Lead Time Penalty + COI Penalty - Accepted Alternates
 
