@@ -3,6 +3,7 @@
 **Live app:** https://brainy-skunk-440.convex.site/
 **Repo:** https://github.com/bO-05/tradepulse-pro
 **Purpose:** record a ≤3:00 submission video. Every number quoted below is live in the app; do not narrate a figure you cannot see on screen.
+**Word-for-word narration with exact per-beat values:** [DEMO-VOICEOVER.md](./DEMO-VOICEOVER.md).
 
 ---
 
