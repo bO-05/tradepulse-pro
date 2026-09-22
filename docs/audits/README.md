@@ -7,6 +7,7 @@ in-repo so judges can read them without cloning the raw evidence tree. Every HTM
 | Artifact | Date | What it is |
 |---|---|---|
 | [`DEMO-SCRIPT.md`](./DEMO-SCRIPT.md) | 2026-09-17 | Three-minute demo/video script with a shot list. |
+| [`DEMO-SCRIPT-VOICEOVER.md`](./DEMO-SCRIPT-VOICEOVER.md) | 2026-09-21 | Filled-in, timed voiceover script: word-for-word narration per beat, exact on-screen values and click paths, research anchors, honesty micro-lines, and the pre/post-record checklist. |
 | [`audit-1-ux.html`](./audit-1-ux.html) | 2026-09-12 | First UX audit of the deployed app. |
 | [`audit-2-user-journey.html`](./audit-2-user-journey.html) | 2026-09-17 | Five-persona user-journey audit (BUG-01…BUG-36 + observations). Screenshots under [`images/`](./images). |
 | [`audit-3-adversarial.html`](./audit-3-adversarial.html) | 2026-09-18 | Independent audit v3 (AUD-01…AUD-05) with adversarial passes. |
